@@ -1,0 +1,17 @@
+# Kashaf Lasani Cargo Services (KLC)
+
+> KLC is a cargo and transport company in Pakistan. Main route: Sialkot to Karachi. Customers can track a bilty online, book a bilty, and see port status and bilty rates.
+
+## Services
+- Bilty tracking: enter a bilty number to see status, route and destination contact.
+- Bilty booking: cartons, bales and part loads, charged per kg (or by CBM volume), paid or to-pay.
+- Port delivery: export cargo to KPT, QFS, Port Qasim and dry ports.
+- Online ledger for business clients.
+
+## Cities served
+Sialkot, Karachi, Lahore, Gujranwala, Multan, Rawalpindi, Hyderabad, Sahiwal, Port Qasim.
+
+## Contact
+- Call or WhatsApp: 0300-6166561, 0307-6401597
+- Office landline: 052-4587207
+- Email: kashaf.lasani@gmail.com

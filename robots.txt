@@ -1,0 +1,17 @@
+# Put this file at https://zaibislam0-creator.github.io/KLC/robots.txt
+User-agent: *
+Allow: /
+
+# AI and search crawlers are welcome
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://zaibislam0-creator.github.io/KLC/sitemap.xml
