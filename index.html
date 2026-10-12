@@ -1,6 +1,8 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="canonical" href="https://zaibislam0-creator.github.io/KLC/"><meta property="og:url" content="https://zaibislam0-creator.github.io/KLC/"></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Kashaf Lasani Cargo Services (KLC) | Bilty Tracking & Cargo Booking, Sialkot to Karachi</title>
 <meta name="description" content="KLC (Kashaf Lasani Cargo Services) is a cargo and transport company in Pakistan. Track your bilty online, book a bilty, and ship cargo from Sialkot to Karachi, Lahore, Multan, Rawalpindi and more.">
+<link rel="canonical" href="https://kashaflasanicargo.com/">
+<meta property="og:url" content="https://kashaflasanicargo.com/">
 <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
 <meta name="theme-color" content="#861D24">
 <meta name="keywords" content="KLC, Kashaf Lasani Cargo Services, bilty tracking, track bilty, cargo Sialkot to Karachi, bilty booking, transport company Pakistan">
@@ -1821,15 +1823,15 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
   <form class="panel f lockcard" id="lockForm">
     <h2>Staff sign-in</h2>
     <p class="hint" style="margin:0">This area shows costs, profit and customer details, so it is for KLC staff only.</p>
-    <label>Username<input id="staffUser" autocomplete="username" required></label>
+    <label>Email<input id="staffUser" type="email" autocomplete="username" required></label>
     <label>Password<input id="pin" type="password" autocomplete="current-password" required></label>
     <button class="btn" type="submit">Sign in</button>
-    <p class="hint" style="margin:0">Use the username and password given by your KLC admin.</p>
+    <p class="hint" style="margin:0"><button class="linkbtn" type="button" id="forgotBtn">Forgot password?</button> · Login is given by your KLC admin.</p>
   </form>
   <div id="panelBody" hidden>
   <div class="kp-head">
     <div class="kp-id"><img class="kp-logo" alt="" aria-hidden="true"><div><div class="kp-title">KLC Panel</div><div class="kp-who" id="whoami"></div></div></div>
-    <div class="kp-head-r"><span class="kp-date" id="kpDate"></span><button type="button" class="btn sm kp-chat" id="kpChatBtn" data-chatopen="1" hidden>💬 Customer chats<i class="kp-badge" id="kpChatBadge" hidden></i></button><button type="button" class="kp-bell" data-kpinbox="1" aria-label="Inbox">🔔<i class="kp-badge" id="kpBell" hidden></i></button><button class="btn ghost sm" type="button" id="lockBtn">Sign out</button></div>
+    <div class="kp-head-r"><span class="kp-date" id="kpDate"></span><button type="button" class="btn sm kp-chat" id="kpChatBtn" data-chatopen="1" hidden>💬 Customer chats<i class="kp-badge" id="kpChatBadge" hidden></i></button><button type="button" class="kp-bell" data-kpinbox="1" aria-label="Inbox">🔔<i class="kp-badge" id="kpBell" hidden></i></button><button class="btn ghost sm" type="button" id="pwBtn">Change password</button><button class="btn ghost sm" type="button" id="lockBtn">Sign out</button></div>
   </div>
   <div class="kp-layout">
   <nav class="kp-menu" id="subtabs" aria-label="Panel sections">
@@ -2053,11 +2055,10 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
       <div class="grid2">
         <form class="panel f" id="staffForm">
           <h2>New staff account</h2>
-          <p class="hint" style="margin:0">Choose the person's role. The role decides what they can open and do.</p>
+          <p class="hint" style="margin:0">First create the person's login in Supabase (Authentication, Users, Add user). Then add the same email here and choose a role. The role decides what they can open and do.</p>
           <label>Full name<input id="sfName" required></label>
           <div class="row2">
-            <label>Username<input id="sfUser" required autocomplete="off"></label>
-            <label>Password<input id="sfPass" type="text" required minlength="6" autocomplete="off"></label>
+            <label>Email (login)<input id="sfUser" type="email" required autocomplete="off"></label>
           </div>
           <label>Role<select id="sfRole"></select></label>
           <p class="hint" style="margin:0">Need a new category such as "Cashier"? Open the <b>Roles (categories)</b> tab above.</p>
@@ -2300,11 +2301,7 @@ function seed(){
       {id:"accounts",name:"Accountant",perms:["acct","pay","cost"]}
     ],
     staff:[
-      {user:"zaib islam",pass:"804",name:"Zaib Islam",role:"admin",active:true},
-      {user:"admin",pass:"klc@123",name:"Admin",role:"admin",active:true},
-      {user:"accounts",pass:"klc@123",name:"Imran (accounts)",role:"accounts",active:true},
-      {user:"booking",pass:"klc@123",name:"Bilal (booking)",role:"booking",active:true},
-      {user:"dispatch",pass:"klc@123",name:"Rashid (dispatch)",role:"dispatch",active:true}
+      {user:"zaibislam0@gmail.com",name:"Zaib Islam",role:"admin",active:true}
     ],
     payments:[
       {id:"RCPT-1001",acct:"KLC-C01",date:ago(100),amount:50000,method:"Cheque",chq:"004512",bank:"Meezan Bank",chqDate:ago(101).slice(0,10),chqStatus:"Cleared",by:"Imran (accounts)",note:"Against VB-0999"},
@@ -2321,6 +2318,12 @@ function seed(){
 }
 let db;
 try{const s=localStorage.getItem(KEY);db=s?JSON.parse(s):seed()}catch(e){db=seed()}
+const SB_URL="https://vcsesaxjjgiaqrkcvjyk.supabase.co",SB_KEY="sb_publishable_wG5pSbwbSmKXB2KQhFNJPQ_vLTecM_m",ADMIN_EMAIL="zaibislam0@gmail.com";
+(function(){/* old demo accounts and any stored passwords are removed; logins now live in Supabase */
+  try{db.staff=(Array.isArray(db.staff)?db.staff:[]).filter(u=>/@/.test(u.user||"")).map(u=>{const c={...u};delete c.pass;return c});
+  const a=db.staff.find(u=>u.user===ADMIN_EMAIL);if(a){a.role="admin";a.active=true}else db.staff.unshift({user:ADMIN_EMAIL,name:"Zaib Islam",role:"admin",active:true});
+  localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}
+})();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
 let city="";try{city=localStorage.getItem(CITYKEY)||""}catch(e){}
 
@@ -3657,18 +3660,17 @@ function pAdmin(){
     <td><select data-urole="${esc(u.user)}" aria-label="Role for ${esc(u.user)}" style="width:auto;padding:6px 8px;font-size:13px" ${self?"disabled":""}>${opts(u.role)}</select></td>
     <td><div class="ucities">${(u.cities||[]).length?u.cities.map(c=>`<span class="tag">${esc(c)}</span>`).join(""):'<span class="hint" style="margin:0">All cities</span>'}</div><button class="linkbtn" type="button" data-ucity="${esc(u.user)}">Change</button></td>
     <td>${self?'<span class="ok">Active</span>':`<div class="inline-actions" style="align-items:center">${u.active?'<span class="ok">Active</span>':'<span class="due">Off</span>'}<button class="btn ghost sm" type="button" data-uact="${esc(u.user)}">${u.active?"Switch off":"Switch on"}</button></div>`}</td>
-    <td><div class="inline-actions"><button class="btn ghost sm" type="button" data-upass="${esc(u.user)}">Reset password</button>${self?"":`<button class="btn ghost sm" type="button" data-udel="${esc(u.user)}" aria-label="Remove user">✕</button>`}</div></td></tr>`}).join("");
+    <td><div class="inline-actions"><button class="btn ghost sm" type="button" data-upass="${esc(u.user)}">Send reset email</button>${self?"":`<button class="btn ghost sm" type="button" data-udel="${esc(u.user)}" aria-label="Remove user">✕</button>`}</div></td></tr>`}).join("");
 }
 const activeAdmins=()=>db.staff.filter(u=>u.active&&roleOf(u)?.perms.includes("admin")).length;
 $("#roleForm").addEventListener("submit",e=>{e.preventDefault();const n=$("#roleName").value.trim();const id=n.toLowerCase().replace(/[^a-z0-9]+/g,"-");
   if(db.roles.some(r=>r.id===id||r.name.toLowerCase()===n.toLowerCase())){toast("A role with this name already exists");return}
   db.roles.push({id,name:n,perms:[]});save();e.target.reset();pAdmin();toast(`Role "${n}" added. Tick its permissions in the table.`)});
 $("#staffForm").addEventListener("submit",e=>{e.preventDefault();const u=$("#sfUser").value.trim().toLowerCase();
-  if(!/^[a-z0-9._ -]{3,}$/.test(u)){toast("Username: at least 3 letters or numbers");return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u)){toast("Enter a valid email");return}
   if(db.staff.some(x=>x.user===u)){toast("This username is already taken");return}
-  if($("#sfPass").value.length<6){toast("Password must be at least 6 characters");return}
   const cs=[...document.querySelectorAll('[name=sfc]:checked')].map(x=>x.value);
-  db.staff.push({user:u,pass:$("#sfPass").value,name:$("#sfName").value.trim(),role:$("#sfRole").value,active:true,cities:cs});save();e.target.reset();pAdmin();toast(`User ${u} added${cs.length?" for "+cs.join(", "):" for all cities"}`)});
+  db.staff.push({user:u,name:$("#sfName").value.trim(),role:$("#sfRole").value,active:true,cities:cs});save();e.target.reset();pAdmin();toast(`User ${u} added${cs.length?" for "+cs.join(", "):" for all cities"}`)});
 function openCityEditor(un){
   const u=db.staff.find(x=>x.user===un);if(!u)return;
   const m=document.createElement("div");m.className="modal";m.setAttribute("role","dialog");m.setAttribute("aria-label","Inbox cities");
@@ -3857,7 +3859,7 @@ document.addEventListener("click",e=>{
   else if(d.delrole){const r=db.roles.find(x=>x.id===d.delrole);if(db.staff.some(u=>u.role===r.id)){toast(`Move the users with role "${r.name}" to another role first`);return}db.roles=db.roles.filter(x=>x!==r);save();pAdmin();toast(`Role "${r.name}" removed`)}
   else if(d.uact){const u=db.staff.find(x=>x.user===d.uact);u.active=!u.active;if(activeAdmins()===0){u.active=true;toast("At least one active user must keep admin access");return}save();pAdmin();toast(`${u.name} switched ${u.active?"on":"off"}`)}
   else if(d.udel){const u=db.staff.find(x=>x.user===d.udel);if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Sure? Remove";return}db.staff=db.staff.filter(x=>x!==u);if(activeAdmins()===0){db.staff.push(u);toast("At least one active user must keep admin access");pAdmin();return}save();pAdmin();toast(`User ${u.user} removed`)}
-  else if(d.upass){const u=db.staff.find(x=>x.user===d.upass);const np="klc"+Math.floor(1000+Math.random()*9000);u.pass=np;save();t.outerHTML=`<span class="hint" style="margin:0">New password: <b class="mono">${np}</b></span>`;toast(`Password reset for ${u.user}. Tell them the new password.`)}
+  else if(d.upass){sbRecover(d.upass).then(ok=>toast(ok?"Reset email sent to "+d.upass:"Could not send. Try again later."))}
   else if(d.ledger){ledgerCode=d.ledger;pAcct();$("#ledgerBox").scrollIntoView({behavior:"smooth",block:"start"})}
   else if(d.closeledger){ledgerCode="";pAcct()}
   else if(d.lpclear){periods[d.lpclear]={from:"",to:""};d.lpclear==="staff"?pAcct():renderAccount()}
@@ -3895,13 +3897,52 @@ document.addEventListener("change",e=>{
   else if(t.dataset?.chq){const p=db.payments.find(x=>x.id===t.dataset.chq);p.chqStatus=t.value;save();renderPanel();toast(`Cheque ${p.chq||""} marked ${t.value.toLowerCase()}${t.value==="Bounced"?". It is no longer counted as paid.":""}`)}
 });
 document.addEventListener("click",e=>{const c=e.target.closest("[data-acc]");if(!c)return;const [code,ph]=c.dataset.acc.split("|");$("#accCode").value=code;$("#accPhone").value=ph;$("#accForm").requestSubmit()});
-$("#lockForm").addEventListener("submit",e=>{e.preventDefault();
-  {const z=db.staff.find(x=>x.user==="zaib islam"),ty=$("#staffUser").value.trim().toLowerCase().replace(/\s+/g," ");if(ty==="zaib islam"&&$("#pin").value.trim()==="804"){if(z){z.pass="804";z.active=true;z.role="admin"}else db.staff.unshift({user:"zaib islam",pass:"804",name:"Zaib Islam",role:"admin",active:true});if(!Array.isArray(db.roles))db.roles=[];const AP=["bilty","rates","cost","acct","pay","news","dir","admin","partners"];let ar=db.roles.find(x=>x.id==="admin");if(!ar)db.roles.unshift({id:"admin",name:"Admin",perms:AP.slice(),locked:true});else{if(!Array.isArray(ar.perms))ar.perms=[];AP.forEach(k=>{if(!ar.perms.includes(k))ar.perms.push(k)});ar.locked=true}save()}}const u=$("#staffUser").value.trim().toLowerCase().replace(/\s+/g," "),acc=db.staff.find(x=>x.user===u&&(x.pass===$("#pin").value||x.pass===$("#pin").value.trim()));
-  if(!acc){$("#pin").setAttribute("aria-invalid","true");$("#pin").value="";toast("Wrong username or password");return}
-  if(!acc.active){$("#pin").value="";toast("This account is switched off. Ask the admin.");return}
+/* ---- Supabase staff login ---- */
+const sbH=(tok)=>({"apikey":SB_KEY,"Content-Type":"application/json",...(tok?{"Authorization":"Bearer "+tok}:{})});
+const sbGet=()=>{try{return JSON.parse(sessionStorage.getItem("klc-sb")||"null")}catch(e){return null}};
+const sbSet=d=>{try{d?sessionStorage.setItem("klc-sb",JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+(d.expires_in||3600)})):sessionStorage.removeItem("klc-sb")}catch(e){}};
+async function sbToken(){const x=sbGet();if(!x)return null;if(x.expires_at-60>Date.now()/1000)return x.access_token;
+  try{const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:sbH(),body:JSON.stringify({refresh_token:x.refresh_token})});if(!r.ok)return null;const d=await r.json();sbSet(d);return d.access_token}catch(e){return null}}
+async function sbRecover(email){try{const r=await fetch(SB_URL+"/auth/v1/recover?redirect_to="+encodeURIComponent(location.origin+location.pathname),{method:"POST",headers:sbH(),body:JSON.stringify({email:String(email).trim().toLowerCase()})});return r.ok}catch(e){return false}}
+function pwModal(recovery){
+  if($("#pwModal"))return;
+  const m=document.createElement("div");m.className="modal";m.id="pwModal";m.setAttribute("role","dialog");m.setAttribute("aria-label","Change password");
+  m.innerHTML=`<div class="modal-box profile" style="grid-template-rows:auto 1fr"><div class="modal-head"><b>${recovery?"Set your new password":"Change password"}</b><button class="btn ghost sm" type="button" data-closemodal="1">Close</button></div>
+  <form style="padding:16px;display:grid;gap:12px;overflow:auto" id="pwForm"><p class="hint" style="margin:0">Use at least 12 characters. Do not use your name or a year.</p>
+  <label>New password<input id="pwNew" type="password" autocomplete="new-password" minlength="12" required></label>
+  <label>Type it again<input id="pwNew2" type="password" autocomplete="new-password" minlength="12" required></label>
+  <button class="btn" type="submit">Save password</button></form></div>`;
+  document.body.appendChild(m);
+  m.addEventListener("click",e=>{if(e.target.closest("[data-closemodal]")||e.target===m)m.remove()});
+  $("#pwForm").addEventListener("submit",async e=>{e.preventDefault();
+    const a=$("#pwNew").value,b=$("#pwNew2").value;
+    if(a.length<12){toast("Password must be at least 12 characters");return}
+    if(a!==b){toast("The two passwords do not match");return}
+    const tok=await sbToken();if(!tok){toast("Please sign in again first");m.remove();return}
+    try{const r=await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:sbH(tok),body:JSON.stringify({password:a})});
+      if(r.ok){toast("Password changed");m.remove()}else{const d=await r.json().catch(()=>({}));toast(d.msg||d.message||"Could not change password")}}catch(err){toast("No internet. Try again.")}});
+}
+function staffEnter(email){
+  const em=String(email).toLowerCase();let acc=db.staff.find(x=>x.user===em);
+  if(!acc){acc=em===ADMIN_EMAIL?{user:em,name:"Zaib Islam",role:"admin",active:true}:{user:em,name:em.split("@")[0],role:"",active:true};db.staff.push(acc);save()}
+  if(!acc.active){sbSet(null);toast("This account is switched off. Ask the admin.");return false}
   staffUser=acc.user;staffOK=true;staffName=acc.name;try{sessionStorage.setItem("klc-staff-user",staffUser)}catch(err){}
-  sub="";$("#pin").value="";$("#staffUser").value="";$("#pin").removeAttribute("aria-invalid");renderPanel();toast(`Signed in as ${staffName} (${roleOf(acc)?.name||"no role"})`)});
-$("#lockBtn").addEventListener("click",()=>{staffOK=false;staffUser="";staffName="";try{sessionStorage.removeItem("klc-staff-user")}catch(err){}renderPanel();if(typeof kBadges==="function"){kBadges();closeChat()}toast("Signed out")});
+  sub="";renderPanel();toast(`Signed in as ${staffName} (${roleOf(acc)?.name||"no role yet, ask the admin"})`);return true}
+$("#lockForm").addEventListener("submit",async e=>{e.preventDefault();
+  const email=$("#staffUser").value.trim().toLowerCase(),pw=$("#pin").value,btn=e.target.querySelector("button[type=submit]");btn.disabled=true;
+  try{const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password:pw})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.access_token){$("#pin").setAttribute("aria-invalid","true");$("#pin").value="";toast("Wrong email or password");return}
+    sbSet(d);$("#pin").value="";$("#staffUser").value="";$("#pin").removeAttribute("aria-invalid");staffEnter(d.user?.email||email)}
+  catch(err){toast("No internet. Try again.")}finally{btn.disabled=false}});
+$("#forgotBtn").addEventListener("click",async()=>{const em=$("#staffUser").value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("Type your email above first");return}
+  await sbRecover(em);toast("If this email has a login, a reset link has been sent.")});
+$("#pwBtn").addEventListener("click",()=>pwModal(false));
+(function(){const h=location.hash||"";if(/type=recovery/.test(h)&&/access_token=/.test(h)){const p=new URLSearchParams(h.slice(1));
+  sbSet({access_token:p.get("access_token"),refresh_token:p.get("refresh_token"),expires_in:+p.get("expires_in")||3600});
+  history.replaceState(null,"",location.pathname+location.search);
+  fetch(SB_URL+"/auth/v1/user",{headers:sbH(p.get("access_token"))}).then(r=>r.json()).then(u=>{if(u&&u.email){staffEnter(u.email);show("panel");pwModal(true)}}).catch(()=>{})}})();
+$("#lockBtn").addEventListener("click",()=>{staffOK=false;staffUser="";staffName="";try{sessionStorage.removeItem("klc-staff-user")}catch(err){}sbSet(null);renderPanel();if(typeof kBadges==="function"){kBadges();closeChat()}toast("Signed out")});
 $("#resetBtn").addEventListener("click",()=>{$("#resetBtn").hidden=true;$("#resetConfirm").hidden=false});
 $("#resetNo").addEventListener("click",()=>{$("#resetBtn").hidden=false;$("#resetConfirm").hidden=true});
 $("#resetYes").addEventListener("click",()=>{db=seed();save();ensureCharges();mine={bb:[],vb:[]};saveMine();rateAcct=null;$("#resetBtn").hidden=false;$("#resetConfirm").hidden=true;renderPanel();toast("Demo data reset")});

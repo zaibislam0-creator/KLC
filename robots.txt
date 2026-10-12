@@ -1,4 +1,4 @@
-# Put this file at https://zaibislam0-creator.github.io/KLC/robots.txt
+# Put this file at https://kashaflasanicargo.com/robots.txt
 User-agent: *
 Allow: /
 
@@ -14,4 +14,4 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
-Sitemap: https://zaibislam0-creator.github.io/KLC/sitemap.xml
+Sitemap: https://kashaflasanicargo.com/sitemap.xml
