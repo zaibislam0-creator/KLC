@@ -3261,6 +3261,47 @@ $("#pfForm").addEventListener("submit",e=>{
 document.addEventListener("click",e=>{if(!e.target.closest("[data-pnjoin]"))return;const j=$("#pnJoin");$("#prDone").hidden=true;$("#prForm").hidden=false;j.scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("#prCat").focus({preventScroll:true}),500)});
 
 /* ---------- online inbox, chat and notifications (shared, live) ---------- */
+/* ---- Online chat storage on Supabase (table kdocs), Firestore-style helpers ---- */
+const jwtSub=t=>{try{return JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).sub}catch(e){return null}};
+function getTid(){let t="";try{t=localStorage.getItem("klc-tid")||""}catch(e){}
+  if(!/^[A-Za-z0-9]{20,64}$/.test(t)){const a=new Uint8Array(24);crypto.getRandomValues(a);t=[...a].map(x=>"abcdefghijklmnopqrstuvwxyz0123456789"[x%36]).join("");try{localStorage.setItem("klc-tid",t)}catch(e){}}
+  return t}
+function mkShim(getTok,tid){
+  const T=SB_URL+"/rest/v1/kdocs",enc=encodeURIComponent;
+  const H=async(x)=>({...sbH(await getTok()),...(x||{})});
+  const rpc=async(n,b)=>{const r=await fetch(SB_URL+"/rest/v1/rpc/"+n,{method:"POST",headers:sbH(),body:JSON.stringify(b)});if(!r.ok)throw new Error(n);const t=await r.text();return t?JSON.parse(t):null};
+  const parentOf=p=>p.slice(0,p.lastIndexOf("/"));
+  const delay=()=>document.hidden?30000:(($("#chatBox")&&!$("#chatBox").hidden)||curView==="panel"?3000:15000);
+  function poll(fetcher,cb,err){let stop=false,last=null,t=null;
+    const tick=async()=>{if(stop)return;try{const v=await fetcher(),j=JSON.stringify(v);if(j!==last){last=j;cb(v)}}catch(e){if(err)err(e)}if(!stop)t=setTimeout(tick,delay())};
+    tick();return()=>{stop=true;clearTimeout(t)}}
+  async function readDoc(path){
+    if(tid)return await rpc("kd_get",{tid,p:path});
+    const r=await fetch(T+"?path=eq."+enc(path)+"&select=data",{headers:await H()});if(!r.ok)throw new Error("get");const a=await r.json();return a.length?a[0].data:null}
+  const snapDoc=d=>({exists:d!==null,data:()=>d});
+  function docRef(path){return{
+    get:async()=>snapDoc(await readDoc(path)),
+    set:async(data)=>{if(tid){await rpc("kd_set",{tid,p:path,d:data});return}
+      const r=await fetch(T,{method:"POST",headers:await H({Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify({path,parent:parentOf(path),data})});if(!r.ok)throw new Error("set")},
+    update:async(patch)=>{if(tid){await rpc("kd_update",{tid,p:path,d:patch});return}
+      const cur=await readDoc(path);if(cur===null)throw new Error("missing");const r=await fetch(T+"?path=eq."+enc(path),{method:"PATCH",headers:await H({Prefer:"return=minimal"}),body:JSON.stringify({data:{...cur,...patch}})});if(!r.ok)throw new Error("update")},
+    onSnapshot:(cb,err)=>poll(async()=>await readDoc(path),d=>cb(snapDoc(d)),err)}}
+  function colRef(col){let ord="at",dir="desc",lim=100;const q={
+    orderBy(f,d){ord=f;dir=d||"asc";return q},limit(n){lim=n;return q},
+    async add(data){if(tid){const id=await rpc("kd_add",{tid,col,d:data});return{id}}
+      const id=Math.random().toString(36).slice(2,12)+Date.now().toString(36);const path=col+"/"+id;const r=await fetch(T,{method:"POST",headers:await H({Prefer:"return=minimal"}),body:JSON.stringify({path,parent:col,data})});if(!r.ok)throw new Error("add");return{id}},
+    async fetchAll(){
+      if(tid)return(await rpc("kd_list",{tid,col,ord,dir,lim})||[]).map(x=>({id:x.path.split("/").pop(),data:()=>x.data}));
+      const r=await fetch(T+"?parent=eq."+enc(col)+"&select=path,data&order=data->>"+ord+"."+dir+"&limit="+lim,{headers:await H()});if(!r.ok)throw new Error("list");return(await r.json()).map(x=>({id:x.path.split("/").pop(),data:()=>x.data}))},
+    onSnapshot(cb,err){return poll(()=>q.fetchAll().then(docs=>docs.map(d=>({id:d.id,d:d.data()}))),rows=>cb({docs:rows.map(x=>({id:x.id,data:()=>x.d}))}),err)}};return q}
+  return{doc:docRef,collection:colRef}
+}
+async function klcShim(){
+  if(sbGet()&&staffOK){const t=await sbToken();if(!t)return null;return{db:mkShim(sbToken),uid:jwtSub(t),staff:true}}
+  const tid=getTid();return{db:mkShim(async()=>null,tid),uid:tid,staff:false}
+}
+/* ---------- online inbox, chat and notifications (shared, live) ---------- */
+
 let KDB=null,KUID=null,KADMIN=false,kThreads=[],kSel=null,kSelMsgs=[],kSelUnsub=null,kTeam=[],kMyThread=null,kMyMsgs=[],kTab="cust",kThreadsInit=false,kMyInit=false;
 const myCities=()=>{const u=me();return u&&Array.isArray(u.cities)&&u.cities.length?u.cities:null};
 const kVisible=()=>{const mc=myCities();return mc?kThreads.filter(t=>mc.includes(t.city)):kThreads};
@@ -3287,13 +3328,13 @@ function kBadges(){
   const fb=$("#chatFab b");if(fb)fb.textContent=staffOn?"Chats":"Chat";
   if(staffOn){["#chatBadge"].forEach(s=>{const el=$(s);if(el){el.textContent=n||"";el.hidden=!n}})}
 }
-(async()=>{
+setTimeout(async()=>{
   try{
-    if(!window.claude||typeof window.claude.use!=="function")return;
-    const [kdb,user]=await Promise.all([claude.use("db"),claude.use("user")]);
-    if(!kdb||!user)return;
-    const id=await user.id();if(!id)return;
-    KDB=kdb;KUID=id;KADMIN=await user.canEdit();
+    let kdb,id,adm;
+    if(window.claude&&typeof window.claude.use==="function"){const [a,user]=await Promise.all([claude.use("db"),claude.use("user")]);if(!a||!user)return;kdb=a;id=await user.id();adm=await user.canEdit()}
+    else{const sh=await klcShim();if(!sh)return;kdb=sh.db;id=sh.uid;adm=sh.staff}
+    if(!kdb||!id)return;
+    KDB=kdb;KUID=id;KADMIN=adm;
     $("#chatFab").hidden=false;$$(".sidechat").forEach(b=>b.hidden=false);
     KDB.doc("chats/"+KUID).onSnapshot(sn=>{const prev=kMyThread;kMyThread=sn.exists?sn.data():null;
       if(kMyInit&&kMyThread&&kMyThread.unreadCust&&kMyThread.lastFrom==="klc"&&(!prev||prev.lastAt!==kMyThread.lastAt)&&$("#chatBox").hidden){toast("💬 KLC replied to your message");kBeep()}
@@ -3312,7 +3353,7 @@ function kBadges(){
     }
     if(curView==="panel")renderPanel();
   }catch(e){}
-})();
+},0);
 
 /* customer side */
 let cbView="ask",cbDoneMsg="";
@@ -3972,11 +4013,12 @@ $("#lockForm").addEventListener("submit",async e=>{e.preventDefault();
   try{const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password:pw})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.access_token){$("#pin").setAttribute("aria-invalid","true");$("#pin").value="";toast("Wrong email or password");return}
-    sbSet(d);$("#pin").value="";$("#staffUser").value="";$("#pin").removeAttribute("aria-invalid");const ok=await syncPull(false);if(!ok){sbSet(null);return}staffEnter(d.user?.email||email)}
+    sbSet(d);$("#pin").value="";$("#staffUser").value="";$("#pin").removeAttribute("aria-invalid");const ok=await syncPull(false);if(!ok){sbSet(null);return}if(staffEnter(d.user?.email||email)){try{sessionStorage.setItem("klc-go-panel","1")}catch(e2){}location.reload();return}}
   catch(err){toast("No internet. Try again.")}finally{btn.disabled=false}});
 $("#forgotBtn").addEventListener("click",async()=>{const em=$("#staffUser").value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("Type your email above first");return}
   await sbRecover(em);toast("If this email has a login, a reset link has been sent.")});
 $("#pwBtn").addEventListener("click",()=>pwModal(false));
+try{if(sessionStorage.getItem("klc-go-panel")){sessionStorage.removeItem("klc-go-panel");setTimeout(()=>show("panel"),400)}}catch(e){}
 if(staffOK&&sbGet())syncPull(true).then(ok=>{if(ok){renderPanel()}else{toast("Online data not reachable. Showing the last saved copy.")}});
 (function(){const h=location.hash||"";if(/type=recovery/.test(h)&&/access_token=/.test(h)){const p=new URLSearchParams(h.slice(1));
   sbSet({access_token:p.get("access_token"),refresh_token:p.get("refresh_token"),expires_in:+p.get("expires_in")||3600});
