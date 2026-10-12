@@ -1324,6 +1324,38 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 .pagehero-img{filter:saturate(1.02) contrast(1.02)}
 #edCharges input[type=number]{width:88px;min-width:88px;max-width:none!important}#edCharges td{padding:6px 8px}#edCharges input[data-f=cbm]{width:72px;min-width:72px}
 </style>
+<style id="chat-pro">
+.chatbox{border:0!important;border-radius:22px!important;box-shadow:0 28px 70px rgba(70,12,16,.30),0 2px 10px rgba(0,0,0,.08)!important;animation:cbIn .22s ease-out;background:#fff!important}
+@keyframes cbIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.cb-head{background:linear-gradient(135deg,#6f161d 0%,#a3232c 100%)!important;color:#fff!important;padding:16px 16px!important;gap:12px!important}
+.cb-head b{font:700 16.5px/1.2 var(--display,Georgia,serif)!important;letter-spacing:.1px}
+.cb-head small{font-size:12px!important;opacity:.85!important}
+.cb-av{position:relative;width:44px!important;height:44px!important;background:#fff!important;color:#861D24!important;font:800 12.5px var(--display,Georgia,serif)!important;box-shadow:0 0 0 3px rgba(255,255,255,.22)}
+.cb-av::after{content:"";position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:#2fbf71;border:2px solid #8a1d25}
+.cb-head.cb-off .cb-av::after{background:#b9b2a6}
+.cb-head .btn.ghost{background:rgba(255,255,255,.16)!important;border:0!important;color:#fff!important;width:34px;height:34px;padding:0!important;border-radius:50%!important;display:grid;place-items:center;font-size:16px;line-height:1}
+.cb-head .btn.ghost:hover{background:rgba(255,255,255,.28)!important}
+.cb-msgs{background:#faf7f1!important;padding:18px 16px!important;gap:10px!important;scroll-behavior:smooth}
+.cb-b{border-radius:18px!important;padding:10px 14px!important;font-size:14.5px!important;line-height:1.5!important;box-shadow:0 1px 2px rgba(60,30,20,.07)}
+.cb-msg.them .cb-b{background:#fff!important;border:1px solid #eee5d8!important;border-bottom-left-radius:5px!important;color:#241c1a}
+.cb-msg.me .cb-b{background:linear-gradient(135deg,#b3262f,#861d24)!important;color:#fff!important;border:0!important;border-bottom-right-radius:5px!important}
+.cb-msg.me .cb-book,.cb-msg.me .cb-file,.cb-msg.me .cb-bilty{background:#fff!important;color:#241c1a!important;border:1.5px solid #c9a3a6!important}
+.cb-msg small{font-size:11px!important;color:#8b8279!important;padding:0 4px}
+.cb-chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px}
+.cb-chips button{border:1.5px solid #e2cfc2;background:#fff;color:#861D24;border-radius:999px;padding:8px 14px;font:600 13px var(--body,inherit);cursor:pointer;transition:all .15s}
+.cb-chips button:hover,.cb-chips button:focus-visible{background:#861D24;color:#fff;border-color:#861D24}
+.cb-send{padding:12px!important;background:#fff!important;border-top:1px solid #eee5d8!important;align-items:flex-end;gap:8px!important}
+.cb-send textarea{border-radius:22px!important;background:#f7f3ec!important;border:1.5px solid #eadfcf!important;padding:11px 16px!important;font-size:14.5px!important;min-height:44px!important}
+.cb-send textarea:focus{outline:0;border-color:#a3232c!important;background:#fff!important}
+.cb-send .btn[type=submit]{width:44px;height:44px;padding:0!important;border-radius:50%!important;display:grid;place-items:center;background:#861D24!important;color:#fff!important;border:0!important;flex:none}
+.cb-send .btn[type=submit]:hover{background:#6e161c!important}
+.cb-menu,.cb-att{width:40px!important;height:40px!important;border-radius:50%!important;background:#f7f3ec!important;border:0!important;font-size:17px!important;display:grid;place-items:center;flex:none}
+.cb-intro{background:#fff;padding:16px!important;gap:10px!important;border-top:1px solid #eee5d8}
+.cb-intro input,.cb-intro select{border-radius:12px!important;padding:11px 14px!important;border:1.5px solid #eadfcf!important;background:#faf7f1!important}
+.cb-intro .btn{border-radius:12px!important;padding:12px!important;background:#861D24!important;color:#fff!important}
+.cb-opts button{border-radius:14px!important}
+.chatfab{box-shadow:0 8px 22px rgba(111,22,29,.35)!important}
+</style>
 
 <header class="top">
   <div class="bar">
@@ -1368,7 +1400,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 </div>
 <button type="button" class="chatfab" id="chatFab" data-chatopen="1" aria-label="Chat with KLC"><span aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.5-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4.5"/></svg></span><b>Chat</b><i class="kp-badge" id="chatBadge" hidden></i></button>
 <div class="chatbox" id="chatBox" hidden role="dialog" aria-labelledby="chatH">
-  <div class="cb-head"><span class="cb-av" aria-hidden="true">KLC</span><div><b id="chatH">Chat with KLC</b><small id="chatSub">Kashaf Lasani Cargo Services · we reply in office hours</small></div><button class="btn ghost sm" type="button" data-chatclose="1">Close</button></div>
+  <div class="cb-head"><span class="cb-av" aria-hidden="true">KLC</span><div><b id="chatH">Chat with KLC</b><small id="chatSub">Kashaf Lasani Cargo Services · we reply in office hours</small></div><button class="btn ghost sm" type="button" data-chatclose="1" aria-label="Close chat">✕</button></div>
   <div class="cb-msgs" id="cbMsgs"></div>
   <form class="cb-intro" id="cbIntro" hidden>
     <p>Before you ask, tell us your name and mobile so our team can reply.</p>
@@ -1377,7 +1409,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
     <select id="cbCity" required aria-label="Your city"></select>
     <button class="btn" type="submit">Start chat</button>
   </form>
-  <form class="cb-send" id="cbSend"><button type="button" class="cb-menu" data-cbview="opts" aria-label="Show options">☰</button><label class="cb-att" title="Send a picture, video or document"><input type="file" id="cbFile" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,.pdf,.xlsx,.docx,.csv,.zip,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" hidden>📎</label><button type="button" class="cb-att" id="cbBiltyBtn" data-cbbilty="1" title="Send a bilty" hidden>🧾</button><textarea id="cbText" rows="1" placeholder="Type your message…" aria-label="Message"></textarea><button class="btn" type="submit" aria-label="Send">Send</button></form>
+  <form class="cb-send" id="cbSend"><button type="button" class="cb-menu" data-cbview="opts" aria-label="Show options">☰</button><label class="cb-att" title="Send a picture, video or document"><input type="file" id="cbFile" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,.pdf,.xlsx,.docx,.csv,.zip,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" hidden>📎</label><button type="button" class="cb-att" id="cbBiltyBtn" data-cbbilty="1" title="Send a bilty" hidden>🧾</button><textarea id="cbText" rows="1" placeholder="Write a message…" aria-label="Message"></textarea><button class="btn" type="submit" aria-label="Send"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></button></form>
 </div>
 <noscript><div style="padding:16px;max-width:760px;margin:0 auto"><h1>Kashaf Lasani Cargo Services (KLC)</h1><p>Cargo and transport company in Pakistan. Bilty tracking, bilty booking and an online ledger. Main route: Sialkot to Karachi. Call or WhatsApp 0300-6166561 or 0307-6401597, office 052-4587207, email kashaf.lasani@gmail.com. Please turn on JavaScript to track a bilty.</p></div></noscript>
 <main class="wrap">
@@ -1871,11 +1903,11 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 
   <div id="p-imp" hidden style="display:grid;gap:18px">
     <div class="panel" style="display:grid;gap:12px">
-      <h2>Import a SmartCargo challan</h2>
-      <p class="hint" style="margin:0">In SmartCargo open the Booking Challan, print it and save it as PDF. Then choose that PDF here. The bilties in it are added to tracking, so customers can track them by bilty number.</p>
+      <h2>Import from SmartCargo (challan or ledger)</h2>
+      <p class="hint" style="margin:0">In SmartCargo open the Booking Challan, print it and save it as PDF. Then choose that PDF here. The bilties in it are added to tracking. A SmartCargo <b>Ledger report</b> PDF can be chosen here too: it fills the online customer ledger.</p>
       <label class="drop" id="impDrop">
         <input type="file" id="impFile" accept="application/pdf,.pdf" style="position:absolute;opacity:0;width:1px;height:1px">
-        <b>📄 Choose challan PDF</b><span class="hint" style="margin:0">or drag the file here</span>
+        <b>📄 Choose challan or ledger PDF</b><span class="hint" style="margin:0">or drag the file here</span>
       </label>
       <p class="hint" id="impMsg" style="margin:0"></p>
     </div>
@@ -2202,7 +2234,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
-const OFFICE={list:[{n:"Maharaja Road office",a:"Maharaja Road, Butcher Khana Chowk, opposite Dr Adnan Clinic, Sialkot"},{n:"Daska Road office",a:"Daska Road, Pakki Kothi, next to Nizam Sons (Old Saga), Sialkot"}],hours:"Open 24 hours, Monday to Saturday. Closed on Sundays and public holidays.",map:""}; /* hours e.g. "Mon–Sat, 9 am – 6 pm"; map = Google Maps link */
+const OFFICE={list:[{n:"Maharaja Road office",a:"Maharaja Road, Butcher Khana Chowk, opposite Dr Adnan Clinic, Sialkot"},{n:"Daska Road office",a:"Daska Road, Pakki Kothi, next to Nizam Sons (Old Saga), Sialkot"}],hours:"Open 24 hours, Monday to Saturday. Closed on Sundays and public holidays.",map:"https://maps.app.goo.gl/KL59s2Ty5aCoeoFn9"}; /* hours e.g. "Mon–Sat, 9 am – 6 pm"; map = Google Maps link */
 const STATUSES=["Booked","Dispatched","In Transit","Arrived","Delivered"];
 const TRIP=["New","Called","Confirmed","Vehicle assigned","Loading","On the way","Delivered","Cancelled"];
 const TRIP_STEPS=["Confirmed","Vehicle assigned","Loading","On the way","Delivered"];
@@ -2391,6 +2423,7 @@ function ledger(code,period){
   });
   db.vreqs.filter(r=>r.acct===code&&TRIP_STEPS.includes(r.status)&&+r.quote>0).forEach(r=>e.push({d:r.hist?.Confirmed||r.at,type:"Vehicle trip",desc:`${vName(r.veh)}, ${r.from} → ${r.to}, ${r.goods}${r.vno?`, vehicle ${r.vno}`:""}`,ref:r.id,mode:"",dr:+r.quote,cr:0}));
   (db.payments||[]).filter(p=>p.acct===code).forEach(p=>e.push({d:p.date,type:"Payment",desc:payDetails(p),ref:p.id,mode:p.method,dr:0,cr:payCounts(p)?+p.amount:0,pid:p.id,bounced:!payCounts(p),p}));
+  (db.lent||[]).filter(x=>x.acct===code).forEach(x=>e.push({d:x.d,type:x.type,desc:x.desc,ref:x.ref||"",mode:x.mode||"",dr:+x.dr||0,cr:+x.cr||0}));
   e.sort((a,b)=>a.d.localeCompare(b.d));
   const from=period?.from?new Date(period.from+"T00:00:00"):null,to=period?.to?new Date(period.to+"T23:59:59"):null;
   let open=0;const rows=[];
@@ -2487,8 +2520,8 @@ function receiptPDF(p){
 async function offerPDF(makeBlob,filename){
   if(!window.jspdf||!window.jspdf.jsPDF||!(new window.jspdf.jsPDF()).autoTable){toast("The PDF tool could not load. Check your internet connection and try again.");return}
   let dl=null;try{dl=await window.claude?.use?.("downloads")}catch(e){}
-  if(!dl){toast("PDF download is not available in this view.");return}
   let blob;try{blob=makeBlob()}catch(e){toast("Could not create the PDF.");return}
+  if(!dl){try{const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast("PDF downloaded")}catch(e){toast("The PDF could not be saved here.")}return}
   try{await dl.save({filename,data:blob});toast("PDF saved")}catch(e){if(e?.code!=="declined")toast(e?.code==="rate_limited"?"A download is already waiting for your answer.":"The PDF could not be saved here.")}
 }
 const nextBiltyId=()=>nextNum(db.bilties,"KLC-",10000);
@@ -2712,14 +2745,27 @@ $("#accReq").addEventListener("submit",e=>{
   $("#arqAgain").addEventListener("click",()=>{$("#accReqDone").hidden=true;$("#accReq").hidden=false});
 });
 let accClient=null;
+function myInvHTML(code){
+  const L=(db.invoices||[]).filter(x=>x.acct===code).sort((a,b)=>String(b.iso).localeCompare(String(a.iso)));
+  if(!L.length)return"";
+  return `<h3 style="margin:16px 0 6px">My invoices</h3><div class="tbl-wrap"><table><thead><tr><th>Bilty</th><th>Date</th><th>Route</th><th>Goods</th><th class="num">Total</th><th class="num">Received</th><th></th></tr></thead><tbody>${L.map(v=>`<tr><td class="mono"><b>${esc(v.id)}</b></td><td>${esc(v.date)}</td><td>${esc(v.from)} → ${esc(v.to)}</td><td>${esc(v.items)}${v.qty?` · ${v.qty} pcs`:""}${v.kg?` · ${v.kg} kg`:""}</td><td class="num">${rs(v.total)}</td><td class="num">${rs(v.received)}</td><td><button class="btn ghost sm" type="button" data-invpdf="${esc(v.id)}">⬇ PDF</button></td></tr>`).join("")}</tbody></table></div>`}
+function invoicePDF(v){
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"pt",format:"a5"}),c=clientOf(v.acct)||{name:v.sender||v.acct,code:v.acct,phone:""};
+  pdfHeader(doc,"Bilty Invoice",v.id);
+  const rows=[["Bilty no.",v.id],["Bilty date",v.date],["Route",`${v.from} to ${v.to}`],["Account",`${c.name} (${v.acct})`],["Sender",v.sender||"-"],["Receiver",v.recv||"-"],["Goods",`${v.items||"-"}${v.qty?`, ${v.qty} pcs`:""}${v.kg?`, ${v.kg} kg`:""}`]];
+  (v.charges||[]).forEach(x=>rows.push([x.n,pdfRs(x.a)]));
+  rows.push(["Bilty total",pdfRs(v.total)],["Received",pdfRs(v.received)],["Balance on this bilty",pdfRs(Math.max(0,(+v.total||0)-(+v.received||0)))]);
+  doc.autoTable({startY:132,body:rows.map(r=>[pdfTxt(r[0]),pdfTxt(r[1])]),theme:"grid",styles:{fontSize:9,cellPadding:6},columnStyles:{0:{fontStyle:"bold",cellWidth:150,fillColor:[241,241,242]}},margin:{left:30,right:30}});
+  pdfFooter(doc);return doc.output("blob");
+}
 function myReqHTML(){const L=(kMyMsgs||[]).filter(m=>m.kind==="booking"&&m.from==="customer").slice(-5).reverse();
   return L.length?`<h3 style="margin:16px 0 6px">My booking requests</h3>`+L.map(m=>`<div class="hint" style="margin:0 0 6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px"><b>${esc(fmtD(m.at))}</b> · ${esc(m.title||"Booking")}<br><span style="white-space:pre-line">${esc(String(m.text||"").split("\n").slice(1,3).join("\n"))}</span></div>`).join("")+`<p class="hint">KLC replies in the chat box. Your final bilty number appears in Track once KLC issues it.</p>`:""}
-function renderAccount(){$("#accReqBox").hidden=!!accClient;$("#accView").innerHTML=accClient?`<div class="panel">${ledgerHTML(accClient,false)}<p style="margin:10px 0 0" class="inline-actions"><button class="btn sm" type="button" data-bookacct="1">Book a bilty with this account</button><button class="btn ghost sm" type="button" data-acclogout="1">Close my ledger</button></p>${myReqHTML()}</div>`:""}
+function renderAccount(){$("#accReqBox").hidden=!!accClient;$("#accView").innerHTML=accClient?`<div class="panel">${ledgerHTML(accClient,false)}<p style="margin:10px 0 0" class="inline-actions"><button class="btn sm" type="button" data-bookacct="1">Book a bilty with this account</button><button class="btn ghost sm" type="button" data-acclogout="1">Close my ledger</button></p>${myInvHTML(accClient.code)}${myReqHTML()}</div>`:""}
 async function acctOnline(code,ph,pin){
   try{const r=await fetch(SB_URL+"/rest/v1/rpc/acct_data",{method:"POST",headers:sbH(),body:JSON.stringify({c:code,ph,pin})});if(!r.ok)return{error:"net"};return await r.json()}catch(e){return{error:"net"}}}
 function acctMerge(d){const code=d.client.code;
   db.clients=(db.clients||[]).filter(x=>x.code!==code);db.clients.push(d.client);
-  ["bilties","payments","vreqs"].forEach(k=>{db[k]=(db[k]||[]).filter(x=>x.acct!==code).concat(d[k]||[])})}
+  ["bilties","payments","vreqs","lent","invoices"].forEach(k=>{db[k]=(db[k]||[]).filter(x=>x.acct!==code).concat(d[k]||[])})}
 $("#accForm").addEventListener("submit",async e=>{
   e.preventDefault();const ph=normPhone($("#accPhone").value),code=$("#accCode").value,pin=$("#accPin").value.trim();const msg=$("#accMsg");
   let c=null;
@@ -3286,24 +3332,26 @@ function mkShim(getTok,tid){
   const rpc=async(n,b)=>{const r=await fetch(SB_URL+"/rest/v1/rpc/"+n,{method:"POST",headers:sbH(),body:JSON.stringify(b)});if(!r.ok)throw new Error(n);const t=await r.text();return t?JSON.parse(t):null};
   const parentOf=p=>p.slice(0,p.lastIndexOf("/"));
   const delay=()=>document.hidden?30000:(($("#chatBox")&&!$("#chatBox").hidden)||curView==="panel"?3000:15000);
-  function poll(fetcher,cb,err){let stop=false,last=null,t=null;
-    const tick=async()=>{if(stop)return;try{const v=await fetcher(),j=JSON.stringify(v);if(j!==last){last=j;cb(v)}}catch(e){if(err)err(e)}if(!stop)t=setTimeout(tick,delay())};
-    tick();return()=>{stop=true;clearTimeout(t)}}
+  const POKE=new Set(),poke=()=>setTimeout(()=>POKE.forEach(f=>f()),30);
+  function poll(fetcher,cb,err){let stop=false,last=null,t=null,busy=false;
+    const tick=async()=>{if(stop||busy)return;busy=true;try{const v=await fetcher(),j=JSON.stringify(v);if(j!==last){last=j;cb(v)}}catch(e){if(err)err(e)}busy=false;if(!stop){clearTimeout(t);t=setTimeout(tick,delay())}};
+    const kick=()=>{if(!stop){clearTimeout(t);tick()}};POKE.add(kick);
+    tick();return()=>{stop=true;clearTimeout(t);POKE.delete(kick)}}
   async function readDoc(path){
     if(tid)return await rpc("kd_get",{tid,p:path});
     const r=await fetch(T+"?path=eq."+enc(path)+"&select=data",{headers:await H()});if(!r.ok)throw new Error("get");const a=await r.json();return a.length?a[0].data:null}
   const snapDoc=d=>({exists:d!==null,data:()=>d});
   function docRef(path){return{
     get:async()=>snapDoc(await readDoc(path)),
-    set:async(data)=>{if(tid){await rpc("kd_set",{tid,p:path,d:data});return}
-      const r=await fetch(T,{method:"POST",headers:await H({Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify({path,parent:parentOf(path),data})});if(!r.ok)throw new Error("set")},
-    update:async(patch)=>{if(tid){await rpc("kd_update",{tid,p:path,d:patch});return}
-      const cur=await readDoc(path);if(cur===null)throw new Error("missing");const r=await fetch(T+"?path=eq."+enc(path),{method:"PATCH",headers:await H({Prefer:"return=minimal"}),body:JSON.stringify({data:{...cur,...patch}})});if(!r.ok)throw new Error("update")},
+    set:async(data)=>{if(tid){await rpc("kd_set",{tid,p:path,d:data});poke();return}
+      const r=await fetch(T,{method:"POST",headers:await H({Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify({path,parent:parentOf(path),data})});if(!r.ok)throw new Error("set");poke()},
+    update:async(patch)=>{if(tid){await rpc("kd_update",{tid,p:path,d:patch});poke();return}
+      const cur=await readDoc(path);if(cur===null)throw new Error("missing");const r=await fetch(T+"?path=eq."+enc(path),{method:"PATCH",headers:await H({Prefer:"return=minimal"}),body:JSON.stringify({data:{...cur,...patch}})});if(!r.ok)throw new Error("update");poke()},
     onSnapshot:(cb,err)=>poll(async()=>await readDoc(path),d=>cb(snapDoc(d)),err)}}
   function colRef(col){let ord="at",dir="desc",lim=100;const q={
     orderBy(f,d){ord=f;dir=d||"asc";return q},limit(n){lim=n;return q},
-    async add(data){if(tid){const id=await rpc("kd_add",{tid,col,d:data});return{id}}
-      const id=Math.random().toString(36).slice(2,12)+Date.now().toString(36);const path=col+"/"+id;const r=await fetch(T,{method:"POST",headers:await H({Prefer:"return=minimal"}),body:JSON.stringify({path,parent:col,data})});if(!r.ok)throw new Error("add");return{id}},
+    async add(data){if(tid){const id=await rpc("kd_add",{tid,col,d:data});poke();return{id}}
+      const id=Math.random().toString(36).slice(2,12)+Date.now().toString(36);const path=col+"/"+id;const r=await fetch(T,{method:"POST",headers:await H({Prefer:"return=minimal"}),body:JSON.stringify({path,parent:col,data})});if(!r.ok)throw new Error("add");poke();return{id}},
     async fetchAll(){
       if(tid)return(await rpc("kd_list",{tid,col,ord,dir,lim})||[]).map(x=>({id:x.path.split("/").pop(),data:()=>x.data}));
       const r=await fetch(T+"?parent=eq."+enc(col)+"&select=path,data&order=data->>"+ord+"."+dir+"&limit="+lim,{headers:await H()});if(!r.ok)throw new Error("list");return(await r.json()).map(x=>({id:x.path.split("/").pop(),data:()=>x.data}))},
@@ -3400,13 +3448,15 @@ function cbFormHTML(k){
 function renderChat(){
   if(!KDB)return;
   if(cbMode==="staff"){renderStaffChat();return}
-  $("#chatH").textContent="Chat with KLC";$("#chatSub").textContent="Kashaf Lasani Cargo Services · we reply in office hours";$("#cbBiltyBtn").hidden=true;$(".cb-menu").hidden=false;
+  $("#chatH").textContent="KLC Support";{const sun=new Date().toLocaleDateString("en-US",{weekday:"short",timeZone:"Asia/Karachi"})==="Sun";$("#chatSub").textContent=sun?"Closed today · we will reply on Monday":"Online · replies within minutes";$(".cb-head").classList.toggle("cb-off",sun)}$("#cbBiltyBtn").hidden=true;$(".cb-menu").hidden=false;
   const box=$("#cbMsgs"),hasName=!!(kMyThread&&kMyThread.name);
   const ask=cbView==="ask";
   $("#cbIntro").hidden=!(ask&&!hasName);$("#cbSend").hidden=ask&&!hasName;
   if(!$("#cbCity").value&&PCITIES.includes(city))$("#cbCity").value=city;
   if(!hasName&&prof.name&&!$("#cbName").value){$("#cbName").value=prof.name;if(prof.phone)$("#cbPhone").value=fmtPhone(prof.phone)}
-  const welcome=`<div class="cb-msg them"><div class="cb-b">Assalam o Alaikum! 👋 This is the KLC team. How can we help you today?</div></div>`;
+  const nm=(kMyThread&&kMyThread.name)||prof.name||"",first=String(nm).trim().split(/\s+/)[0];
+  const welcome=`<div class="cb-msg them"><div class="cb-b">Assalam o Alaikum${first?" "+esc(first):""}! 👋<br>This is the KLC team. How can we help you today?</div><small>KLC Support</small></div>`+(kMyMsgs.length||cbAuto.length?"":`<div class="cb-chips">${[["📦 Track my bilty","I want to track my bilty. Bilty no: "],["📝 Book a bilty","I want to book a bilty from Sialkot to "],["📍 Office address and timing","Please share your office address and timing."],["💬 Something else",""]].map(c=>`<button type="button" data-cbchip="${esc(c[1])}">${c[0]}</button>`).join("")}</div>`);
+  const autoHTML=cbAuto.map(a=>`<div class="cb-msg them"><div class="cb-b">${a.html}</div><small>Automatic reply · KLC</small></div>`).join("");
   const msgs=kMyMsgs.map(m=>m.kind==="bilty"?kBiltyMsg(m,m.from==="customer",m.from==="klc"?"KLC · ":"",kTime(m.at)):m.kind==="file"?kFileMsg(m,"chats/"+KUID,m.from==="customer",m.from==="klc"?"KLC · ":"",kTime(m.at)):m.kind==="booking"
     ?`<div class="cb-msg me"><div class="cb-b cb-book"><b>📋 ${esc(m.title||"Request")}</b><span>${esc(m.text)}</span></div><small>✅ Sent to KLC team · ${esc(kTime(m.at))}</small></div>`
     :`<div class="cb-msg ${m.from==="customer"?"me":"them"}"><div class="cb-b">${esc(m.text)}</div><small>${m.from==="klc"?"KLC · ":""}${esc(kTime(m.at))}</small></div>`).join("");
@@ -3414,7 +3464,7 @@ function renderChat(){
   const form=["bilty","vehicle","partner","track"].includes(cbView)?`<form class="cb-form" data-cbform="${cbView}">${cbFormHTML(cbView)}<div class="cb-fa"><button type="button" class="btn ghost sm" data-cbview="opts">← Back</button><button class="btn" type="submit">${cbView==="track"?"Track":"Send to KLC"}</button></div></form>`:"";
   const old=box.querySelector(".cb-form"),keep=old&&old.dataset.cbform===cbView?Object.fromEntries(new FormData(old).entries()):null;
   const done=cbView==="done"?`<div class="cb-msg them"><div class="cb-b">${cbDoneMsg}</div></div><div class="cb-opts cb-opts-mini"><button type="button" data-cbview="opts"><span>☰</span><b>Something else?</b><small>Show the options again</small></button></div>`:"";
-  box.innerHTML=welcome+msgs+opts+form+done;
+  box.innerHTML=welcome+msgs+autoHTML+opts+form+done;
   if(form&&keep){const f=box.querySelector(".cb-form");Object.entries(keep).forEach(([n,val])=>{const el=f.elements[n];if(el)el.value=val});return}
   if(form){const f=box.querySelector(".cb-form");const sel=f.querySelector('[name="to"]');if(sel){const fr=f.querySelector('[name="from"]');fr.value=BOOK_CITIES.includes(city)?city:"Sialkot";sel.value=fr.value==="Karachi"?"Lahore":"Karachi"}
     f.scrollIntoView({block:"start"});const first=f.querySelector("input:not([value]),select");}
@@ -3443,6 +3493,17 @@ document.addEventListener("submit",async e=>{
 });
 const siteCityNow=()=>{try{return localStorage.getItem(CITYKEY)||""}catch(e){return ""}};
 async function myThreadWrite(body){body={...body,siteCity:siteCityNow()};const ref=KDB.doc("chats/"+KUID),g=await ref.get();if(g.exists)await ref.update(body);else await ref.set({name:prof.name||"",phone:prof.phone||"",created:new Date().toISOString(),unreadCust:false,done:false,...body})}
+
+let cbAuto=[];
+document.addEventListener("click",e=>{const b=e.target.closest("[data-cbchip]");if(!b)return;cbView="ask";renderChat();setTimeout(()=>{const f=$("#cbIntro").hidden?$("#cbText"):$("#cbName");if(f){if(f.id==="cbText")f.value=b.dataset.cbchip;f.focus();try{f.setSelectionRange(f.value.length,f.value.length)}catch(_){}}},60)});
+async function cbAutoTrack(text){
+  const m=String(text).match(/\b(?:K-?\d{6,8}|KLC-?\d{4,6})\b/i);if(!m)return;
+  const q=m[0].toUpperCase();let r=null;try{r=await trackBilties(q)}catch(e){}
+  if(!r)return;
+  const b=r[0];
+  cbAuto.push({html:b?`<b>Bilty ${esc(b.id)}</b> · ${esc(STATUSES[b.status]||"")}<br>${esc(BILTY_SAY[b.status]?BILTY_SAY[b.status](b):"")}<br><span style="font-size:12.5px;color:#7a7168">Our team will reply here if you need anything else.</span>`:`I could not find bilty <b>${esc(q)}</b> yet. Please check the number. Our team will also reply here shortly.`});
+  renderChat();
+}
 async function sendMine(text,kind,title,c){
   const now=new Date().toISOString();
   await KDB.collection("chats/"+KUID+"/msgs").add({at:now,from:"customer",kind:kind||"chat",title:title||"",text,city:c||""});
@@ -3460,7 +3521,7 @@ $("#cbSend").addEventListener("submit",async e=>{e.preventDefault();const t=$("#
   if(cbMode==="staff"){if(!cbStaffSel)return;$("#cbText").value="";try{await kStaffSend(cbStaffSel,{kind:"chat",text:t},t)}catch(err){$("#cbText").value=t;toast("Reply not sent. Try again.")}return}
   if(!(kMyThread&&kMyThread.name)){cbView="ask";renderChat();setTimeout(()=>$("#cbName").focus(),60);return}
   $("#cbText").value="";cbView="ask";
-  try{await sendMine(t,"chat","")}catch(err){$("#cbText").value=t;toast("Message not sent. Please try again or use WhatsApp.")}});
+  try{await sendMine(t,"chat","");cbAutoTrack(t)}catch(err){$("#cbText").value=t;toast("Message not sent. Please try again or use WhatsApp.")}});
 $("#cbText").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("#cbSend").requestSubmit()}});
 function inboxHook(el,title,text,c){
   if(!KDB||!el)return;
@@ -3787,9 +3848,9 @@ function parseChallan(lines){
   const head={
     no:grab(/\bNo\.?\s+(\d+)\s+Date/i),
     date:grab(/Date\s+(\d{2}\/\d{2}\/\d{4})/i),
-    vehicle:grab(/Vehicle\s+([A-Z0-9-]+)/i),
-    driver:grab(/Driver\s+([A-Za-z .]+?)\s+Phone/i),
-    driverPhone:grab(/Phone\s+(\d{10,11})/i),
+    vehicle:grab(/Vehicle\s+([A-Z0-9-]+(?:\s+\d{1,5})?)(?=\s|$)/i),
+    driver:grab(/Driver\s+([A-Za-z .]+?)\s*(?:\d{10,11}|Phone)/i),
+    driverPhone:grab(/Driver\s+[A-Za-z .]+?\s*(\d{10,11})/i)||grab(/Phone\s+(\d{10,11})/i),
     from:titleCase(grab(/BOOKING CITY\s+(.+?)\s+BOOKING CHALLAN/i)),
     to:titleCase(grab(/DELIVERED AT\s+(.+?)\s+No\.?\s+\d/i)),
     transporter:titleCase(grab(/Transporter\s+(.+?)\s+(?:RECORD COPY|Remarks|$)/im)),
@@ -3826,20 +3887,171 @@ function parseChallan(lines){
   head.check=rows.reduce((s,r)=>s+r.qty,0)===head.totalQty&&Math.round(rows.reduce((s,r)=>s+r.kg,0))===Math.round(head.totalKg);
   return{head,rows};
 }
+
+/* ---------- SmartCargo ledger report import ---------- */
+let ledData=null;
+const dmyIso0=d=>{const [dd,mm,yy]=d.split("/");return new Date(`${yy}-${mm}-${dd}T00:00:00`).toISOString()};
+function parseLedger(lines){
+  const all=lines.map(l=>l.text).join("\n");
+  const per=all.match(/Period From:\s*(\d{2}\/\d{2}\/\d{4})\s+To:\s*(\d{2}\/\d{2}\/\d{4})/i);
+  const period=per?{from:per[1],to:per[2]}:{from:"",to:""};
+  const num=x=>+String(x).replace(/,/g,"");
+  const SKIP=/Perticulars|Particulars|Voucher|Period From|LEDGER ACCOUNTING|KASHAF LASANI|^Date\s|^User\s|Cheque|Debit|Credit|Balance\s+D|\*\*\* Total|Openning Balance|^Account Code/i;
+  const hdrCheque=lines.flatMap(l=>l.items).find(i=>/^Cheque$/i.test(i.t));
+  const pItems=lines.flatMap(l=>l.items).filter(i=>/^(Sender:|City:)/.test(i.t));
+  const pStart=pItems.length?Math.min(...pItems.map(i=>i.x)):null;
+  const chqX=hdrCheque?hdrCheque.x:(pStart!=null?pStart+170:null);
+  const accounts=[];let cur=null;
+  const mainRe=/^(\d{2}\/\d{2}\/\d{4})\s+([A-Z]{2,4})\s+(\d+)\b/,tailRe=/([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+(Dr|Cr)\s*$/;
+  const dline=[];
+  lines.forEach(l=>{
+    const t=l.text;let m;
+    if((m=t.match(/^Account Code\s+(\d+)\s+(.+?)\s+Group\s+(.+)$/i))){cur={code:m[1],name:m[2].trim(),group:m[3].trim(),open:0,rows:[],tot:null};accounts.push(cur);return}
+    if(!cur)return;
+    if((m=t.match(/Openning Balance \*\*\*\s+([\d,]+)\s+(Dr|Cr)/i))){cur.open=num(m[1])*(m[2]==="Cr"?-1:1);return}
+    if((m=t.match(/\*\*\* Total \*\*\*\s+([\d,]+)\s+([\d,]+)/i))){cur.tot={dr:num(m[1]),cr:num(m[2])};return}
+    const mm=t.match(mainRe),tl=t.match(tailRe);
+    if(mm&&tl){cur.rows.push({d:mm[1],typ:mm[2],no:mm[3],dr:num(tl[1]),cr:num(tl[2]),bal:num(tl[3])*(tl[4]==="Cr"?-1:1),y:l.y,page:l.page,parts:[]});return}
+    if(!SKIP.test(t))dline.push({l,cur});
+  });
+  // collect particulars (x-range only) and attach to the nearest entry of the same page
+  const inRange=i=>pStart==null||(i.x>=pStart-3&&(chqX==null||i.x<chqX-3));
+  accounts.forEach(a=>a.rows.forEach(r=>{const ln=lines.find(l=>l.page===r.page&&l.y===r.y&&mainRe.test(l.text)&&l.text.includes(r.no));if(ln)r.parts.push({y:r.y,t:ln.items.filter(inRange).map(i=>i.t).join(" ").replace(/^\d{2}\/\d{2}\/\d{4}.*?(?=Bank|Sender|City|$)/,"")})}));
+  dline.forEach(({l,cur})=>{
+    const txt=l.items.filter(inRange).map(i=>i.t).join(" ").replace(/\s+/g," ").trim();if(!txt)return;
+    let best=null,bd=1e9;
+    cur.rows.forEach(r=>{if(r.page!==l.page)return;const d=Math.abs(r.y-l.y);if(d<bd){bd=d;best=r}});
+    if(best&&bd<=30)best.parts.push({y:l.y,t:txt});
+  });
+  accounts.forEach(a=>{
+    let run=a.open;
+    a.rows.forEach(r=>{
+      const txt=r.parts.sort((x,y)=>y.y-x.y).map(p=>p.t).join(" ").replace(/\s+/g," ").trim();
+      r.iso=dmyToIso(r.d);r.raw=txt;
+      if(r.typ==="RCP"){
+        const chq=((txt.match(/Chq\s*No\.?:?\s*([A-Z]{0,3}[-.]?\s*\d+)/i)||[])[1]||"").replace(/\s+/g,"");
+        const bank=((txt.match(/Bank Name:\s*(.+?)\s*(?:Customer|$)/i)||[])[1]||"").trim();
+        r.type="Payment";r.mode=chq?"Cheque":"Cash";
+        r.desc=chq?`Cheque ${chq}${bank?", "+titleCase(bank):""}`:"Payment received";
+      }else{
+        const sm=txt.match(/Sender:\s*(.+?)\s+TO:\s*(.*)$/i);
+        r.type="Bilty";r.mode="";
+        r.desc=sm?`${titleCase(sm[1])} → ${titleCase(sm[2])||"—"}`:(txt||"Bilty booking");
+      }
+      r.ref=r.typ+" "+r.no;
+      run+=r.dr-r.cr;r.calc=run;
+    });
+    const dr=a.rows.reduce((s,r)=>s+r.dr,0),cr=a.rows.reduce((s,r)=>s+r.cr,0);
+    a.dr=dr;a.cr=cr;a.close=a.open+dr-cr;
+    const last=a.rows.length?a.rows[a.rows.length-1].bal:a.open;
+    a.check=a.rows.every(r=>r.bal===r.calc)&&(!a.tot||(a.tot.dr===dr&&a.tot.cr===cr))&&last===a.close;
+  });
+  return{period,accounts:accounts.filter(a=>a.rows.length||a.open)};
+}
+function renderLedPreview(){
+  const D=ledData,ok=D.accounts.every(a=>a.check);
+  $("#impPreview").innerHTML=`<div class="panel" style="display:grid;gap:14px">
+    <div class="card-head"><h2>Ledger report · ${esc(D.period.from)} to ${esc(D.period.to)}</h2><span class="pill ${ok?"s4":"s3"}">${ok?"All entries read":"Check the PDF"}</span></div>
+    <p class="hint" style="margin:0">Importing replaces that customer's earlier imported entries, so you can import a newer report any time. Customers see their ledger online with code, mobile number and PIN.</p>
+    ${D.accounts.map((a,i)=>{const c=clientOf(a.code);return `<div class="panel" style="display:grid;gap:10px;background:var(--bg,transparent)">
+      <div class="card-head"><div><b>${esc(a.name)}</b> <span class="codebox">${esc(a.code)}</span><div class="hint" style="margin:2px 0 0">${esc(a.group)}</div></div><span class="pill ${a.check?"s4":"s3"}">${a.check?"Totals match":"Totals differ"}</span></div>
+      <div class="ledger-sum"><div><span>Opening balance</span><b>${rs(a.open)}</b></div><div><span>Billed (debit)</span><b>${rs(a.dr)}</b></div><div><span>Received (credit)</span><b>${rs(a.cr)}</b></div><div><span>Closing balance</span><b>${balTxt(a.close)}</b></div></div>
+      <div class="row2"><label>Customer name<input data-lgname="${i}" value="${esc(c?c.name:a.name)}" ${c?"disabled":""}></label>
+      ${c?`<label>Mobile on file<input value="${esc(fmtPhone(c.phone))}" disabled></label>`:`<label>Customer mobile (for login)<input data-lgph="${i}" inputmode="tel" placeholder="03xx-xxxxxxx"></label>`}</div>
+      <p class="hint" style="margin:0">${c?"Existing account: entries from this report will replace the earlier imported ones.":"New account will be created with a PIN."} ${a.rows.length} entries.</p>
+      <details><summary class="hint" style="cursor:pointer">Show entries</summary><div class="tbl-wrap"><table class="ledger"><thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Ref</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead><tbody>${a.rows.map(r=>`<tr><td>${esc(r.d)}</td><td>${esc(r.type)}</td><td>${esc(r.desc)}</td><td class="mono" style="font-size:12px">${esc(r.ref)}</td><td class="num dr">${r.dr?rs(r.dr):""}</td><td class="num cr">${r.cr?rs(r.cr):""}</td><td class="num">${rs(r.bal)}</td></tr>`).join("")}</tbody></table></div></details></div>`}).join("")}
+    <div class="inline-actions"><button class="btn" type="button" id="ledGo">Import ledger</button><button class="btn ghost" type="button" id="ledCancel">Cancel</button></div>
+    <p class="hint" id="ledMsg" style="margin:0"></p></div>`;
+}
+$("#impPreview").addEventListener("click",e=>{
+  if(e.target.closest("#ledCancel")){ledData=null;$("#impPreview").innerHTML="";$("#impFile").value="";return}
+  if(!e.target.closest("#ledGo")||!ledData)return;
+  const D=ledData,made=[];
+  for(let i=0;i<D.accounts.length;i++){const a=D.accounts[i];if(clientOf(a.code))continue;
+    const ph=normPhone(($(`[data-lgph="${i}"]`)||{}).value||"");
+    if(!validMob(ph)){$("#ledMsg").textContent=`Enter a valid mobile number for ${a.name} (${a.code}), like 0300-1234567.`;return}
+  }
+  let n=0;
+  D.accounts.forEach((a,i)=>{
+    let c=clientOf(a.code);
+    if(!c){c={code:a.code,name:(($(`[data-lgname="${i}"]`)||{}).value||a.name).trim(),phone:normPhone($(`[data-lgph="${i}"]`).value),pin:genPin(),src:"SmartCargo"};db.clients.push(c);made.push(c)}
+    db.lent=(db.lent||[]).filter(x=>!(x.acct===c.code&&x.src==="SC"));
+    if(a.open)db.lent.push({id:"L-"+a.code+"-0",acct:c.code,d:dmyIso0(D.period.from||a.rows[0]?.d||"01/01/2026"),type:"Opening balance",desc:"Balance brought forward",ref:"",mode:"",dr:a.open>0?a.open:0,cr:a.open<0?-a.open:0,src:"SC"});
+    a.rows.forEach((r,k)=>db.lent.push({id:"L-"+a.code+"-"+(k+1),acct:c.code,d:r.iso,type:r.type,desc:r.desc,ref:r.ref,mode:r.mode,dr:r.dr,cr:r.cr,src:"SC"}));
+    n+=a.rows.length;
+  });
+  save();ledData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${n} ledger entries imported for ${D.accounts.length} account(s).`+(made.length?` New accounts: ${made.map(c=>`<b class="mono">${esc(c.code)}</b> PIN <b class="mono">${esc(c.pin)}</b>`).join(", ")}. Send the code and PIN to the customer on WhatsApp.`:"");
+  toast(`Ledger imported: ${n} entries`);
+});
+
+/* ---------- SmartCargo bilty invoice import ---------- */
+let invData=null;
+function parseInvoices(lines){
+  const pages={};lines.forEach(l=>{(pages[l.page]=pages[l.page]||[]).push(l)});
+  const rows=[];
+  Object.keys(pages).forEach(pn=>{
+    const L=pages[pn],T=L.map(l=>l.text).join("\n"),g=re=>((T.match(re)||[])[1]||"").trim();
+    const id=g(/Bilty No\.\s+(\S+)/i);if(!id)return;
+    const num=x=>+String(x).replace(/,/g,"");
+    const rx=(()=>{const h=L.flatMap(l=>l.items).find(i=>/^Qty$/i.test(i.t));return h?h.x+20:356})();
+    const side=(re,right)=>{const l=L.find(l=>re.test(l.text));if(!l)return"";return l.items.filter(i=>!re.test(i.t)&&(right?i.x>=rx:i.x<rx)&&i.x>100).map(i=>i.t).join(" ").trim()};
+    const nameL=L.find(l=>/^Name\s/.test(l.text));
+    const sender=nameL?nameL.items.filter(i=>i.x>100&&i.x<rx).map(i=>i.t).join(" ").trim():"",recv=nameL?nameL.items.filter(i=>i.x>=rx).map(i=>i.t).join(" ").trim():"";
+    const itemHdr=L.findIndex(l=>/Item Description/i.test(l.text));
+    let items="",qty=0;if(itemHdr>=0){const dl=L[itemHdr+1];if(dl){items=dl.items.filter(i=>i.x<rx&&!/^\d+$/.test(i.t)).map(i=>i.t).join(" ").trim();const q=dl.items.find(i=>i.x<rx&&/^\d+$/.test(i.t));qty=q?+q.t:0}}
+    const dbl=L.find(l=>/^Debit\s+\d+/i.test(l.text)),debit=dbl?[0,(dbl.text.match(/Debit\s+(\d+)/i)||[])[1],dbl.items.filter(i=>i.x<rx&&!/^Debit$/i.test(i.t)).map(i=>i.t).join(" ").replace(/^\d+\s*/,"").trim()]:null;
+    const hdrY=(L.find(l=>/C\s*H\s*A\s*R\s*G\s*E\s*S/.test(l.text))||{}).y;
+    const charges=[];let total=0,received=0;
+    L.forEach(l=>{
+      if(hdrY==null||l.y>=hdrY)return;
+      const its=l.items.filter(i=>i.x>=560);if(its.length<2)return;
+      const amt=its[its.length-1].t;if(!/^[\d,]+$/.test(amt))return;
+      const label=its.slice(0,-1).map(i=>i.t).join(" ").trim();
+      if(/^Bilty Total$/i.test(label))total=num(amt);
+      else if(/Advance Received|Received/i.test(label))received=num(amt);
+      else charges.push({n:label,a:num(amt)});
+    });
+    if(!total)total=charges.reduce((s,c)=>s+c.a,0);
+    const kg=+(g(/Gross Wt:\s*([\d.,]+)/i).replace(/,/g,""))||0;
+    const status=/P\s*A\s*I\s*D/.test(T)&&!/T\s*O\s*P\s*A\s*Y/.test(T)?"Paid":"To Pay";
+    const date=g(/Bilty Date\s+(\d{2}\/\d{2}\/\d{4})/i);
+    rows.push({id:id.toUpperCase(),date,iso:date?dmyToIso(date):"",from:titleCase(g(/From\s+([A-Z ]+?)(?:\s{2,}|\s*$)/m)),to:titleCase(g(/\bTo\s+([A-Z ]+?)\s*$/m)),sender,recv,items,qty,kg,acct:debit?debit[1]:"",acctName:debit?debit[2].trim():"",charges,total,received,status,page:+pn});
+  });
+  return{rows};
+}
+function renderInvPreview(){
+  const R=invData.rows,ok=R.every(r=>r.total>0&&r.from&&r.to);
+  $("#impPreview").innerHTML=`<div class="panel" style="display:grid;gap:12px">
+    <div class="card-head"><h2>Bilty invoices · ${R.length}</h2><span class="pill ${ok?"s4":"s3"}">${ok?"All read":"Check the PDF"}</span></div>
+    <p class="hint" style="margin:0">These show in the customer's account under "My invoices". Customer accounts are matched by the account code printed on the invoice (Debit line). Bilties without an account code are saved but only appear for a customer once an account exists.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Bilty</th><th>Date</th><th>Route</th><th>Account</th><th>Goods</th><th class="num">Total</th><th class="num">Received</th></tr></thead><tbody>${R.map(r=>`<tr><td class="mono"><b>${esc(r.id)}</b></td><td>${esc(r.date)}</td><td>${esc(r.from)} → ${esc(r.to)}</td><td>${r.acct?`<span class="mono">${esc(r.acct)}</span> ${esc(r.acctName)}`:"—"}${r.acct&&!clientOf(r.acct)?' <span class="tag">no account yet</span>':""}</td><td>${esc(r.items)} ${r.qty||""}</td><td class="num">${rs(r.total)}</td><td class="num">${rs(r.received)}</td></tr>`).join("")}</tbody></table></div>
+    <div class="inline-actions"><button class="btn" type="button" id="invGo">Import invoices</button><button class="btn ghost" type="button" id="invCancel">Cancel</button></div></div>`;
+}
+$("#impPreview").addEventListener("click",e=>{
+  if(e.target.closest("#invCancel")){invData=null;$("#impPreview").innerHTML="";$("#impFile").value="";return}
+  if(!e.target.closest("#invGo")||!invData)return;
+  db.invoices=db.invoices||[];let add=0,upd=0;
+  invData.rows.forEach(r=>{const o={...r};delete o.page;const i=db.invoices.findIndex(x=>x.id===o.id);if(i>=0){db.invoices[i]=o;upd++}else{db.invoices.push(o);add++}});
+  const n=invData.rows.length;save();invData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${add} new and ${upd} updated invoices saved.`;toast(`${n} invoices imported`);
+});
 const dmyToIso=d=>{const [dd,mm,yy]=d.split("/");return new Date(`${yy}-${mm}-${dd}T09:00:00`).toISOString()};
 async function handleImportFile(f){
   if(!f)return;
-  if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){$("#impMsg").textContent="Please choose a PDF file.";return}
+  if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){$("#impMsg").textContent="Please choose a PDF file.";return}ledData=null;
   $("#impMsg").textContent="Reading the PDF…";$("#impPreview").innerHTML="";
   try{
     const lines=await pdfLines(await f.arrayBuffer());
-    impData=parseChallan(lines);impData.file=f.name;
+    if(/LEDGER ACCOUNTING SYSTEM/i.test(lines.map(l=>l.text).join("\n"))){ledData=parseLedger(lines);ledData.file=f.name;impData=null;if(!ledData.accounts.length)throw new Error("no_rows");$("#impMsg").textContent="";renderLedPreview();return}
+    if(/Customer Copy/i.test(lines.map(l=>l.text).join("\n"))&&/Bilty No\./i.test(lines.map(l=>l.text).join("\n"))&&!/BOOKING CHALLAN/i.test(lines.map(l=>l.text).join("\n"))){invData=parseInvoices(lines);invData.file=f.name;ledData=null;impData=null;if(!invData.rows.length)throw new Error("no_rows");$("#impMsg").textContent="";renderInvPreview();return}
+    invData=null;ledData=null;impData=parseChallan(lines);impData.file=f.name;
     if(!impData.rows.length)throw new Error("no_rows");
     $("#impMsg").textContent="";renderImpPreview();
   }catch(e){
     impData=null;
     $("#impMsg").textContent=e.message==="not_challan"?"This PDF is not a SmartCargo Booking Challan. Print the challan from SmartCargo and save it as PDF."
-      :e.message==="no_rows"?"No bilties were found in this PDF. Check that it is the challan print, not a blank page."
+      :e.message==="no_rows"?"No entries were found in this PDF. Check that it is the challan print, not a blank page."
       :"The PDF could not be read here. Check your internet connection and try again.";
   }
 }
@@ -3925,12 +4137,13 @@ document.addEventListener("click",e=>{
   else if(d.ledger){ledgerCode=d.ledger;pAcct();$("#ledgerBox").scrollIntoView({behavior:"smooth",block:"start"})}
   else if(d.closeledger){ledgerCode="";pAcct()}
   else if(d.lpclear){periods[d.lpclear]={from:"",to:""};d.lpclear==="staff"?pAcct():renderAccount()}
+  else if(d.invpdf){const v=(db.invoices||[]).find(x=>x.id===d.invpdf);if(v)offerPDF(()=>invoicePDF(v),`KLC-Invoice-${v.id}.pdf`)}
   else if(d.pdf){const c=clientOf(d.pdf),P=periods[d.ctx];offerPDF(()=>statementPDF(c,P),`KLC-Statement-${c.code}-${today()}.pdf`)}
   else if(d.rcpt){const p=db.payments.find(x=>x.id===d.rcpt);offerPDF(()=>receiptPDF(p),`KLC-Receipt-${p.id}.pdf`)}
   else if(d.delpay){db.payments=db.payments.filter(x=>x.id!==d.delpay);save();renderPanel();toast("Payment removed from ledger")}
   else if(d.bookacct){const c=accClient;if(c){$("#bAcct").value=c.code;const dt=$("#bAcct").closest("details");if(dt)dt.open=true;if(!$("#bSender").value)$("#bSender").value=c.name;if(!$("#bSPhone").value)$("#bSPhone").value=fmtPhone(c.phone);show("bbook");bEstimate()}}
   else if(d.newpin){const c=clientOf(d.newpin);if(c){c.pin=genPin();save();pAcct();toast(`New PIN for ${c.code}: ${c.pin}. Send it to the customer on WhatsApp.`)}}
-  else if(d.acclogout){if(accClient){const k=accClient.code;["bilties","payments","vreqs","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";renderAccount()}
+  else if(d.acclogout){if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";renderAccount()}
   else if(d.clearacct){rateAcct=null;$("#rateAcct").value="";renderRates()}
   else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
   else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
@@ -3995,7 +4208,7 @@ function staffEnter(email){
 /* ---- Shared online data (Supabase table klc_state) ---- */
 var syncOK=false,dbStamp=null,pushT=null,pushing=false,dirty=false;
 const SB_REST=SB_URL+"/rest/v1/klc_state";
-function initialDoc(){const d=JSON.parse(JSON.stringify(db));["bilties","breqs","clients","payments","vreqs","pending"].forEach(k=>{d[k]=[]});return d}
+function initialDoc(){const d=JSON.parse(JSON.stringify(db));["bilties","breqs","clients","payments","vreqs","pending","lent","invoices"].forEach(k=>{d[k]=[]});return d}
 async function syncPull(quiet){
   const tok=await sbToken();if(!tok)return false;
   try{
