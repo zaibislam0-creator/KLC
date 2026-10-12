@@ -1405,7 +1405,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
       <button class="btn" type="submit" id="trackBtn">Track Shipment</button>
       <p class="field-msg" id="qMsg" role="alert" hidden></p>
     </form>
-    <p class="hint" id="qHelp" style="margin:0">The K and the leading zeros are optional: <b>K-0151090</b> and <b>151090</b> both work. Sample number to try: <code data-q="KLC-10452">KLC-10452</code></p>
+    <p class="hint" id="qHelp" style="margin:0">The K and the leading zeros are optional: <b>K-0151090</b> and <b>151090</b> both work.</p>
   </div>
   <div class="results" id="results"></div>
 
@@ -1632,7 +1632,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
       <label>Registered mobile<input id="accPhone" required inputmode="tel" placeholder="03xx-xxxxxxx"></label>
     </div>
     <div class="inline-actions"><button class="btn" type="submit">Open my ledger</button><button class="btn ghost" type="button" id="forgotBtn">Forgot your code?</button></div>
-    <p class="hint" id="accMsg" style="margin:0">Try: <code data-acc="KLC-C01|03459876543">KLC-C01 with 0345-9876543</code></p>
+    <p class="hint" id="accMsg" style="margin:0"></p>
   </form>
   <div id="accView"></div>
   <div class="panel" id="accReqBox" style="max-width:640px;display:grid;gap:12px">
@@ -2319,12 +2319,13 @@ function seed(){
 let db;
 try{const s=localStorage.getItem(KEY);db=s?JSON.parse(s):seed()}catch(e){db=seed()}
 const SB_URL="https://vcsesaxjjgiaqrkcvjyk.supabase.co",SB_KEY="sb_publishable_wG5pSbwbSmKXB2KQhFNJPQ_vLTecM_m",ADMIN_EMAIL="zaibislam0@gmail.com";
-(function(){/* old demo accounts and any stored passwords are removed; logins now live in Supabase */
+function fixStaff(){/* demo accounts and stored passwords are removed; logins live in Supabase */
   try{db.staff=(Array.isArray(db.staff)?db.staff:[]).filter(u=>/@/.test(u.user||"")).map(u=>{const c={...u};delete c.pass;return c});
   const a=db.staff.find(u=>u.user===ADMIN_EMAIL);if(a){a.role="admin";a.active=true}else db.staff.unshift({user:ADMIN_EMAIL,name:"Zaib Islam",role:"admin",active:true});
   localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}
-})();
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
+}
+fixStaff();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}if(typeof klcPush==="function")klcPush()}
 let city="";try{city=localStorage.getItem(CITYKEY)||""}catch(e){}
 
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
@@ -2576,11 +2577,17 @@ function biltyMatch(id,q){
   if(a===z||a==="KLC"+z)return true;
   return /^\d{4,}$/.test(z)&&a.replace(/^[A-Z]+/,"").replace(/^0+/,"")===z.replace(/^0+/,"");
 }
-function track(q){
+async function trackBilties(q){
+  if(syncOK)return db.bilties.filter(b=>biltyMatch(b.id,q));
+  try{const r=await fetch(SB_URL+"/rest/v1/rpc/public_track",{method:"POST",headers:sbH(),body:JSON.stringify({q})});if(r.ok)return await r.json()}catch(e){}
+  return null}
+async function track(q){
   q=q.trim();const out=$("#results");if(!q){endTrack();return}
   $("#v-track").classList.add("focus","hasres");
   const back=`<div class="trackbar"><b style="font-family:var(--display);font-size:18px">Tracking result</b></div>`;
-  const bl=db.bilties.filter(b=>biltyMatch(b.id,q));
+  out.innerHTML=back+'<div class="panel empty"><p>Checking…</p></div>';
+  const bl=await trackBilties(q);
+  if(bl===null){out.innerHTML=back+'<div class="panel empty"><h3>Could not check right now</h3><p>No internet, or the server is busy. Try again in a minute, or ask us on WhatsApp: 0300-6166561.</p></div>';return}
   if(!bl.length){out.innerHTML=back+`<div class="panel empty"><h3>No bilty found for "${esc(q)}"</h3><p>Check the number on your bilty slip and try again, for example 151090. Only bilty numbers work here. Still not found? Ask us on WhatsApp.</p><p><a class="btn sm wa" href="https://wa.me/923006166561?text=${encodeURIComponent(`Assalam o Alaikum. I cannot find my bilty ${q} on the website. Please help.`)}" target="_blank" rel="noopener">Ask on WhatsApp</a></p></div>`;return}
   bl.sort((a,b)=>a.status-b.status);
   const dsum=bl.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0);
@@ -3928,21 +3935,54 @@ function staffEnter(email){
   if(!acc.active){sbSet(null);toast("This account is switched off. Ask the admin.");return false}
   staffUser=acc.user;staffOK=true;staffName=acc.name;try{sessionStorage.setItem("klc-staff-user",staffUser)}catch(err){}
   sub="";renderPanel();toast(`Signed in as ${staffName} (${roleOf(acc)?.name||"no role yet, ask the admin"})`);return true}
+/* ---- Shared online data (Supabase table klc_state) ---- */
+var syncOK=false,dbStamp=null,pushT=null,pushing=false,dirty=false;
+const SB_REST=SB_URL+"/rest/v1/klc_state";
+function initialDoc(){const d=JSON.parse(JSON.stringify(db));["bilties","breqs","clients","payments","vreqs","pending"].forEach(k=>{d[k]=[]});return d}
+async function syncPull(quiet){
+  const tok=await sbToken();if(!tok)return false;
+  try{
+    const r=await fetch(SB_REST+"?id=eq.db&select=data,updated_at",{headers:sbH(tok)});if(!r.ok)throw new Error("read");
+    const rows=await r.json();
+    if(rows.length){db=Object.assign(seed(),rows[0].data);dbStamp=rows[0].updated_at}
+    else{const doc=initialDoc();const c=await fetch(SB_REST,{method:"POST",headers:{...sbH(tok),Prefer:"return=representation"},body:JSON.stringify({id:"db",data:doc})});if(!c.ok)throw new Error("create");const cr=await c.json();db=Object.assign(seed(),doc);dbStamp=cr[0].updated_at}
+    fixStaff();syncOK=true;return true
+  }catch(e){if(!quiet)toast("Could not reach the online data. Check the internet.");return false}
+}
+function klcPush(){if(!syncOK)return;dirty=true;clearTimeout(pushT);pushT=setTimeout(doPush,1200)}
+async function doPush(){
+  if(pushing){pushT=setTimeout(doPush,800);return}
+  if(!dirty)return;const tok=await sbToken();if(!tok)return;pushing=true;dirty=false;
+  try{const r=await fetch(SB_REST+"?id=eq.db&updated_at=eq."+encodeURIComponent(dbStamp),{method:"PATCH",headers:{...sbH(tok),Prefer:"return=representation"},body:JSON.stringify({data:db})});
+    const rows=r.ok?await r.json():null;
+    if(rows&&rows.length){dbStamp=rows[0].updated_at}
+    else if(rows){toast("Someone else changed the data a moment ago. Latest version loaded, please repeat your last change.");await syncPull(true);renderPanel()}
+    else{dirty=true;pushT=setTimeout(doPush,8000)}
+  }catch(e){dirty=true;pushT=setTimeout(doPush,8000)}finally{pushing=false}
+}
+async function syncCheck(){
+  if(!syncOK||dirty||pushing||!staffOK)return;const tok=await sbToken();if(!tok)return;
+  try{const r=await fetch(SB_REST+"?id=eq.db&select=updated_at",{headers:sbH(tok)});if(!r.ok)return;const rows=await r.json();
+    if(rows.length&&rows[0].updated_at!==dbStamp&&!dirty&&!pushing&&await syncPull(true)&&curView==="panel")renderPanel()}catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncCheck()});
+setInterval(()=>{const a=document.activeElement;if(curView==="panel"&&!(a&&/INPUT|SELECT|TEXTAREA/.test(a.tagName)))syncCheck()},45000);
 $("#lockForm").addEventListener("submit",async e=>{e.preventDefault();
   const email=$("#staffUser").value.trim().toLowerCase(),pw=$("#pin").value,btn=e.target.querySelector("button[type=submit]");btn.disabled=true;
   try{const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password:pw})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.access_token){$("#pin").setAttribute("aria-invalid","true");$("#pin").value="";toast("Wrong email or password");return}
-    sbSet(d);$("#pin").value="";$("#staffUser").value="";$("#pin").removeAttribute("aria-invalid");staffEnter(d.user?.email||email)}
+    sbSet(d);$("#pin").value="";$("#staffUser").value="";$("#pin").removeAttribute("aria-invalid");const ok=await syncPull(false);if(!ok){sbSet(null);return}staffEnter(d.user?.email||email)}
   catch(err){toast("No internet. Try again.")}finally{btn.disabled=false}});
 $("#forgotBtn").addEventListener("click",async()=>{const em=$("#staffUser").value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("Type your email above first");return}
   await sbRecover(em);toast("If this email has a login, a reset link has been sent.")});
 $("#pwBtn").addEventListener("click",()=>pwModal(false));
+if(staffOK&&sbGet())syncPull(true).then(ok=>{if(ok){renderPanel()}else{toast("Online data not reachable. Showing the last saved copy.")}});
 (function(){const h=location.hash||"";if(/type=recovery/.test(h)&&/access_token=/.test(h)){const p=new URLSearchParams(h.slice(1));
   sbSet({access_token:p.get("access_token"),refresh_token:p.get("refresh_token"),expires_in:+p.get("expires_in")||3600});
   history.replaceState(null,"",location.pathname+location.search);
-  fetch(SB_URL+"/auth/v1/user",{headers:sbH(p.get("access_token"))}).then(r=>r.json()).then(u=>{if(u&&u.email){staffEnter(u.email);show("panel");pwModal(true)}}).catch(()=>{})}})();
-$("#lockBtn").addEventListener("click",()=>{staffOK=false;staffUser="";staffName="";try{sessionStorage.removeItem("klc-staff-user")}catch(err){}sbSet(null);renderPanel();if(typeof kBadges==="function"){kBadges();closeChat()}toast("Signed out")});
+  fetch(SB_URL+"/auth/v1/user",{headers:sbH(p.get("access_token"))}).then(r=>r.json()).then(u=>{if(u&&u.email){syncPull(true).then(()=>{staffEnter(u.email);show("panel");pwModal(true)})}}).catch(()=>{})}})();
+$("#lockBtn").addEventListener("click",()=>{staffOK=false;staffUser="";staffName="";try{sessionStorage.removeItem("klc-staff-user")}catch(err){}sbSet(null);syncOK=false;try{localStorage.removeItem(KEY)}catch(err){}location.reload();return;renderPanel();if(typeof kBadges==="function"){kBadges();closeChat()}toast("Signed out")});
 $("#resetBtn").addEventListener("click",()=>{$("#resetBtn").hidden=true;$("#resetConfirm").hidden=false});
 $("#resetNo").addEventListener("click",()=>{$("#resetBtn").hidden=false;$("#resetConfirm").hidden=true});
 $("#resetYes").addEventListener("click",()=>{db=seed();save();ensureCharges();mine={bb:[],vb:[]};saveMine();rateAcct=null;$("#resetBtn").hidden=false;$("#resetConfirm").hidden=true;renderPanel();toast("Demo data reset")});
