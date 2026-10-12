@@ -1624,14 +1624,15 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
   <div>
     <div class="eyebrow">For business clients</div>
     <h1>My Account and Ledger</h1>
-    <p class="lede">Regular clients get an account code from KLC, usually your SmartCargo customer code like 00000196. Enter your code and the mobile number registered with KLC to see your bilties, vehicle trips, payments and balance.</p>
+    <p class="lede">Regular clients get an account code from KLC, usually your SmartCargo customer code like 00000196. Enter your code, the mobile number registered with KLC and the PIN KLC gave you to see your bilties, vehicle trips, payments and balance.</p>
   </div>
   <form class="panel f" id="accForm" style="max-width:640px">
     <div class="row2">
       <label>Account code<input id="accCode" required placeholder="KLC-C01" autocomplete="off"></label>
       <label>Registered mobile<input id="accPhone" required inputmode="tel" placeholder="03xx-xxxxxxx"></label>
     </div>
-    <div class="inline-actions"><button class="btn" type="submit">Open my ledger</button><button class="btn ghost" type="button" id="forgotBtn">Forgot your code?</button></div>
+    <label>PIN<input id="accPin" type="password" required inputmode="numeric" autocomplete="off" maxlength="8" placeholder="4-digit PIN from KLC"></label>
+    <div class="inline-actions"><button class="btn" type="submit">Open my ledger</button><button class="btn ghost" type="button" id="forgotBtn">Forgot code or PIN?</button></div>
     <p class="hint" id="accMsg" style="margin:0"></p>
   </form>
   <div id="accView"></div>
@@ -2367,6 +2368,7 @@ const vName=id=>VEHICLES.find(v=>v.id===id)?.name||id;
 const findRoute=(f,t)=>db.inland.rows.find(r=>r.from.toLowerCase()===String(f).trim().toLowerCase()&&r.to.toLowerCase()===String(t).trim().toLowerCase());
 function vQuote(f,t,vid,tier){const r=findRoute(f,t),v=VEHICLES.find(x=>x.id===vid);return r&&v&&r[tier][v.k]?r500(r[tier][v.k]*v.f):null}
 function bQuote(f,t,kg,tier,pick){const r=findRoute(f,t);if(!r||!r[tier].kg||!kg)return null;return Math.max(MIN_BILTY,Math.round(kg*r[tier].kg))+(pick==="pickup"?PICKUP_FEE:0)}
+const genPin=()=>String(Math.floor(1000+Math.random()*9000));
 const nextNum=(arr,prefix,start)=>prefix+(Math.max(start,...arr.map(x=>parseInt(String(x.id).split("-")[1],10)||0))+1);
 const MODES=["Cash","Bank transfer","Cheque","Online"];
 const ONLINE=["JazzCash","Easypaisa","Raast","IBFT","Other"];
@@ -2713,25 +2715,26 @@ let accClient=null;
 function myReqHTML(){const L=(kMyMsgs||[]).filter(m=>m.kind==="booking"&&m.from==="customer").slice(-5).reverse();
   return L.length?`<h3 style="margin:16px 0 6px">My booking requests</h3>`+L.map(m=>`<div class="hint" style="margin:0 0 6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px"><b>${esc(fmtD(m.at))}</b> · ${esc(m.title||"Booking")}<br><span style="white-space:pre-line">${esc(String(m.text||"").split("\n").slice(1,3).join("\n"))}</span></div>`).join("")+`<p class="hint">KLC replies in the chat box. Your final bilty number appears in Track once KLC issues it.</p>`:""}
 function renderAccount(){$("#accReqBox").hidden=!!accClient;$("#accView").innerHTML=accClient?`<div class="panel">${ledgerHTML(accClient,false)}<p style="margin:10px 0 0" class="inline-actions"><button class="btn sm" type="button" data-bookacct="1">Book a bilty with this account</button><button class="btn ghost sm" type="button" data-acclogout="1">Close my ledger</button></p>${myReqHTML()}</div>`:""}
-async function acctOnline(code,ph){
-  try{const r=await fetch(SB_URL+"/rest/v1/rpc/acct_data",{method:"POST",headers:sbH(),body:JSON.stringify({c:code,ph})});if(!r.ok)return{error:"net"};return await r.json()}catch(e){return{error:"net"}}}
+async function acctOnline(code,ph,pin){
+  try{const r=await fetch(SB_URL+"/rest/v1/rpc/acct_data",{method:"POST",headers:sbH(),body:JSON.stringify({c:code,ph,pin})});if(!r.ok)return{error:"net"};return await r.json()}catch(e){return{error:"net"}}}
 function acctMerge(d){const code=d.client.code;
   db.clients=(db.clients||[]).filter(x=>x.code!==code);db.clients.push(d.client);
   ["bilties","payments","vreqs"].forEach(k=>{db[k]=(db[k]||[]).filter(x=>x.acct!==code).concat(d[k]||[])})}
 $("#accForm").addEventListener("submit",async e=>{
-  e.preventDefault();const ph=normPhone($("#accPhone").value),code=$("#accCode").value;const msg=$("#accMsg");
+  e.preventDefault();const ph=normPhone($("#accPhone").value),code=$("#accCode").value,pin=$("#accPin").value.trim();const msg=$("#accMsg");
   let c=null;
-  if(syncOK){c=clientOf(code);if(!c||c.phone!==ph)c=null}
-  else{msg.textContent="Checking...";const d=await acctOnline(code,ph);
+  if(syncOK){c=clientOf(code);if(!c||c.phone!==ph||!c.pin||c.pin!==pin)c=null}
+  else{msg.textContent="Checking...";const d=await acctOnline(code,ph,pin);
+    if(d.error==="nopin"){accClient=null;renderAccount();msg.textContent="A PIN has not been set for your account yet. Please WhatsApp KLC on 0300-6166561 to get your PIN.";return}
     if(d.error==="locked"){accClient=null;renderAccount();msg.textContent="Too many wrong attempts. Please try again after 15 minutes, or contact KLC on WhatsApp.";return}
     if(d.error==="net"){msg.textContent="Could not reach the server. Check your internet and try again.";return}
-    if(d.error||!d.client){accClient=null;renderAccount();msg.textContent="The code and mobile number do not match. Check both, or contact KLC on WhatsApp 0300-6166561.";return}
+    if(d.error||!d.client){accClient=null;renderAccount();msg.textContent="The code, mobile number and PIN do not match. Check all three, or contact KLC on WhatsApp 0300-6166561.";return}
     acctMerge(d);c=d.client}
-  if(!c){accClient=null;renderAccount();msg.textContent="The code and mobile number do not match. Check both, or contact KLC on WhatsApp 0300-6166561.";return}
+  if(!c){accClient=null;renderAccount();msg.textContent="The code, mobile number and PIN do not match. Check all three, or contact KLC on WhatsApp 0300-6166561.";return}
   accClient=c;msg.textContent="";renderAccount();
 });
 $("#forgotBtn").addEventListener("click",()=>{
-  $("#accMsg").innerHTML=`For your safety the code is not shown here. Please WhatsApp KLC on <b>0300-6166561</b> from your registered number and we will send it to you.`;
+  $("#accMsg").innerHTML=`For your safety the code and PIN are not shown here. Please WhatsApp KLC on <b>0300-6166561</b> from your registered number and we will send them to you.`;
 });
 
 /* ---------- rates & news ---------- */
@@ -2850,7 +2853,7 @@ $("#addRoute").addEventListener("submit",e=>{e.preventDefault();const f=$("#arFr
 $("#addSea").addEventListener("submit",e=>{e.preventDefault();db.sea.rows.push({p:$("#asPort").value.trim(),l:$("#asLine").value.trim(),c20:0,c40:0,d:0});save();e.target.reset();pRates()});
 let ledgerCode="";
 function pAcct(){
-  $("#acctRows").innerHTML=db.clients.length?db.clients.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No company accounts yet.</td></tr>`;
+  $("#acctRows").innerHTML=db.clients.length?db.clients.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span><br><span style="font-size:12px">PIN: <b class="mono">${esc(c.pin||"not set")}</b> <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin?"New PIN":"Make PIN"}</button></span></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No company accounts yet.</td></tr>`;
   const c=clientOf(ledgerCode),box=$("#ledgerBox");
   box.hidden=!c;box.innerHTML=c?ledgerHTML(c,true):"";payModeUI();
 }
@@ -2862,8 +2865,8 @@ $("#acctForm").addEventListener("submit",e=>{
     if(!/^[A-Z0-9-]{3,12}$/.test(code)){toast("The code can only have letters, numbers and a dash");return}
     if(clientOf(code)){toast(`Code ${code} already has an account`);return}
   }else{let n=db.clients.length+1;do{code="KLC-C"+String(n++).padStart(2,"0")}while(db.clients.some(c=>c.code===code))}
-  db.clients.push({code,name:$("#acName").value.trim(),phone:aph,src:/^\d+$/.test(code)?"SmartCargo":""});
-  save();e.target.reset();pAcct();toast(`Account ${code} created. Send this code to the customer on WhatsApp.`);
+  const pin=genPin();db.clients.push({code,name:$("#acName").value.trim(),phone:aph,pin,src:/^\d+$/.test(code)?"SmartCargo":""});
+  save();e.target.reset();pAcct();toast(`Account ${code} created. PIN: ${pin}. Send the code and PIN to the customer on WhatsApp.`);
 });
 function pNews(){
   const l=db.news.slice().sort((a,b)=>b.date.localeCompare(a.date));
@@ -3926,7 +3929,8 @@ document.addEventListener("click",e=>{
   else if(d.rcpt){const p=db.payments.find(x=>x.id===d.rcpt);offerPDF(()=>receiptPDF(p),`KLC-Receipt-${p.id}.pdf`)}
   else if(d.delpay){db.payments=db.payments.filter(x=>x.id!==d.delpay);save();renderPanel();toast("Payment removed from ledger")}
   else if(d.bookacct){const c=accClient;if(c){$("#bAcct").value=c.code;const dt=$("#bAcct").closest("details");if(dt)dt.open=true;if(!$("#bSender").value)$("#bSender").value=c.name;if(!$("#bSPhone").value)$("#bSPhone").value=fmtPhone(c.phone);show("bbook");bEstimate()}}
-  else if(d.acclogout){if(accClient){const k=accClient.code;["bilties","payments","vreqs","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";renderAccount()}
+  else if(d.newpin){const c=clientOf(d.newpin);if(c){c.pin=genPin();save();pAcct();toast(`New PIN for ${c.code}: ${c.pin}. Send it to the customer on WhatsApp.`)}}
+  else if(d.acclogout){if(accClient){const k=accClient.code;["bilties","payments","vreqs","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";renderAccount()}
   else if(d.clearacct){rateAcct=null;$("#rateAcct").value="";renderRates()}
   else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
   else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
