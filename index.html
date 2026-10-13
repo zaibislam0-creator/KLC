@@ -10,7 +10,7 @@
 <meta property="og:title" content="Kashaf Lasani Cargo Services (KLC) | Bilty Tracking & Cargo Booking, Sialkot to Karachi"><meta property="og:description" content="KLC (Kashaf Lasani Cargo Services) is a cargo and transport company in Pakistan. Track your bilty online, book a bilty, and ship cargo from Sialkot to Karachi, Lahore, Multan, Rawalpindi and more.">
 <meta name="twitter:card" content="summary"><meta name="twitter:title" content="Kashaf Lasani Cargo Services (KLC) | Bilty Tracking & Cargo Booking, Sialkot to Karachi"><meta name="twitter:description" content="KLC (Kashaf Lasani Cargo Services) is a cargo and transport company in Pakistan. Track your bilty online, book a bilty, and ship cargo from Sialkot to Karachi, Lahore, Multan, Rawalpindi and more.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,400&family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: KLC-branded black top bar with logo + section tabs. Brand colors from the KLC eagle logo: black, signal red, white. */
 :root{
@@ -312,6 +312,18 @@ a.btn{text-decoration:none;display:inline-block}
 .iebtn{background:#fff;color:#1d5fbf;white-space:nowrap}
 @media (max-width:760px){.iebanner{grid-template-columns:1fr;padding:18px;gap:10px}.iebanner-ic{width:48px;height:48px;font-size:24px}.iebtn{width:100%}}
 .summary-line.big{font-size:clamp(18px,2.6vw,22px)}
+
+.card.bt{gap:14px}
+.bt-brand{display:flex;align-items:center;gap:12px}
+.bt-brand img{width:64px;height:64px;object-fit:contain;border-radius:14px;background:#fff;padding:4px;border:1px solid var(--line);flex:none}
+.bt-brand b{display:block;font:700 18px/1.15 "Fraunces",Georgia,serif;color:var(--accent-text,#7d1a1f)}
+.bt-brand small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+.card.bt .bt-id{font:700 32px/1 "Fraunces",Georgia,serif!important}
+.card.bt .summary-line.big span:last-child{font-family:"Fraunces",Georgia,serif;font-weight:600}
+.bt-thanks{text-align:center;display:grid;gap:5px;padding:14px 16px;border:1.5px solid color-mix(in srgb,var(--accent) 22%,var(--line));border-radius:16px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.bt-thanks .bt-ty{font:italic 400 19px "Fraunces",Georgia,serif;color:var(--accent-text,#7d1a1f)}
+.bt-thanks p{margin:0;font-size:13px;line-height:1.5;color:var(--ink)}
+.bt-thanks small{font-style:italic;color:var(--muted)}
 .contactbox{display:grid;gap:6px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--chip)}
 .contactbox.arrived{border:2px solid var(--teal);background:color-mix(in srgb,var(--teal) 8%,var(--surface))}
 .contactbox .cperson{font-size:16px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
@@ -2684,13 +2696,17 @@ function biltyCard(b){
       <div class="cperson"><b>KLC team</b> <span class="phone">0300-6166561</span></div>
       <div class="inline-actions"><a class="btn sm wa" href="https://wa.me/923006166561?text=${waText}" target="_blank" rel="noopener">WhatsApp KLC</a><a class="btn ghost sm" href="tel:+923006166561">Call</a></div>
     </div>`;
-  return `<article class="card">
-    <div class="card-head"><div><span class="tag">Bilty</span><div class="bid" style="margin-top:6px">${esc(b.id)}</div></div><span class="pill s${b.status}">${STATUSES[b.status]}</span></div>
+  const lg=(document.querySelector(".brand img")||{}).src||"";
+  const thanks=b.status>=4?`<div class="bt-thanks"><div class="bt-ty">Thank you for choosing KLC.</div><p>It was our pleasure to carry your cargo safely to ${esc(b.to)}. We hope to serve you again soon.</p><small>Aap ka aitmaad hamari pehchan hai.</small></div>`:"";
+  return `<article class="card bt">
+    <div class="bt-brand">${lg?`<img src="${esc(lg)}" alt="KLC logo" width="64" height="64">`:""}<div><b>Kashaf Lasani Cargo Services</b><small>Bilty tracking</small></div></div>
+    <div class="card-head"><div><span class="tag">Bilty number</span><div class="bid bt-id" style="margin-top:6px">${esc(b.id)}</div></div><span class="pill s${b.status}">${STATUSES[b.status]}</span></div>
     <div class="summary-line big"><span class="ic">${BILTY_IC[b.status]}</span><span>${esc(BILTY_SAY[b.status](b))}</span></div>
     <div class="route">${esc(b.from)} <span class="arrow">→</span> ${esc(b.to)}</div>
     ${contact}
     <div class="timeline">${steps}</div>
-    <div><a class="hint" style="margin:0" href="https://wa.me/923006166561?text=${encodeURIComponent(`Assalam o Alaikum. Please send me the bilty PDF for ${b.id} (${b.from} to ${b.to}).`)}" target="_blank" rel="noopener">📄 Need the bilty PDF? Ask on WhatsApp</a></div></article>`;
+    <div><a class="hint" style="margin:0" href="https://wa.me/923006166561?text=${encodeURIComponent(`Assalam o Alaikum. Please send me the bilty PDF for ${b.id} (${b.from} to ${b.to}).`)}" target="_blank" rel="noopener">📄 Need the bilty PDF? Ask on WhatsApp</a></div>
+    ${thanks}</article>`;
 }
 function bbCard(r){
   return `<article class="card" style="border-left:5px solid var(--accent)">
