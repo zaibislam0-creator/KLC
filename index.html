@@ -1367,6 +1367,67 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 .acc-chips .acc-ph{font-size:13px;color:var(--muted)}
 .acc-top{background:linear-gradient(135deg,var(--chip),var(--surface) 70%)}
 .acc-hero .inline-actions{margin-left:auto}
+
+/* v108 account look + photo editor */
+.dpe{position:fixed;inset:0;z-index:9999;background:rgba(10,10,12,.55);display:grid;place-items:center;padding:16px}
+.dpe-box{background:var(--surface);color:var(--ink);border-radius:16px;padding:20px;width:min(340px,100%);display:grid;gap:12px;justify-items:center;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.dpe-box h3{margin:0;font:700 17px var(--display)}.dpe-box .hint{margin:0;text-align:center}
+.dpe-stage{position:relative;border-radius:12px;overflow:hidden;touch-action:none;cursor:grab;background:#fff;border:1px solid var(--line)}
+.dpe-stage:active{cursor:grabbing}.dpe-stage canvas{display:block}
+.dpe-ring{position:absolute;inset:0;pointer-events:none;border-radius:50%;box-shadow:0 0 0 999px rgba(255,255,255,.72),inset 0 0 0 2px rgba(0,0,0,.35)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dpe-ring{box-shadow:0 0 0 999px rgba(20,20,22,.72),inset 0 0 0 2px rgba(255,255,255,.4)}}
+:root[data-theme="dark"] .dpe-ring{box-shadow:0 0 0 999px rgba(20,20,22,.72),inset 0 0 0 2px rgba(255,255,255,.4)}
+.dpe-z{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;width:100%;font-size:13px;color:var(--muted)}
+.dpe-z input{width:100%;accent-color:var(--accent)}
+.dpe-box .inline-actions{justify-content:center}
+#accView .acc-top{background:var(--surface);border:1px solid var(--line);box-shadow:none;border-radius:14px;padding:22px;gap:18px!important}
+#accView .acc-hero .dp{width:84px;height:84px}
+#accView .acc-hero .acc-id h2{font:700 24px var(--display);letter-spacing:-.2px}
+#accView .acc-top .ledger-sum{gap:0;margin:0;border-top:1px solid var(--line);padding-top:16px}
+#accView .acc-top .ledger-sum div{background:none;border-radius:0;padding:0 16px;border-left:1px solid var(--line)}
+#accView .acc-top .ledger-sum div:first-child{padding-left:0;border-left:0}
+#accView .acc-top .ledger-sum>div>span{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+#accView .acc-top .ledger-sum b{font:700 22px var(--display);margin-top:4px}
+#accView .acc-top .filters{gap:4px;border-bottom:1px solid var(--line);margin:0 -4px}
+#accView .acc-top .filters .chipbtn{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 12px;color:var(--muted);margin-bottom:-1px}
+#accView .acc-top .filters .chipbtn[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+#accView .panel{box-shadow:none;border-radius:14px}
+#accView table.ledger th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.acc-tools{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:560px){#accView .acc-top{padding:16px}#accView .acc-top .ledger-sum{grid-template-columns:1fr 1fr;row-gap:14px}#accView .acc-top .ledger-sum div:nth-child(odd){border-left:0;padding-left:0}#accView .acc-hero .acc-id h2{font-size:20px}}
+.acct-up{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.acct-up .hint{margin:0;flex:1 1 220px}
+
+/* v108b account banner */
+.acc-banner{position:relative;overflow:hidden;color:#fff;border-radius:18px;padding:22px 24px 24px;display:grid;gap:18px;background:radial-gradient(900px 300px at 100% -10%,rgba(255,255,255,.14),transparent 60%),radial-gradient(500px 260px at -5% 110%,rgba(229,53,64,.45),transparent 65%),linear-gradient(135deg,#7a1420 0%,#4a0c14 60%,#2e070c 100%);box-shadow:0 10px 30px rgba(74,12,20,.25)}
+.acc-banner::after{content:"";position:absolute;right:-60px;top:40px;width:260px;height:260px;border-radius:50%;border:1px solid rgba(255,255,255,.12);box-shadow:0 0 0 38px rgba(255,255,255,.04);pointer-events:none}
+.acc-banner>*{position:relative;z-index:1}
+.ab-top{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.ab-badge{display:inline-flex;align-items:center;gap:10px;background:#fff;color:#2b0a0e;border-radius:14px;padding:6px 14px 6px 8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.ab-badge img{width:46px;height:46px;object-fit:contain;border-radius:8px}
+.ab-badge b{display:block;font:800 17px var(--display);letter-spacing:.5px;color:#a3141f;line-height:1.1}
+.ab-badge small{display:block;font-size:11px;color:#5a4a4c;line-height:1.2}
+.acc-banner .btn{background:#fff;color:#7a1420;border-color:#fff}
+.acc-banner .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)}
+.acc-banner .btn.ghost:hover{background:rgba(255,255,255,.2)}
+.ab-main{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.acc-banner .dp{width:92px;height:92px;border:3px solid #fff;box-shadow:0 0 0 3px rgba(255,255,255,.25),0 8px 20px rgba(0,0,0,.3)}
+.acc-banner .dp.dp-i{font-size:34px}
+.ab-id{min-width:0;flex:1 1 220px}
+.ab-hi{margin:0;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.75);font-weight:600}
+#accView .acc-banner .ab-id h2{margin:4px 0 8px;font:700 30px/1.15 var(--display);color:#fff!important;overflow-wrap:anywhere}
+.acc-banner .acc-chips{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.ab-code{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:3px 12px;font-size:13px;font-weight:600;letter-spacing:.03em}
+.acc-banner .acc-ph{color:rgba(255,255,255,.8);font-size:13px}
+.ab-note{margin:0;max-width:62ch;font-size:15px;line-height:1.6;color:rgba(255,255,255,.92);border-left:3px solid rgba(255,255,255,.4);padding-left:14px}
+.ab-note em{display:block;margin-top:4px;color:#fff;font-style:italic}
+.ab-sign{display:block;margin-top:6px;font:600 13px var(--display);color:rgba(255,255,255,.75);letter-spacing:.02em}
+.acc-banner .ab-stats{margin:0;gap:10px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.acc-banner .ab-stats div{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:12px 14px;backdrop-filter:blur(2px)}
+.acc-banner .ab-stats span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.72);font-weight:600}
+.acc-banner .ab-stats b{font:700 22px var(--display);color:#fff;margin-top:4px;display:block}
+.acc-banner .ab-stats b span{font-size:inherit;text-transform:none;letter-spacing:0;color:inherit;font-weight:inherit}
+@media (max-width:640px){.acc-banner{padding:16px;border-radius:16px}#accView .acc-banner .ab-id h2{font-size:23px}.acc-banner .dp{width:72px;height:72px}.acc-banner .ab-stats{grid-template-columns:1fr 1fr}.ab-badge small{display:none}.acc-banner .acc-tools{width:100%}}
 </style>
 
 <header class="top">
@@ -2020,6 +2081,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
   </div>
 
   <div id="p-acct" class="grid2" hidden>
+    <div class="panel acct-up" style="grid-column:1/-1"><button class="btn" type="button" data-goup="1">⬆ Upload ledger PDF</button><button class="btn ghost" type="button" data-goup="1">⬆ Upload bilty (challan) PDF</button><button class="btn ghost" type="button" data-goup="1">⬆ Upload invoice PDF</button><p class="hint">Choose the SmartCargo PDF. KLC reads what kind it is (ledger, bilty challan or invoice) and shows a preview before anything is saved.</p></div>
     <form class="panel f" id="acctForm">
       <h2>New company account</h2>
       <p class="hint" style="margin:0">This account gets company rates. Use the customer's SmartCargo credit code so the ledger matches SmartCargo.</p>
@@ -2027,7 +2089,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
       <p class="hint" style="margin:-6px 0 0">Leave empty only for a customer who is not in SmartCargo. A KLC code like KLC-C03 is then made.</p>
       <label>Company name<input id="acName" required></label>
       <label>Registered mobile<input id="acPhone" required inputmode="tel" placeholder="03xx-xxxxxxx"></label>
-      <label>Company logo or photo (optional)<input id="acDp" type="file" accept="image/*"></label>
+      <label>Company logo or photo (optional)<input id="acDp" type="file" accept="image/*"></label><p class="hint" id="acDpNote" style="margin:-6px 0 0"></p>
       <button class="btn" type="submit">Create account</button>
     </form>
     <div class="panel">
@@ -2445,12 +2507,12 @@ function ledgerHTML(c,staff){
   const ctx=staff?"staff":"cust",P=periods[ctx],L=ledger(c.code,P),cols=staff?9:8;
   const rows=L.rows.map(x=>`<tr${x.bounced?' style="opacity:.6"':""}><td>${esc(fmtD(x.d))}</td><td>${esc(x.type)}</td><td>${esc(x.desc)}</td><td class="mono" style="font-size:12px">${esc(x.ref)}</td><td>${x.mode?`<span class="tag">${esc(x.mode)}</span>`:""}</td><td class="num dr">${x.dr?rs(x.dr):""}</td><td class="num cr">${x.cr?rs(x.cr):x.bounced?"Bounced":""}</td><td class="num"><b>${rs(x.bal)}</b></td>${staff?`<td>${x.pid?`<div class="inline-actions">${x.p.method==="Cheque"&&can("pay")?`<select data-chq="${esc(x.pid)}" aria-label="Cheque status" style="width:auto;padding:4px 6px;font-size:12px">${["Pending","Cleared","Bounced"].map(o=>`<option ${o===(x.p.chqStatus||"Cleared")?"selected":""}>${o}</option>`).join("")}</select>`:""}<button class="btn ghost sm" type="button" data-rcpt="${esc(x.pid)}">Receipt PDF</button>${can("pay")?`<button class="btn ghost sm" type="button" data-delpay="${esc(x.pid)}" aria-label="Remove payment">✕</button>`:""}</div>`:(x.lid&&x.cr>0&&can("acct")?(lentAsk===x.lid?`<div class="inline-actions"><button class="btn sm" type="button" data-dellentyes="${esc(x.lid)}">Yes, remove</button><button class="btn ghost sm" type="button" data-dellentno="1">No</button></div>`:`<button class="btn ghost sm" type="button" data-dellent="${esc(x.lid)}">Remove RCP</button>`):"")}</td>`:""}</tr>`).join("");
   const openRow=(P.from)?`<tr class="open"><td>${esc(fmtDay(P.from))}</td><td colspan="6">Opening balance</td><td class="num">${rs(L.open)}</td>${staff?"<td></td>":""}</tr>`:"";
-  return `${staff?`<div class="card-head" style="margin-bottom:10px"><div><h2>${esc(c.name)}</h2><div class="hint" style="margin:4px 0 0">Account code <span class="codebox">${esc(c.code)}</span> · ${esc(fmtPhone(c.phone))}</div></div><button class="btn ghost sm" type="button" data-closeledger="1">Close</button></div>`:""}
+  return `${staff?`<div class="card-head" style="margin-bottom:10px"><div><h2>${esc(c.name)}</h2><div class="hint" style="margin:4px 0 0">Account code <span class="codebox">${esc(c.code)}</span> · ${esc(fmtPhone(c.phone))}</div></div><div class="inline-actions"><button class="btn ghost sm" type="button" data-goup="1">⬆ Upload PDF</button><button class="btn ghost sm" type="button" data-closeledger="1">Close</button></div></div>`:""}
   <div class="inline-actions" style="align-items:end;margin-bottom:12px">
     <label style="flex:0 1 160px">From<input type="date" class="lp" data-ctx="${ctx}" data-k="from" value="${esc(P.from)}"></label>
     <label style="flex:0 1 160px">To<input type="date" class="lp" data-ctx="${ctx}" data-k="to" value="${esc(P.to)}"></label>
     <button class="btn ghost sm" type="button" data-lpclear="${ctx}">All dates</button>
-    <button class="btn sm" type="button" data-pdf="${esc(c.code)}" data-ctx="${ctx}" style="margin-left:auto">⬇ Download PDF statement</button>
+    <button class="btn sm" type="button" data-pdf="${esc(c.code)}" data-ctx="${ctx}" style="margin-left:auto">⬇ Download PDF</button><button class="btn ghost sm" type="button" data-print="${esc(c.code)}" data-ctx="${ctx}">🖨 Print</button>
   </div>
   <div class="ledger-sum">${P.from?`<div><span>Opening balance</span><b>${rs(L.open)}</b></div>`:""}<div><span>Billed (debit)</span><b>${rs(L.dr)}</b></div><div><span>Received (credit)</span><b>${rs(L.cr)}</b></div><div><span>Closing balance</span><b>${balTxt(L.bal)}</b></div></div>
   <div class="ledger-sum">${MODES.map(m=>`<div><span>Received in ${m.toLowerCase()}</span><b style="font-size:16px">${rs(L.byMode[m]||0)}</b></div>`).join("")}</div>
@@ -2826,6 +2888,51 @@ function resizeDp(file){return new Promise((res,rej)=>{
   im.onload=()=>{const S=200,cv=document.createElement("canvas");cv.width=cv.height=S;const x=cv.getContext("2d"),m=Math.min(im.width,im.height);
     x.fillStyle="#fff";x.fillRect(0,0,S,S);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,S,S);URL.revokeObjectURL(u);res(cv.toDataURL("image/jpeg",.85))};
   im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error("read"))};im.src=u})}
+
+function dpEdit(src){return new Promise(res=>{
+  const isF=typeof src!=="string";if(isF&&!/^image\//.test(src.type)){res(null);return}
+  const url=isF?URL.createObjectURL(src):src,im=new Image();
+  im.onerror=()=>{if(isF)URL.revokeObjectURL(url);res(null)};
+  im.onload=()=>{
+    const V=260,W=im.width,H=im.height,contain=V/Math.max(W,H),cover=V/Math.min(W,H),smax=cover*3;
+    let sc=cover,ox=0,oy=0;
+    const ov=document.createElement("div");ov.className="dpe";
+    ov.innerHTML=`<div class="dpe-box" role="dialog" aria-modal="true" aria-label="Adjust photo"><h3>Adjust photo</h3><p class="hint">Drag the picture to move it. Use the slider to zoom.</p><div class="dpe-stage" style="width:${V}px;height:${V}px"><canvas width="${V*2}" height="${V*2}" style="width:${V}px;height:${V}px"></canvas><i class="dpe-ring"></i></div><label class="dpe-z">Zoom<input type="range" min="0" max="100" value="0" aria-label="Zoom"></label><div class="inline-actions"><button class="btn" type="button" data-dpok="1">Save photo</button><button class="btn ghost" type="button" data-dpno="1">Cancel</button></div><button class="btn ghost sm" type="button" data-dpfit="1">Fit whole picture</button></div>`;
+    document.body.appendChild(ov);
+    const cv=ov.querySelector("canvas"),st=ov.querySelector(".dpe-stage"),rg=ov.querySelector("input[type=range]");
+    const t2s=t=>contain*Math.pow(smax/contain,t/100),s2t=s=>100*Math.log(s/contain)/Math.log(smax/contain);
+    const clamp=()=>{const mx=W*sc/2,my=H*sc/2;ox=Math.max(-mx,Math.min(mx,ox));oy=Math.max(-my,Math.min(my,oy))};
+    const paint=(c,k)=>{const x=c.getContext("2d");x.setTransform(1,0,0,1,0,0);x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.setTransform(k,0,0,k,0,0);x.imageSmoothingQuality="high";x.drawImage(im,V/2+ox-W*sc/2,V/2+oy-H*sc/2,W*sc,H*sc)};
+    const draw=()=>{clamp();paint(cv,2)};
+    rg.value=s2t(sc);draw();
+    rg.oninput=()=>{sc=t2s(+rg.value);draw()};
+    let dr=null;
+    st.onpointerdown=e=>{dr={x:e.clientX,y:e.clientY,ox,oy};st.setPointerCapture(e.pointerId)};
+    st.onpointermove=e=>{if(!dr)return;ox=dr.ox+e.clientX-dr.x;oy=dr.oy+e.clientY-dr.y;draw()};
+    st.onpointerup=st.onpointercancel=()=>{dr=null};
+    st.onwheel=e=>{e.preventDefault();sc=Math.max(contain,Math.min(smax,sc*(e.deltaY<0?1.08:.93)));rg.value=s2t(sc);draw()};
+    const done=v=>{document.removeEventListener("keydown",kd);ov.remove();if(isF)URL.revokeObjectURL(url);res(v)};
+    const kd=e=>{if(e.key==="Escape")done(null)};document.addEventListener("keydown",kd);
+    ov.addEventListener("click",e=>{
+      if(e.target.closest("[data-dpno]")||e.target===ov)done(null);
+      else if(e.target.closest("[data-dpfit]")){sc=contain;ox=oy=0;rg.value=0;draw()}
+      else if(e.target.closest("[data-dpok]")){const o=document.createElement("canvas");o.width=o.height=320;const k=320/V;const x=o.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,320,320);x.setTransform(k,0,0,k,0,0);x.imageSmoothingQuality="high";x.drawImage(im,V/2+ox-W*sc/2,V/2+oy-H*sc/2,W*sc,H*sc);done(o.toDataURL("image/jpeg",.88))}
+    });
+    ov.querySelector("[data-dpok]").focus();
+  };
+  im.src=url})}
+let acDpData="";
+function printPDF(makeBlob){
+  if(!window.jspdf||!window.jspdf.jsPDF||!(new window.jspdf.jsPDF()).autoTable){toast("The PDF tool could not load. Check your internet connection and try again.");return}
+  let blob;try{blob=makeBlob()}catch(e){toast("Could not create the PDF.");return}
+  const u=URL.createObjectURL(blob),f=document.createElement("iframe");
+  f.style.cssText="position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0";f.src=u;document.body.appendChild(f);
+  f.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){window.open(u,"_blank")}};
+  toast("Opening the print window...");setTimeout(()=>{f.remove();URL.revokeObjectURL(u)},180000)}
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-goup]");if(!g)return;
+  if(!canSub("imp")){toast("Your role cannot upload. Ask the admin.");return}
+  sub="imp";renderPanel();const f=$("#impFile");if(f)f.click()});
 function renderAccount(){
   $("#accReqBox").hidden=!!accClient;$("#accForm").hidden=!!accClient;{const h=$("#v-account").firstElementChild;if(h)h.hidden=!!accClient}
   if(!accClient){$("#accView").innerHTML="";return}
@@ -2837,9 +2944,15 @@ function renderAccount(){
   else if(acctTab==="invoices")body=`<div class="panel">${myInvHTML(c.code)||'<p class="empty">No invoices yet.</p>'}</div>`;
   else if(acctTab==="orders")body=`<div class="panel">${ordersTab(c.code)}</div>`;
   else body=newOrderTab(c.code);
-  $("#accView").innerHTML=`<div class="eyebrow" style="margin:0 0 6px">Your account</div>
-  <div class="panel acc-top" style="display:grid;gap:14px"><div class="acc-hero">${dpHTML(c)}<div class="acc-id"><h2>${esc(c.name)}</h2><div class="acc-chips"><span class="codebox">${esc(c.code)}</span><span class="acc-ph">${esc(fmtPhone(c.phone))}</span></div></div><div class="inline-actions"><button class="btn ghost sm" type="button" data-chatopen="1">💬 Chat</button><button class="btn ghost sm" type="button" data-chpin="1">Password</button><button class="btn ghost sm" type="button" data-acclogout="1">Sign out</button></div></div>
-    <div class="ledger-sum"><div><span>Balance</span><b>${balTxt(L.bal)}</b></div><div><span>Billed</span><b>${rs(L.dr)}</b></div><div><span>Received</span><b>${rs(L.cr)}</b></div><div><span>Orders</span><b>${n}</b></div></div>
+  const logo=(document.querySelector(".brand img")||{}).src||"";
+  $("#accView").innerHTML=`<section class="acc-banner" aria-label="Your account">
+    <div class="ab-top"><span class="ab-badge"><img src="${esc(logo)}" alt="KLC" width="46" height="46"><span><b>KLC</b><small>Kashaf Lasani Cargo Services</small></span></span>
+      <div class="acc-tools"><button class="btn sm" type="button" data-pdf="${esc(c.code)}" data-ctx="cust">⬇ PDF statement</button><button class="btn ghost sm" type="button" data-print="${esc(c.code)}" data-ctx="cust">🖨 Print</button><button class="btn ghost sm" type="button" data-chatopen="1">💬 Chat</button><button class="btn ghost sm" type="button" data-chpin="1">Password</button><button class="btn ghost sm" type="button" data-acclogout="1">Sign out</button></div></div>
+    <div class="ab-main">${dpHTML(c)}<div class="ab-id"><p class="ab-hi">Assalam-o-Alaikum</p><h2>${esc(c.name)}</h2><div class="acc-chips"><span class="ab-code">Account ${esc(c.code)}</span><span class="acc-ph">${esc(fmtPhone(c.phone))}</span></div></div></div>
+    <p class="ab-note">Thank you for trusting KLC with your cargo. It is our honour to serve you, and we will always keep your shipments safe and your account clear.<em>Aap ka aitmaad hamari pehchan hai.</em><span class="ab-sign">— Kashaf Lasani Cargo Services</span></p>
+    <div class="ledger-sum ab-stats"><div><span>Balance</span><b>${balTxt(L.bal)}</b></div><div><span>Billed</span><b>${rs(L.dr)}</b></div><div><span>Received</span><b>${rs(L.cr)}</b></div><div><span>Orders</span><b>${n}</b></div></div>
+  </section>
+  <div class="panel acc-top" style="display:grid;gap:14px;margin-top:14px">
     ${pinFormHTML()}
     <div class="filters" role="tablist" aria-label="Account sections">${tabs.map(t=>`<button type="button" class="chipbtn" role="tab" data-acctab="${t[0]}" aria-pressed="${!acctOpen&&acctTab===t[0]}">${t[1]}</button>`).join("")}</div></div>
   <div style="display:grid;gap:14px;margin-top:14px">${body}</div>`;
@@ -2998,7 +3111,7 @@ function pAcct(){
   $("#acctRows").innerHTML=db.clients.length?db.clients.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td><div style="display:flex;gap:10px;align-items:flex-start">${dpHTML(c,true)}<div>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span><br><span style="font-size:12px">${c.pwh?`<b>Own password set</b>`:`PIN: <b class="mono">${esc(c.pin||"not set")}</b>`} <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin||c.pwh?"New PIN":"Make PIN"}</button></span><br><span style="font-size:12px"><button class="btn ghost sm" type="button" data-dpset="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.dp?"Change photo":"Add photo"}</button>${c.dp?` <button class="btn ghost sm" type="button" data-dprm="${esc(c.code)}" style="padding:2px 8px;font-size:11px">Remove</button>`:""}</span></div></div></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button><div class="inline-actions" style="margin-top:6px;gap:6px"><button class="btn ghost sm" type="button" data-acedit="${esc(c.code)}">Edit</button>${acDelAsk===c.code?`<button class="btn sm" type="button" data-acdelyes="${esc(c.code)}">Yes, delete</button><button class="btn ghost sm" type="button" data-acdelno="1">No</button>`:`<button class="btn ghost sm" type="button" data-acdel="${esc(c.code)}">Delete</button>`}</div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No company accounts yet.</td></tr>`;
   {const ec=clientOf(acEditCode),eb=$("#acctEditBox");eb.hidden=!ec;
     eb.innerHTML=ec?`<div class="panel f"><div class="card-head"><h2>Edit account ${esc(ec.code)}</h2><button class="btn ghost sm" type="button" data-aecancel="1">Close</button></div>
-      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${dpHTML(ec)}<div class="inline-actions"><button class="btn ghost sm" type="button" data-dpset="${esc(ec.code)}">${ec.dp?"Change photo":"Add photo"}</button>${ec.dp?`<button class="btn ghost sm" type="button" data-dprm="${esc(ec.code)}">Remove photo</button>`:""}</div></div>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${dpHTML(ec)}<div class="inline-actions"><button class="btn ghost sm" type="button" data-dpset="${esc(ec.code)}">${ec.dp?"Change photo":"Add photo"}</button>${ec.dp?`<button class="btn ghost sm" type="button" data-dpadj="${esc(ec.code)}">Adjust photo</button><button class="btn ghost sm" type="button" data-dprm="${esc(ec.code)}">Remove photo</button>`:""}</div></div>
       <div class="row2"><label>Company name<input id="aeName" value="${esc(ec.name)}" autocomplete="off"></label><label>Registered mobile<input id="aePhone" inputmode="tel" value="${esc(fmtPhone(ec.phone))}" autocomplete="off"></label></div>
       <p class="hint" style="margin:0">The account code cannot be changed because it matches SmartCargo. A new PIN can be made from the list.</p>
       <div class="inline-actions"><button class="btn" type="button" data-aesave="${esc(ec.code)}">Save changes</button><button class="btn ghost" type="button" data-aecancel="1">Cancel</button></div></div>`:""}
@@ -3008,9 +3121,10 @@ function pAcct(){
 
 function acctClick(e){
   const rm=e.target.closest("[data-dprm]");if(rm){const c=clientOf(rm.dataset.dprm);if(c){delete c.dp;save();pAcct();toast("Photo removed")}return}
+  const ad=e.target.closest("[data-dpadj]");if(ad){const c=clientOf(ad.dataset.dpadj);if(c&&c.dp)dpEdit(c.dp).then(d=>{if(d){c.dp=d;save();pAcct();toast("Photo saved")}});return}
   const st=e.target.closest("[data-dpset]");if(st){
     const inp=document.createElement("input");inp.type="file";inp.accept="image/*";
-    inp.onchange=()=>{const f=inp.files[0];if(!f)return;resizeDp(f).then(d=>{const c=clientOf(st.dataset.dpset);if(c){c.dp=d;save();pAcct();toast("Photo saved")}}).catch(()=>toast("This file is not a picture. Choose a JPG or PNG."))};
+    inp.onchange=()=>{const f=inp.files[0];if(!f)return;dpEdit(f).then(d=>{if(d===null){if(!/^image\//.test(f.type))toast("This file is not a picture. Choose a JPG or PNG.");return}const c=clientOf(st.dataset.dpset);if(c){c.dp=d;save();pAcct();toast("Photo saved")}})};
     inp.click();return}
   const ed=e.target.closest("[data-acedit]");if(ed){acEditCode=ed.dataset.acedit;acDelAsk="";pAcct();$("#acctEditBox").scrollIntoView({behavior:"smooth",block:"start"});return}
   if(e.target.closest("[data-aecancel]")){acEditCode="";pAcct();return}
@@ -3045,6 +3159,7 @@ $("#ledgerBox").addEventListener("click",e=>{
 });
 $("#acctRows").addEventListener("click",acctClick);
 $("#acctEditBox").addEventListener("click",acctClick);
+$("#acDp").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;dpEdit(f).then(d=>{if(d){acDpData=d;$("#acDpNote").textContent="Photo ready. It will be saved with the account."}else{acDpData="";e.target.value="";$("#acDpNote").textContent="";if(!/^image\//.test(f.type))toast("This file is not a picture. Choose a JPG or PNG.")}})});
 $("#acctForm").addEventListener("submit",e=>{
   e.preventDefault();
   const aph=normPhone($("#acPhone").value);if(!validMob(aph)){toast("Enter a valid mobile number, like 0300-1234567");return}
@@ -3054,7 +3169,7 @@ $("#acctForm").addEventListener("submit",e=>{
     if(clientOf(code)){toast(`Code ${code} already has an account`);return}
   }else{let n=db.clients.length+1;do{code="KLC-C"+String(n++).padStart(2,"0")}while(db.clients.some(c=>c.code===code))}
   const pin=genPin();const nc={code,name:$("#acName").value.trim(),phone:aph,pin,src:/^\d+$/.test(code)?"SmartCargo":""};db.clients.push(nc);
-  const dpf=$("#acDp").files[0];if(dpf)resizeDp(dpf).then(d=>{nc.dp=d;save();pAcct()}).catch(()=>toast("Photo could not be read. Add it later with Add photo."));
+  if(acDpData)nc.dp=acDpData;acDpData="";$("#acDpNote").textContent="";
   save();e.target.reset();pAcct();toast(`Account ${code} created. PIN: ${pin}. Send the code and PIN to the customer on WhatsApp.`);
 });
 function pNews(){
@@ -4380,6 +4495,7 @@ document.addEventListener("click",e=>{
   else if(d.lpclear){periods[d.lpclear]={from:"",to:""};d.lpclear==="staff"?pAcct():renderAccount()}
   else if(d.invpdf){const v=(db.invoices||[]).find(x=>x.id===d.invpdf);if(v)offerPDF(()=>invoicePDF(v),`KLC-Invoice-${v.id}.pdf`)}
   else if(d.pdf){const c=clientOf(d.pdf),P=periods[d.ctx];offerPDF(()=>statementPDF(c,P),`KLC-Statement-${c.code}-${today()}.pdf`)}
+  else if(d.print){const c=clientOf(d.print),P=periods[d.ctx];if(c)printPDF(()=>statementPDF(c,P))}
   else if(d.rcpt){const p=db.payments.find(x=>x.id===d.rcpt);offerPDF(()=>receiptPDF(p),`KLC-Receipt-${p.id}.pdf`)}
   else if(d.delpay){db.payments=db.payments.filter(x=>x.id!==d.delpay);save();renderPanel();toast("Payment removed from ledger")}
   else if(d.acctab){acctTab=d.acctab;acctOpen="";renderAccount()}
