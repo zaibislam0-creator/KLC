@@ -1485,7 +1485,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
     <div class="hsec-head"><div class="eyebrow">FAQ</div><h2 id="faqH">Frequently asked questions</h2></div>
     <details><summary>What is KLC?</summary><p>Kashaf Lasani Cargo Services (KLC) is a cargo and transport company in Pakistan. It runs Sialkot to Karachi cargo, takes bilty bookings, and lets customers track a bilty online.</p></details>
     <details><summary>How do I track my bilty?</summary><p>Type your bilty number on the Home page, for example 151090, and press Track. You see the status, the route, the status dates and, once the goods have arrived, who to contact at the destination.</p></details>
-    <details><summary>What does tracking show, and what does it not show?</summary><p>It shows the bilty number, status, where the goods are, the route and the contact person at the destination. To protect your privacy it never shows customer names, quantity, weight or charges.</p></details>
+    <details><summary>What does tracking show, and what does it not show?</summary><p>It shows the bilty number, status, where the goods are, the route and the contact person at the destination. To protect your privacy it never shows sender or customer names, quantity, weight or charges. After delivery it shows only the name of the person who received the goods.</p></details>
     <details><summary>Can I track with my mobile number?</summary><p>No. Tracking works with the bilty number only, which is written on your bilty slip. If you cannot find it, send us a message on WhatsApp at 0300-6166561.</p></details>
     <details><summary>Can I get my bilty as a PDF?</summary><p>The website is for tracking only. To get a PDF copy of your bilty, ask the KLC team on WhatsApp at 0300-6166561.</p></details>
     <details><summary>How do I book a bilty?</summary><p>Choose Book a Bilty and fill the short form. Your booking is written out and ready to send to KLC by WhatsApp or email. KLC confirms it, makes the final bilty on SmartCargo and sends you the bilty number.</p></details>
@@ -1903,11 +1903,11 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 
   <div id="p-imp" hidden style="display:grid;gap:18px">
     <div class="panel" style="display:grid;gap:12px">
-      <h2>Import from SmartCargo (challan or ledger)</h2>
-      <p class="hint" style="margin:0">In SmartCargo open the Booking Challan, print it and save it as PDF. Then choose that PDF here. The bilties in it are added to tracking. A SmartCargo <b>Ledger report</b> PDF can be chosen here too: it fills the online customer ledger.</p>
+      <h2>Import from SmartCargo (challan, delivery, ledger, invoice)</h2>
+      <p class="hint" style="margin:0">In SmartCargo open the Booking Challan, print it and save it as PDF. Then choose that PDF here. The bilties in it are added to tracking. The <b>Daily Delivery Report</b> PDF can be chosen here too: it marks those bilties Delivered and shows who received them. A SmartCargo <b>Ledger report</b> PDF fills the online customer ledger.</p>
       <label class="drop" id="impDrop">
         <input type="file" id="impFile" accept="application/pdf,.pdf" style="position:absolute;opacity:0;width:1px;height:1px">
-        <b>📄 Choose challan or ledger PDF</b><span class="hint" style="margin:0">or drag the file here</span>
+        <b>📄 Choose challan, delivery, ledger or invoice PDF</b><span class="hint" style="margin:0">or drag the file here</span>
       </label>
       <p class="hint" id="impMsg" style="margin:0"></p>
     </div>
@@ -1915,7 +1915,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
     <div class="panel">
       <h2 style="margin-bottom:10px">Imported challans</h2>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Challan</th><th>Date</th><th>Route</th><th>Vehicle</th><th class="num">Bilties</th><th>Status</th><th>Imported</th></tr></thead>
+        <thead><tr><th>Challan</th><th>Date</th><th>Route</th><th>Vehicle</th><th class="num">Bilties</th><th>Status (change here)</th><th>Updated</th></tr></thead>
         <tbody id="impRows"></tbody>
       </table></div>
     </div>
@@ -2225,7 +2225,6 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
   </div>
   </div>
   </div>
-  <p style="text-align:right" id="resetRow" hidden><button class="btn ghost sm" id="resetBtn">Reset demo data</button> <span id="resetConfirm" hidden><button class="btn sm" id="resetYes">Yes, reset</button> <button class="btn ghost sm" id="resetNo">Cancel</button></span></p>
 </section>
 
 <div class="footer"><b>Kashaf Lasani Cargo Services (KLC)</b><span>Bilty tracking · Bilty booking · Online ledger</span><span>WhatsApp / Call: <b class="mono">0300-6166561</b> · <b class="mono">0307-6401597</b> · Landline: <b class="mono">052-4587207</b></span><span>Email: <b class="mono">kashaf.lasani@gmail.com</b></span><span><button type="button" class="linkbtn" data-go="panel">Staff login</button></span></div>
@@ -2561,7 +2560,7 @@ setHH();fitPoster();addEventListener("resize",()=>{setHH();fitPoster()});addEven
 /* ---------- tracking ---------- */
 document.addEventListener("click",e=>{const a=e.target.closest("[data-scrollto]");if(!a)return;e.preventDefault();openTrack()});
 function openTrack(){show("track",true);$("#results").innerHTML="";$("#v-track").classList.add("focus");$("#v-track").classList.remove("hasres");window.scrollTo({top:0});setTimeout(()=>$("#q").focus({preventScroll:true}),60)}
-const BILTY_SAY=[(b)=>`Booked at the ${b.from} office. It will leave soon.`,(b)=>`Left ${b.from}. On its way to ${b.to}.`,(b)=>`On the way to ${b.to}.`,(b)=>b.arrival?.place?`Your goods have reached ${b.arrival.place}.`:`Your goods have reached the ${b.to} office.`,(b)=>`Delivered.`];
+const BILTY_SAY=[(b)=>`Booked at the ${b.from} office. It will leave soon.`,(b)=>`Left ${b.from}. On its way to ${b.to}.`,(b)=>`On the way to ${b.to}.`,(b)=>b.arrival?.place?`Your goods have reached ${b.arrival.place}.`:`Your goods have reached the ${b.to} office.`,(b)=>b.deliv&&b.deliv.name?`Delivered${b.deliv.day?" on "+fmtDay(b.deliv.day):""}. Received by ${b.deliv.name}.`:`Delivered.`];
 const BILTY_IC=["📦","🚚","🚚","🏢","✅"];
 function biltyCard(b){
   const steps=STATUSES.map((s,i)=>`<div class="step ${i<b.status?"done":i===b.status?"now":""}"><div class="dot"></div>${s}<small>${b.hist[i]?fmt(b.hist[i]):"—"}</small></div>`).join("");
@@ -2896,7 +2895,7 @@ $$("#subtabs .chipbtn").forEach(b=>b.addEventListener("click",()=>{sub=b.dataset
 function renderPanel(){
   staffOK=!!me();
   $("#staffTab").hidden=!staffOK&&curView!=="panel";
-  $("#lockForm").hidden=staffOK;$("#panelBody").hidden=!staffOK;$("#kpLoginHead").hidden=staffOK;$("#resetRow").hidden=!(staffOK&&can("admin"));
+  $("#lockForm").hidden=staffOK;$("#panelBody").hidden=!staffOK;$("#kpLoginHead").hidden=staffOK;
   if(!staffOK)return;
   staffName=me().name;
   $("#whoami").textContent=`${staffName} · ${roleOf(me())?.name||"No role"}`;
@@ -2934,7 +2933,7 @@ function pBilty(){
     <td>${esc(b.recv||"—")}${b.phone?`<br><span class="mono" style="color:var(--muted);font-size:12px">${esc(fmtPhone(b.phone))}</span>`:""}${c?`<br><span class="tag">${esc(c.name)}</span>`:""}</td>
     <td class="num">${t?rs(t):"—"}${b.pay?`<br><span style="color:var(--muted);font-size:12px">${esc(b.pay)}</span>`:""}</td>
     <td class="num">${!t?"—":b.acct?`<span style="color:var(--muted);font-size:12px">On account</span>`:d>0?`<span class="due">${rs(d)}</span><br><button class="btn ghost sm" data-collect="${esc(b.id)}">Mark paid</button>`:`<span class="ok">Paid</span>`}</td>
-    <td><select data-bid="${esc(b.id)}" aria-label="Status ${esc(b.id)}">${STATUSES.map((s,i)=>`<option value="${i}" ${i===b.status?"selected":""}>${s}</option>`).join("")}</select></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No bilties yet. Import a SmartCargo challan or create one with the form.</td></tr>`;
+    <td><select data-bid="${esc(b.id)}" aria-label="Status ${esc(b.id)}">${STATUSES.map((s,i)=>`<option value="${i}" ${i===b.status?"selected":""}>${s}</option>`).join("")}</select>${b.deliv&&b.deliv.name?`<br><span style="font-size:11px;color:var(--muted)">Received by ${esc(b.deliv.name)}</span>`:""}</td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No bilties yet. Import a SmartCargo challan or create one with the form.</td></tr>`;
   $$("#coRows select").forEach(sel=>sel.addEventListener("change",()=>{
     const b=db.bilties.find(x=>x.id===sel.dataset.bid),n=+sel.value;
     b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(new Date().toISOString());
@@ -4062,6 +4061,92 @@ $("#impPreview").addEventListener("click",e=>{
   toast(`Ledger imported: ${n} entries`);
 });
 
+
+/* ---------- SmartCargo Daily Delivery Report import ---------- */
+let delData=null;
+function parseDelivery(lines){
+  const all=lines.map(l=>l.text).join("\n");
+  const per=all.match(/Period From:\s*(\d{2}-\d{2}-\d{4})\s*To:\s*(\d{2}-\d{2}-\d{4})/i);
+  const hdr=lines.find(l=>/Receiver/i.test(l.text)&&/Invoice/i.test(l.text));
+  const hx=hdr?hdr.items.filter(i=>/^Receiver$/i.test(i.t)).map(i=>i.x).sort((a,b)=>a-b):[];
+  const wh=hdr?lines.filter(l=>l.page===hdr.page&&Math.abs(l.y-hdr.y)<=14).flatMap(l=>l.items).find(i=>/^Weight$/i.test(i.t)):null;
+  const nameLo=(hx[0]||393)-8,phLo=(hx[1]||441)-12,nicLo=(hx[2]||488)-6,wtLo=wh?wh.x+wh.w/2-14:533;
+  const rows=[];let city="";
+  const pages=[...new Set(lines.map(l=>l.page))];
+  pages.forEach(pg=>{
+    const L=lines.filter(l=>l.page===pg).sort((a,b)=>b.y-a.y);
+    const mains=[];
+    L.forEach(l=>{
+      const c=l.text.match(/Delivery City\s*:\s*\d*\s*(.+)$/i);if(c){city=titleCase(c[1]);return}
+      if(/^\d{3,}\s+\d{2}-\d{2}-\d{4}\b/.test(l.text)){
+        const it=l.items,d=l.text.match(/^(\d+)\s+(\d{2})-(\d{2})-(\d{4})/);
+        const bn=it.find(i=>i.x>=155&&i.x<190&&/^\d{4,}$/.test(i.t));
+        if(!bn)return;
+        const wt=it.filter(i=>i.x>=wtLo&&/^[\d,.]+$/.test(i.t)).pop();
+        mains.push({y:l.y,billNo:d[1],date:`${d[4]}-${d[3]}-${d[2]}`,city:city,book:titleCase(it.filter(i=>i.x>=100&&i.x<155&&!/^[\d,]+$/.test(i.t)).map(i=>i.t).join(" ")),no:bn.t,kg:wt?+wt.t.replace(/,/g,""):0,cells:{n:[],p:[],i:[]}});
+      }
+    });
+    L.forEach(l=>{
+      if(/^\d{3,}\s+\d{2}-\d{2}-\d{4}\b/.test(l.text)&&mains.some(m=>m.y===l.y)){}
+      l.items.filter(i=>i.x>=nameLo&&i.x<wtLo+0.1).forEach(i=>{
+        if(l.text.match(/^(Bill|No\.|Delivery City|Date)/)||/Receiver|Credit/i.test(i.t)&&i.x>=nameLo&&!mains.length)return;
+        if(!mains.length)return;
+        const isMainLine=mains.some(m=>m.y===l.y);
+        if(isMainLine&&(i.x>=wtLo||(i.x<phLo&&/^[\d,]+$/.test(i.t))))return;
+        let best=mains[0];mains.forEach(m=>{if(Math.abs(m.y-l.y)<Math.abs(best.y-l.y))best=m});
+        if(Math.abs(best.y-l.y)>14)return;
+        const col=i.x<phLo?"n":i.x<nicLo?"p":"i";
+        best.cells[col].push({y:l.y,x:i.x,t:i.t});
+      });
+    });
+    mains.forEach(m=>{
+      const j=a=>a.sort((p,q)=>q.y-p.y||p.x-q.x).map(z=>z.t).join(" ").replace(/\s+/g," ").trim();
+      const raw=j(m.cells.n);
+      const cons=titleCase(raw.replace(/\bNIC(?:\s+C(?:OPY)?)?\b/gi,"").replace(/\s+/g," ").trim());
+      const ptxt=j(m.cells.p),who=titleCase(ptxt.replace(/[\d\-\/\.\(\)+,:]+/g," ").replace(/\bNIC(?:\s+C(?:OPY)?)?\b/gi,"").replace(/\s+/g," ").trim());
+      const name=(who||cons).replace(/[\s\-]+$/,"");
+      rows.push({id:m.no,billNo:m.billNo,date:m.date,city:m.city,book:m.book,name:name,cons:cons,raw:raw,phone:j(m.cells.p),nic:j(m.cells.i),kg:m.kg});
+    });
+  });
+  return{period:per?{from:per[1],to:per[2]}:{from:"",to:""},rows};
+}
+function delFind(r){
+  const same=db.bilties.filter(b=>biltyMatch(b.id,r.id));
+  return same.find(b=>String(b.from).toLowerCase()===r.book.toLowerCase())||(same.length===1?same[0]:null);
+}
+function renderDelPreview(){
+  const D=delData,found=D.rows.filter(delFind).length,miss=D.rows.length-found;
+  $("#impPreview").innerHTML=`<div class="panel" style="display:grid;gap:12px">
+    <div class="card-head"><h2>Daily delivery report · ${esc(D.period.from)} to ${esc(D.period.to)}</h2><span class="pill s4">${D.rows.length} bilties read</span></div>
+    <p class="hint" style="margin:0">These bilties will be marked <b>Delivered</b>. Customers will see "Received by" with the name of the person who took the goods. Mobile numbers and NIC stay with staff only.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Bilty</th><th>From</th><th>Taken by (customer sees)</th><th>Receiver on bilty</th><th>Mobile / NIC (staff only)</th><th class="num">Kg</th><th>In tracking</th></tr></thead><tbody>${D.rows.map(r=>{const b=delFind(r);return `<tr><td class="mono"><b>${esc(r.id)}</b></td><td>${esc(r.book)}</td><td><b>${esc(r.name||"—")}</b></td><td>${esc(r.cons||"—")}</td><td style="font-size:12px;color:var(--muted)">${esc(r.phone)}${r.nic?`<br>${esc(r.nic)}`:""}</td><td class="num">${r.kg||""}</td><td>${b?(b.status===4?'<span class="tag">already delivered</span>':'<span class="tag">update</span>'):'<span class="tag port">new</span>'}</td></tr>`}).join("")}</tbody></table></div>
+    <label class="chk" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="delAdd" checked> Also add the ${miss} bilties that are not in tracking yet (as Delivered)</label>
+    <div class="inline-actions"><button class="btn" type="button" id="delGo">Mark ${D.rows.length} bilties Delivered</button><button class="btn ghost" type="button" id="delCancel">Cancel</button></div></div>`;
+}
+$("#impPreview").addEventListener("click",e=>{
+  if(e.target.closest("#delCancel")){delData=null;$("#impPreview").innerHTML="";$("#impFile").value="";return}
+  if(!e.target.closest("#delGo")||!delData)return;
+  const D=delData,addNew=$("#delAdd")&&$("#delAdd").checked,now=new Date().toISOString();
+  db.delrec=db.delrec||[];
+  let upd=0,added=0,skipped=0;
+  D.rows.forEach(r=>{
+    let b=delFind(r);
+    const dIso=new Date(r.date+"T09:00:00").toISOString();
+    if(!b){
+      if(!addNew){skipped++;return}
+      b={id:r.id,from:r.book,to:r.city||"Karachi",sender:"",sphone:"",recv:"",phone:"",items:"",pcs:"",kg:r.kg||"",status:0,hist:[dIso],acct:"",freight:0,labour:0,pay:"",paid:0,src:"Delivery"};db.bilties.push(b);added++
+    }else upd++;
+    for(let i=1;i<=4;i++){if(!b.hist[i])b.hist[i]=dIso}
+    b.hist=b.hist.slice(0,5);b.hist[4]=b.status===4&&b.deliv?b.hist[4]:dIso;b.status=4;
+    b.deliv={name:r.name,day:r.date,date:dIso};
+    const rec={id:b.id,bill:r.billNo,name:r.raw,cons:r.cons,phone:r.phone,nic:r.nic,kg:r.kg,city:r.city,date:dIso,at:now,by:staffName};
+    const k=db.delrec.findIndex(x=>x.id===b.id);k>=0?db.delrec[k]=rec:db.delrec.push(rec);
+  });
+  save();delData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${upd} bilties updated, ${added} added${skipped?`, ${skipped} skipped`:""}. All are now "Delivered" with the receiver's name.`;
+  renderPanel();toast(`${upd+added} bilties marked Delivered`);
+});
+
 /* ---------- SmartCargo bilty invoice import ---------- */
 let invData=null;
 function parseInvoices(lines){
@@ -4119,7 +4204,8 @@ async function handleImportFile(f){
   if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){$("#impMsg").textContent="Please choose a PDF file.";return}ledData=null;
   $("#impMsg").textContent="Reading the PDF…";$("#impPreview").innerHTML="";
   try{
-    const lines=await pdfLines(await f.arrayBuffer());
+    delData=null;const lines=await pdfLines(await f.arrayBuffer());
+    if(/Daily Delivery Report/i.test(lines.map(l=>l.text).join("\n"))){delData=parseDelivery(lines);delData.file=f.name;ledData=null;invData=null;impData=null;if(!delData.rows.length)throw new Error("no_rows");$("#impMsg").textContent="";renderDelPreview();return}
     if(/LEDGER ACCOUNTING SYSTEM/i.test(lines.map(l=>l.text).join("\n"))){ledData=parseLedger(lines);ledData.file=f.name;impData=null;if(!ledData.accounts.length)throw new Error("no_rows");$("#impMsg").textContent="";renderLedPreview();return}
     if(/Customer Copy/i.test(lines.map(l=>l.text).join("\n"))&&/Bilty No\./i.test(lines.map(l=>l.text).join("\n"))&&!/BOOKING CHALLAN/i.test(lines.map(l=>l.text).join("\n"))){invData=parseInvoices(lines);invData.file=f.name;ledData=null;impData=null;if(!invData.rows.length)throw new Error("no_rows");$("#impMsg").textContent="";renderInvPreview();return}
     invData=null;ledData=null;impData=parseChallan(lines);impData.file=f.name;
@@ -4171,7 +4257,8 @@ function applyImport(e){
   const challan={no:h.no,date:h.date,vehicle:h.vehicle,transporter:h.transporter};
   let added=0,updated=0;
   rows.forEach(r=>{
-    let b=db.bilties.find(x=>x.id===r.id);
+    let b=db.bilties.find(x=>x.id===r.id)||db.bilties.find(x=>x.src==="Delivery"&&biltyMatch(x.id,r.id)&&String(x.from).toLowerCase()===String(h.from).toLowerCase());
+    if(b&&b.id!==r.id)b.id=r.id;
     if(!b){b={id:r.id,from:h.from,to:h.to,sender:"",sphone:"",recv:"",phone:"",items:"",pcs:"",kg:"",status:0,hist:[dmyToIso(r.date)],acct:"",freight:0,labour:0,pay:"",paid:0,src:"SmartCargo"};db.bilties.push(b);added++}
     else{updated++}
     b.challan=challan;
@@ -4191,7 +4278,17 @@ function applyImport(e){
 }
 function pImp(){
   const list=(db.challans||[]).slice().reverse();
-  $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td>${esc(c.status)}</td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="7" class="empty">No challans imported yet.</td></tr>`;
+  $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td><select data-chno="${esc(c.no)}" data-chfrom="${esc(c.from)}" aria-label="Status of challan ${esc(c.no)}">${STATUSES.map((x,i)=>`<option value="${i}" ${x===c.status?"selected":""}>${x}</option>`).join("")}</select></td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="7" class="empty">No challans imported yet.</td></tr>`;
+  $$("#impRows select").forEach(sel=>sel.addEventListener("change",()=>{
+    const n=+sel.value,no=sel.dataset.chno,fr=sel.dataset.chfrom;
+    const c=(db.challans||[]).find(x=>x.no===no&&x.from===fr);if(!c)return;
+    const now=new Date().toISOString();let k=0;
+    db.bilties.forEach(b=>{if(b.challan&&b.challan.no===no&&b.from===fr){
+      b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(now);
+      b.status=n;k++}});
+    c.status=STATUSES[n];c.at=now;c.by=staffName;
+    save();renderPanel();toast(`Challan ${no}: ${k} bilties set to "${STATUSES[n]}"`);
+  }));
 }
 $("#impFile").addEventListener("change",e=>handleImportFile(e.target.files[0]));
 ["dragenter","dragover"].forEach(ev=>$("#impDrop").addEventListener(ev,e=>{e.preventDefault();$("#impDrop").classList.add("over")}));
@@ -4336,9 +4433,7 @@ if(staffOK&&sbGet())syncPull(true).then(ok=>{if(ok){renderPanel()}else{toast("On
   history.replaceState(null,"",location.pathname+location.search);
   fetch(SB_URL+"/auth/v1/user",{headers:sbH(p.get("access_token"))}).then(r=>r.json()).then(u=>{if(u&&u.email){syncPull(true).then(()=>{staffEnter(u.email);show("panel");pwModal(true)})}}).catch(()=>{})}})();
 $("#lockBtn").addEventListener("click",()=>{staffOK=false;staffUser="";staffName="";try{sessionStorage.removeItem("klc-staff-user")}catch(err){}sbSet(null);syncOK=false;try{localStorage.removeItem(KEY)}catch(err){}location.reload();return;renderPanel();if(typeof kBadges==="function"){kBadges();closeChat()}toast("Signed out")});
-$("#resetBtn").addEventListener("click",()=>{$("#resetBtn").hidden=true;$("#resetConfirm").hidden=false});
-$("#resetNo").addEventListener("click",()=>{$("#resetBtn").hidden=false;$("#resetConfirm").hidden=true});
-$("#resetYes").addEventListener("click",()=>{db=seed();save();ensureCharges();mine={bb:[],vb:[]};saveMine();rateAcct=null;$("#resetBtn").hidden=false;$("#resetConfirm").hidden=true;renderPanel();toast("Demo data reset")});
+
 
 $("#vDate").value=today();$("#vDate").min=today();
 applyCityDefaults();
@@ -4362,7 +4457,7 @@ go(0);tick();})();
 (function(){if(!OFFICE.list||!OFFICE.list.length)return;const b=document.getElementById("officeBox");if(!b)return;b.hidden=false;const e=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));document.getElementById("officeAddr").innerHTML=OFFICE.list.map(o=>"<div><b>"+e(o.n)+"</b><br>"+e(o.a)+"</div>").join("");document.getElementById("officeHrs").textContent=OFFICE.hours||"";if(OFFICE.map){const a=document.getElementById("officeMap");a.href=OFFICE.map;a.hidden=false}})();
 </script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Organization","LocalBusiness"],"@id":"#klc","name":"Kashaf Lasani Cargo Services","alternateName":["KLC","KLC Cargo"],"description":"Cargo and transport company in Pakistan. Main route Sialkot to Karachi. Bilty booking, online bilty tracking and an online ledger for business clients.","areaServed":[{"@type":"City","name":"Sialkot"},{"@type":"City","name":"Karachi"},{"@type":"City","name":"Lahore"},{"@type":"City","name":"Gujranwala"},{"@type":"City","name":"Multan"},{"@type":"City","name":"Rawalpindi"},{"@type":"City","name":"Hyderabad"},{"@type":"City","name":"Sahiwal"},{"@type":"City","name":"Port Qasim"}],"telephone":"+92-300-6166561","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],"opens":"00:00","closes":"23:59"}],"address":[{"@type":"PostalAddress","streetAddress":"Maharaja Road, Butcher Khana Chowk, opposite Dr Adnan Clinic","addressLocality":"Sialkot","addressCountry":"PK"},{"@type":"PostalAddress","streetAddress":"Daska Road, Pakki Kothi, next to Nizam Sons","addressLocality":"Sialkot","addressCountry":"PK"}],"email":"kashaf.lasani@gmail.com","contactPoint":[{"@type":"ContactPoint","telephone":"+92-300-6166561","contactType":"customer service","availableLanguage":["English","Urdu"]},{"@type":"ContactPoint","telephone":"+92-307-6401597","contactType":"customer service","availableLanguage":["English","Urdu"]},{"@type":"ContactPoint","telephone":"+92-52-4587207","contactType":"customer service"}],"knowsAbout":["Bilty tracking","Cargo transport Pakistan","Sialkot to Karachi cargo","Port delivery KPT QICT Port Qasim"]},{"@type":"WebSite","name":"Kashaf Lasani Cargo Services (KLC)","inLanguage":"en","publisher":{"@id":"#klc"}},{"@type":"Service","name":"Bilty tracking","serviceType":"Shipment tracking","provider":{"@id":"#klc"},"areaServed":"PK","description":"Enter a bilty number to see the latest status, route and destination contact of a shipment."},{"@type":"Service","name":"Bilty booking","serviceType":"Cargo transport","provider":{"@id":"#klc"},"areaServed":"PK","description":"Book cartons, bales and part loads, charged by weight or volume (CBM), between cities in Pakistan, paid or to-pay."},{"@type":"Service","name":"Port delivery","serviceType":"Port cargo delivery","provider":{"@id":"#klc"},"areaServed":"Karachi","description":"Export cargo delivered to KPT, QFS, Port Qasim and the dry ports."}]}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is KLC?","acceptedAnswer":{"@type":"Answer","text":"Kashaf Lasani Cargo Services (KLC) is a cargo and transport company in Pakistan. It runs Sialkot to Karachi cargo, takes bilty bookings, and lets customers track a bilty online."}},{"@type":"Question","name":"How do I track my bilty?","acceptedAnswer":{"@type":"Answer","text":"Type your bilty number on the Home page, for example 151090, and press Track. You see the status, the route, the status dates and, once the goods have arrived, who to contact at the destination."}},{"@type":"Question","name":"What does tracking show, and what does it not show?","acceptedAnswer":{"@type":"Answer","text":"It shows the bilty number, status, where the goods are, the route and the contact person at the destination. To protect your privacy it never shows customer names, quantity, weight or charges."}},{"@type":"Question","name":"Can I track with my mobile number?","acceptedAnswer":{"@type":"Answer","text":"No. Tracking works with the bilty number only, which is written on your bilty slip. If you cannot find it, send us a message on WhatsApp at 0300-6166561."}},{"@type":"Question","name":"Can I get my bilty as a PDF?","acceptedAnswer":{"@type":"Answer","text":"The website is for tracking only. To get a PDF copy of your bilty, ask the KLC team on WhatsApp at 0300-6166561."}},{"@type":"Question","name":"How do I book a bilty?","acceptedAnswer":{"@type":"Answer","text":"Choose Book a Bilty and fill the short form. Your booking is written out and ready to send to KLC by WhatsApp or email. KLC confirms it, makes the final bilty on SmartCargo and sends you the bilty number."}},{"@type":"Question","name":"What are the cargo rates?","acceptedAnswer":{"@type":"Answer","text":"Charges depend on the route, the weight or CBM, local pickup and port delivery. The final charges are confirmed when KLC confirms your booking."}},{"@type":"Question","name":"Which cities do you serve?","acceptedAnswer":{"@type":"Answer","text":"KLC serves Sialkot, Karachi, Lahore, Gujranwala, Multan, Rawalpindi, Hyderabad, Sahiwal and Port Qasim. KLC's own main route is Sialkot to Karachi."}},{"@type":"Question","name":"Does KLC send cargo from Sialkot to Karachi?","acceptedAnswer":{"@type":"Answer","text":"Yes. Sialkot to Karachi is the main KLC route. You can book a bilty on this website and track it until delivery."}},{"@type":"Question","name":"How can I contact Kashaf Lasani Cargo Services?","acceptedAnswer":{"@type":"Answer","text":"Call or WhatsApp 0300-6166561 or 0307-6401597, call the office on 052-4587207, or email kashaf.lasani@gmail.com."}},{"@type":"Question","name":"Is cargo charged by weight or by volume?","acceptedAnswer":{"@type":"Answer","text":"A bilty can be booked with the weight in kg, the volume in CBM, or both. KLC confirms the charges when it confirms your booking."}},{"@type":"Question","name":"Does KLC deliver export cargo to the port?","acceptedAnswer":{"@type":"Answer","text":"Yes. KLC delivers export cargo to KPT, QFS, Port Qasim and the dry ports. Port status and vessel dates are on the News & Updates page."}},{"@type":"Question","name":"Can business clients see a ledger online?","acceptedAnswer":{"@type":"Answer","text":"Yes. Business clients with a KLC account code can open My Account to see their bilties, payments and balance."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is KLC?","acceptedAnswer":{"@type":"Answer","text":"Kashaf Lasani Cargo Services (KLC) is a cargo and transport company in Pakistan. It runs Sialkot to Karachi cargo, takes bilty bookings, and lets customers track a bilty online."}},{"@type":"Question","name":"How do I track my bilty?","acceptedAnswer":{"@type":"Answer","text":"Type your bilty number on the Home page, for example 151090, and press Track. You see the status, the route, the status dates and, once the goods have arrived, who to contact at the destination."}},{"@type":"Question","name":"What does tracking show, and what does it not show?","acceptedAnswer":{"@type":"Answer","text":"It shows the bilty number, status, where the goods are, the route and the contact person at the destination. To protect your privacy it never shows sender or customer names, quantity, weight or charges. After delivery it shows only the name of the person who received the goods."}},{"@type":"Question","name":"Can I track with my mobile number?","acceptedAnswer":{"@type":"Answer","text":"No. Tracking works with the bilty number only, which is written on your bilty slip. If you cannot find it, send us a message on WhatsApp at 0300-6166561."}},{"@type":"Question","name":"Can I get my bilty as a PDF?","acceptedAnswer":{"@type":"Answer","text":"The website is for tracking only. To get a PDF copy of your bilty, ask the KLC team on WhatsApp at 0300-6166561."}},{"@type":"Question","name":"How do I book a bilty?","acceptedAnswer":{"@type":"Answer","text":"Choose Book a Bilty and fill the short form. Your booking is written out and ready to send to KLC by WhatsApp or email. KLC confirms it, makes the final bilty on SmartCargo and sends you the bilty number."}},{"@type":"Question","name":"What are the cargo rates?","acceptedAnswer":{"@type":"Answer","text":"Charges depend on the route, the weight or CBM, local pickup and port delivery. The final charges are confirmed when KLC confirms your booking."}},{"@type":"Question","name":"Which cities do you serve?","acceptedAnswer":{"@type":"Answer","text":"KLC serves Sialkot, Karachi, Lahore, Gujranwala, Multan, Rawalpindi, Hyderabad, Sahiwal and Port Qasim. KLC's own main route is Sialkot to Karachi."}},{"@type":"Question","name":"Does KLC send cargo from Sialkot to Karachi?","acceptedAnswer":{"@type":"Answer","text":"Yes. Sialkot to Karachi is the main KLC route. You can book a bilty on this website and track it until delivery."}},{"@type":"Question","name":"How can I contact Kashaf Lasani Cargo Services?","acceptedAnswer":{"@type":"Answer","text":"Call or WhatsApp 0300-6166561 or 0307-6401597, call the office on 052-4587207, or email kashaf.lasani@gmail.com."}},{"@type":"Question","name":"Is cargo charged by weight or by volume?","acceptedAnswer":{"@type":"Answer","text":"A bilty can be booked with the weight in kg, the volume in CBM, or both. KLC confirms the charges when it confirms your booking."}},{"@type":"Question","name":"Does KLC deliver export cargo to the port?","acceptedAnswer":{"@type":"Answer","text":"Yes. KLC delivers export cargo to KPT, QFS, Port Qasim and the dry ports. Port status and vessel dates are on the News & Updates page."}},{"@type":"Question","name":"Can business clients see a ledger online?","acceptedAnswer":{"@type":"Answer","text":"Yes. Business clients with a KLC account code can open My Account to see their bilties, payments and balance."}}]}</script>
 <script>/* share repeated images: each picture is stored once */(function(){var f={},q=document.querySelectorAll('[data-imgkey]');function A(e){return e.tagName.toLowerCase()==='image'?'href':'src'}q.forEach(function(e){var v=e.getAttribute(A(e));if(v&&v.length>300&&!f[e.dataset.imgkey])f[e.dataset.imgkey]=v});q.forEach(function(e){var v=f[e.dataset.imgkey];if(v&&e.getAttribute(A(e))!==v)e.setAttribute(A(e),v)});document.documentElement.lang='en'})();</script>
 <script>document.addEventListener("click",function(e){var b=e.target.closest("[data-adtab]");if(!b)return;var r=b.dataset.adtab==="roles";document.getElementById("ad-staff").hidden=r;document.getElementById("ad-roles").hidden=!r;document.querySelectorAll("[data-adtab]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")})});</script>
 
