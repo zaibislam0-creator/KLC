@@ -869,6 +869,15 @@ table.pptbl .btn.wa{white-space:nowrap;display:inline-block}
   .kp-menu .chipbtn{display:inline-flex;width:auto;flex:none;gap:6px;padding:8px 12px;white-space:nowrap;background:var(--chip);font-size:13px}
   .kp-menu .chipbtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:none}
   .kp-menu .chipbtn .ti{font-size:15px}
+  body:has(#v-panel:not([hidden])) .fab,body:has(#v-panel:not([hidden])) .chatfab{display:none!important}
+  /* phone: all panel buttons visible at once in a tidy grid (no hidden side-scroll) */
+  .kp-menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;position:static;gap:8px;padding:10px;margin-inline:0}
+  .kp-menu .chipbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;width:100%;min-height:58px;padding:8px 4px;white-space:normal;font-size:12.5px;line-height:1.2}
+  .kp-menu .chipbtn b{font-size:12.5px}
+  .kp-menu .chipbtn small{display:none}
+  .kp-menu .chipbtn .ti{font-size:20px}
+  .kp-stats .stat:last-child:nth-child(odd){grid-column:1/-1}
+  #panelBody .kp-menu~*,.kp-layout{scroll-margin-top:8px}
   .kp-head{padding:12px 14px}.kp-title{font-size:19px}.kp-date{display:none}
   .kp-stats{grid-template-columns:1fr 1fr}
   .kp-sec h2{font-size:18px}
@@ -1538,6 +1547,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
 @media (max-width:760px){
   body:has(#v-track.resonly:not([hidden])) header.top,body:has(#v-account:not([hidden]) .acc-focus) header.top{display:none}
   #v-track.resonly{padding-block:6px 0!important}
+  body:has(#v-track.resonly:not([hidden])){padding-bottom:0!important}
   .accbar{flex-wrap:wrap}
 }
 #v-track.resonly .card.bt{padding:12px 14px;gap:8px}
@@ -1563,6 +1573,11 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
 #v-track.resonly .bt-thanks .bt-ty{font-size:16px}
 #v-track.resonly .bt-thanks p{font-size:12px;line-height:1.35}
 #v-track.resonly .bt-thanks small{font-size:11px}
+@media (max-height:600px){
+  #v-track.resonly .bt-brand small{display:none}
+  #v-track.resonly .bt-brand img{width:26px;height:26px}
+  #v-track.resonly .bt-thanks small{display:none}
+}
 @media (max-height:700px){
   #v-track.resonly .bt-brand img{width:32px;height:32px}
   #v-track.resonly .card.bt{padding:10px 12px;gap:6px}
