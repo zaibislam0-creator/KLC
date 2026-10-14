@@ -2793,7 +2793,7 @@ async function track(q){
 $("#trackForm").addEventListener("submit",e=>{e.preventDefault();track($("#q").value)});
 $("#sideTrack").addEventListener("submit",e=>{e.preventDefault();const v=$("#sq").value;if(!v.trim()){$("#sq").focus();return}show("track",true);$("#q").value=v;track(v);$("#sq").value=""});
 document.addEventListener("click",e=>{if(e.target.closest("[data-endtrack]")){$("#q").value="";endTrack();window.scrollTo({top:0})}});
-document.addEventListener("click",e=>{if(!e.target.closest("[data-trackback]"))return;const v=$("#v-track");v.classList.remove("hasres","resonly");$("#results").innerHTML="";window.scrollTo({top:0});setTimeout(()=>{const q=$("#q");q.focus({preventScroll:true});q.select()},60)});
+document.addEventListener("click",e=>{if(!e.target.closest("[data-trackback]"))return;const v=$("#v-track");v.classList.remove("hasres","resonly");$("#results").innerHTML="";$("#q").value="";window.scrollTo({top:0});setTimeout(()=>{$("#q").focus({preventScroll:true})},60)});
 $$("[data-q]").forEach(c=>c.addEventListener("click",()=>{$("#q").value=c.dataset.q;track(c.dataset.q)}));
 function goTrack(id){$("#q").value=id;show("track");track(id)}
 
