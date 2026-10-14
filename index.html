@@ -1524,6 +1524,56 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
   <form class="cb-send" id="cbSend"><button type="button" class="cb-menu" data-cbview="opts" aria-label="Show options">☰</button><label class="cb-att" title="Send a picture, video or document"><input type="file" id="cbFile" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,.pdf,.xlsx,.docx,.csv,.zip,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" hidden>📎</label><button type="button" class="cb-att" id="cbBiltyBtn" data-cbbilty="1" title="Send a bilty" hidden>🧾</button><textarea id="cbText" rows="1" placeholder="Write a message…" aria-label="Message"></textarea><button class="btn" type="submit" aria-label="Send"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></button></form>
 </div>
 <noscript><div style="padding:16px;max-width:760px;margin:0 auto"><h1>Kashaf Lasani Cargo Services (KLC)</h1><p>Cargo and transport company in Pakistan. Bilty tracking, bilty booking and an online ledger. Main route: Sialkot to Karachi. Call or WhatsApp 0300-6166561 or 0307-6401597, office 052-4587207, email kashaf.lasani@gmail.com. Please turn on JavaScript to track a bilty.</p></div></noscript>
+<style>
+/* Tracking result: one clean screen (no scrolling) with a Back button at the top left */
+#v-track.resonly>*:not(.results){display:none!important}
+#v-track.resonly{min-height:0!important;padding-block:10px 0!important;align-content:start!important;gap:0!important}
+#v-track.resonly .results{width:100%;max-width:720px;margin:0 auto;display:grid;gap:8px}
+body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([hidden])) .demo-note,body:has(#v-account:not([hidden]) .acc-focus) .footer,body:has(#v-account:not([hidden]) .acc-focus) .demo-note{display:none!important}
+.trackbar .tb-back{font:700 14px var(--body);padding:8px 14px;border-radius:999px;background:var(--chip);color:var(--ink);border:1.5px solid var(--line);cursor:pointer;white-space:nowrap}
+.trackbar .tb-back:hover{border-color:var(--accent)}
+#v-track.resonly .trackbar,.accbar{justify-content:flex-start;gap:12px;flex-wrap:nowrap;align-items:center}
+.acc-focus [data-ordback]{display:none}
+.acc-top .chipbtn{font-size:15px;padding:10px 16px}
+@media (max-width:760px){
+  body:has(#v-track.resonly:not([hidden])) header.top,body:has(#v-account:not([hidden]) .acc-focus) header.top{display:none}
+  #v-track.resonly{padding-block:6px 0!important}
+  .accbar{flex-wrap:wrap}
+}
+#v-track.resonly .card.bt{padding:12px 14px;gap:8px}
+#v-track.resonly .bt-brand{gap:10px}
+#v-track.resonly .bt-brand img{width:40px;height:40px;border-radius:10px;padding:2px}
+#v-track.resonly .bt-brand b{font-size:15px}
+#v-track.resonly .bt-brand small{font-size:10px;margin-top:1px}
+#v-track.resonly .card.bt .bt-id{font-size:24px!important}
+#v-track.resonly .card.bt .card-head .tag{font-size:9.5px;padding:2px 6px}
+#v-track.resonly .card.bt .card-head .bt-id{margin-top:3px!important}
+#v-track.resonly .summary-line.big{font-size:15px;gap:8px}
+#v-track.resonly .summary-line .ic{font-size:18px}
+#v-track.resonly .route{font-size:14px}
+#v-track.resonly .contactbox{padding:8px 12px;gap:4px}
+#v-track.resonly .contactbox .cperson{font-size:14px}
+#v-track.resonly .contactbox .btn{padding:6px 10px;font-size:12.5px}
+#v-track.resonly .timeline{gap:3px}
+#v-track.resonly .step{font-size:11px}
+#v-track.resonly .step .dot{margin-bottom:4px}
+#v-track.resonly .step small{font-size:9.5px}
+#v-track.resonly .card.bt>div:not([class]) a{font-size:12px}
+#v-track.resonly .bt-thanks{padding:8px 12px;gap:2px;border-radius:12px}
+#v-track.resonly .bt-thanks .bt-ty{font-size:16px}
+#v-track.resonly .bt-thanks p{font-size:12px;line-height:1.35}
+#v-track.resonly .bt-thanks small{font-size:11px}
+@media (max-height:700px){
+  #v-track.resonly .bt-brand img{width:32px;height:32px}
+  #v-track.resonly .card.bt{padding:10px 12px;gap:6px}
+  #v-track.resonly .card.bt .bt-id{font-size:21px!important}
+  #v-track.resonly .contactbox .lbl{display:none}
+  #v-track.resonly .step small{display:none}
+  #v-track.resonly .timeline{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;overflow:visible}
+  #v-track.resonly .timeline .step{display:block;text-align:center;padding:0;font-size:10px;line-height:1.2}
+  #v-track.resonly .timeline .step .dot{width:auto;height:5px;border-radius:3px;margin:0 0 3px}
+}
+</style>
 <main class="wrap">
 
 <!-- ============ TRACK ============ -->
@@ -2651,7 +2701,7 @@ function show(v,stay){
   if(v==="track"&&!stay)endTrack();
   if(!stay)window.scrollTo({top:0});
 }
-function endTrack(){$("#v-track").classList.remove("focus","hasres");$("#results").innerHTML=""}
+function endTrack(){$("#v-track").classList.remove("focus","hasres","resonly");$("#results").innerHTML=""}
 function setHH(){document.documentElement.style.setProperty("--hh",$("header.top").offsetHeight+"px")}
 function fitPoster(){const p=$(".poster"),sv=$(".poster-bg");if(!p||!sv)return;const r=p.clientWidth/Math.max(1,p.clientHeight);sv.setAttribute("preserveAspectRatio",r<2.05&&innerWidth>760?"xMaxYMax meet":"xMidYMid slice")}
 setHH();fitPoster();addEventListener("resize",()=>{setHH();fitPoster()});addEventListener("load",()=>{setHH();fitPoster()});
@@ -2667,7 +2717,7 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout
 
 /* ---------- tracking ---------- */
 document.addEventListener("click",e=>{const a=e.target.closest("[data-scrollto]");if(!a)return;e.preventDefault();openTrack()});
-function openTrack(){show("track",true);$("#results").innerHTML="";$("#v-track").classList.add("focus");$("#v-track").classList.remove("hasres");window.scrollTo({top:0});setTimeout(()=>$("#q").focus({preventScroll:true}),60)}
+function openTrack(){show("track",true);$("#results").innerHTML="";$("#v-track").classList.add("focus");$("#v-track").classList.remove("hasres","resonly");window.scrollTo({top:0});setTimeout(()=>$("#q").focus({preventScroll:true}),60)}
 const BILTY_SAY=[(b)=>`Booked at the ${b.from} office. It will leave soon.`,(b)=>`Left ${b.from}. On its way to ${b.to}.`,(b)=>`On the way to ${b.to}.`,(b)=>b.arrival?.place?`Your goods have reached ${b.arrival.place}.`:`Your goods have reached the ${b.to} office.`,(b)=>b.deliv&&b.deliv.name?`Delivered${b.deliv.day?" on "+fmtDay(b.deliv.day):""}. Received by ${b.deliv.name}.`:`Delivered.`];
 const BILTY_IC=["📦","🚚","🚚","🏢","✅"];
 function biltyCard(b){
@@ -2729,8 +2779,8 @@ async function trackBilties(q){
   return null}
 async function track(q){
   q=q.trim();const out=$("#results");if(!q){endTrack();return}
-  $("#v-track").classList.add("focus","hasres");
-  const back=`<div class="trackbar"><b style="font-family:var(--display);font-size:18px">Tracking result</b></div>`;
+  $("#v-track").classList.add("focus","hasres","resonly");
+  const back=`<div class="trackbar"><button class="tb-back" type="button" data-trackback="1" aria-label="Back to tracking">← Back</button><b style="font-family:var(--display);font-size:18px">Tracking result</b></div>`;
   out.innerHTML=back+'<div class="panel empty"><p>Checking…</p></div>';
   const bl=await trackBilties(q);
   if(bl===null){out.innerHTML=back+'<div class="panel empty"><h3>Could not check right now</h3><p>No internet, or the server is busy. Try again in a minute, or ask us on WhatsApp: 0300-6166561.</p></div>';return}
@@ -2738,11 +2788,12 @@ async function track(q){
   bl.sort((a,b)=>a.status-b.status);
   const dsum=bl.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0);
   out.innerHTML=back+(bl.length>1?`<p class="hint" style="margin:0"><b style="color:var(--ink)">Found:</b> ${bl.length} bilties</p>`:"")+bl.map(biltyCard).join("");
-  if(matchMedia("(max-width:760px)").matches)out.scrollIntoView({block:"start"});else window.scrollTo({top:0});
+  window.scrollTo({top:0});
 }
 $("#trackForm").addEventListener("submit",e=>{e.preventDefault();track($("#q").value)});
 $("#sideTrack").addEventListener("submit",e=>{e.preventDefault();const v=$("#sq").value;if(!v.trim()){$("#sq").focus();return}show("track",true);$("#q").value=v;track(v);$("#sq").value=""});
 document.addEventListener("click",e=>{if(e.target.closest("[data-endtrack]")){$("#q").value="";endTrack();window.scrollTo({top:0})}});
+document.addEventListener("click",e=>{if(!e.target.closest("[data-trackback]"))return;const v=$("#v-track");v.classList.remove("hasres","resonly");$("#results").innerHTML="";window.scrollTo({top:0});setTimeout(()=>{const q=$("#q");q.focus({preventScroll:true});q.select()},60)});
 $$("[data-q]").forEach(c=>c.addEventListener("click",()=>{$("#q").value=c.dataset.q;track(c.dataset.q)}));
 function goTrack(id){$("#q").value=id;show("track");track(id)}
 
@@ -2959,7 +3010,7 @@ function invoicePDF(v){
 }
 function myReqHTML(){const L=(kMyMsgs||[]).filter(m=>m.kind==="booking"&&m.from==="customer").slice(-5).reverse();
   return L.length?`<h3 style="margin:16px 0 6px">My booking requests</h3>`+L.map(m=>`<div class="hint" style="margin:0 0 6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px"><b>${esc(fmtD(m.at))}</b> · ${esc(m.title||"Booking")}<br><span style="white-space:pre-line">${esc(String(m.text||"").split("\n").slice(1,3).join("\n"))}</span></div>`).join("")+`<p class="hint">KLC replies in the chat box. Your final bilty number appears in Track once KLC issues it.</p>`:""}
-let acctTab="ledger",acctOpen="";
+let acctTab="ledger",acctOpen="",acctShow=false;
 function ordersOf(code){
   const m=new Map();
   (db.invoices||[]).filter(x=>x.acct===code).forEach(v=>m.set(v.id,{id:v.id,date:v.date,iso:v.iso||"",from:v.from,to:v.to,items:v.items,qty:v.qty,kg:v.kg,sender:v.sender,recv:v.recv,total:+v.total||0,received:+v.received||0,inv:v}));
@@ -3070,7 +3121,14 @@ function renderAccount(){
   else if(acctTab==="ledger")body=`<div class="panel">${ledgerHTML(c,false)}</div>`;
   else if(acctTab==="invoices")body=`<div class="panel">${myInvHTML(c.code)||'<p class="empty">No invoices yet.</p>'}</div>`;
   else body=`<div class="panel">${ledgerHTML(c,false)}</div>`;
-  if(!acctOpen){const rq=myReqHTML();if(rq)body+=`<div class="panel">${rq}</div>`}
+  /* Ledger, Invoices or an opened bilty fill the screen on their own, with Back at the top left */
+  if(acctOpen||acctShow){
+    const ttl=acctOpen?`Bilty ${esc(acctOpen)}`:acctTab==="invoices"?"My invoices":"My ledger";
+    const tools="";
+    $("#accView").innerHTML=`<div class="acc-focus"><div class="trackbar accbar"><button class="tb-back" type="button" data-accback="1" aria-label="Back">← Back</button><b style="font-family:var(--display);font-size:18px">${ttl}</b>${tools}</div><div style="display:grid;gap:14px;margin-top:10px">${body}</div></div>`;
+    if(acctOpen)orderTrackFill(acctOpen);
+    return}
+  {const rq=myReqHTML();if(rq)body=`<div class="panel">${rq}</div>`;else body=""}
   const logo=(document.querySelector(".brand img")||{}).src||"";
   $("#accView").innerHTML=`<section class="acc-banner" aria-label="Your account">
     <div class="ab-top"><span class="ab-badge"><img src="${esc(logo)}" alt="KLC" width="46" height="46"><span><b>KLC</b><small>Kashaf Lasani Cargo Services</small></span></span>
@@ -3081,7 +3139,7 @@ function renderAccount(){
   </section>
   <div class="panel acc-top" style="display:grid;gap:14px;margin-top:14px">
     ${pinFormHTML()}
-    <div class="filters" role="tablist" aria-label="Account sections">${tabs.map(t=>t[0]==="book"?`<button type="button" class="chipbtn hl" data-bookacct="1" title="Book a new bilty">${t[1]}</button>`:`<button type="button" class="chipbtn" role="tab" data-acctab="${t[0]}" aria-pressed="${!acctOpen&&acctTab===t[0]}">${t[1]}</button>`).join("")}</div></div>
+    <div class="filters" role="tablist" aria-label="Account sections">${tabs.map(t=>t[0]==="book"?`<button type="button" class="chipbtn hl" data-bookacct="1" title="Book a new bilty">${t[1]}</button>`:`<button type="button" class="chipbtn" role="tab" data-acctab="${t[0]}" aria-pressed="false">${t[1]}</button>`).join("")}</div></div>
   <div style="display:grid;gap:14px;margin-top:14px">${body}</div>`;
   if(acctOpen)orderTrackFill(acctOpen);
 }
@@ -3108,7 +3166,7 @@ $("#accForm").addEventListener("submit",async e=>{
     if(d.error||!d.client){accClient=null;renderAccount();msg.textContent="The code, mobile number and PIN or password do not match. Check all three, or contact KLC on WhatsApp 0300-6166561.";return}
     acctMerge(d);c=d.client}
   if(!c){accClient=null;renderAccount();msg.textContent="The code, mobile number and PIN or password do not match. Check all three, or contact KLC on WhatsApp 0300-6166561.";return}
-  accClient=c;acctTab="ledger";acctOpen="";msg.textContent="";renderAccount();window.scrollTo({top:0});acctChatPrep(c);
+  accClient=c;acctTab="ledger";acctOpen="";acctShow=false;msg.textContent="";renderAccount();window.scrollTo({top:0});acctChatPrep(c);
   ["#accCode","#accPhone","#accPin"].forEach(s=>{const el=$(s);if(el){el.value="";el.setAttribute("readonly","")}});
 });
 $("#forgotBtn").addEventListener("click",()=>{
@@ -4685,14 +4743,15 @@ document.addEventListener("click",e=>{
   else if(d.print){const c=clientOf(d.print),P=periods[d.ctx];if(c)printPDF(()=>statementPDF(c,P))}
   else if(d.rcpt){const p=db.payments.find(x=>x.id===d.rcpt);offerPDF(()=>receiptPDF(p),`KLC-Receipt-${p.id}.pdf`)}
   else if(d.delpay){db.payments=db.payments.filter(x=>x.id!==d.delpay);save();renderPanel();toast("Payment removed from ledger")}
-  else if(d.acctab){acctTab=d.acctab;acctOpen="";renderAccount()}
-  else if(d.ordopen){acctOpen=d.ordopen;renderAccount();window.scrollTo({top:0,behavior:"smooth"})}
-  else if(d.ordback){acctOpen="";renderAccount()}
+  else if(d.acctab){acctTab=d.acctab;acctOpen="";acctShow=true;renderAccount();window.scrollTo({top:0})}
+  else if(d.ordopen){acctOpen=d.ordopen;acctShow=true;renderAccount();window.scrollTo({top:0})}
+  else if(d.ordback){acctOpen="";renderAccount();window.scrollTo({top:0})}
+  else if(d.accback){if(acctOpen)acctOpen="";else acctShow=false;renderAccount();window.scrollTo({top:0})}
   else if(d.rebook){const c=accClient,o=c&&ordersOf(c.code).find(x=>x.id===d.rebook);if(c&&o){$("#bAcct").value=c.code;const dt=$("#bAcct").closest("details");if(dt)dt.open=true;$("#bSender").value=c.name;$("#bSPhone").value=fmtPhone(c.phone);const fs=$("#bFrom"),ts=$("#bTo");[[fs,o.from],[ts,o.to]].forEach(([el,v])=>{if(v&&/^Karachi/i.test(v)&&![...el.options].some(x=>x.value===v))v="Karachi";if(v&&[...el.options].some(x=>x.value===v))el.value=v});$("#bItems").value=o.items||"";$("#bPcs").value=o.qty||1;$("#bKg").value=o.kg||"";$("#bRecv").value=o.recv||"";show("bbook");bEstimate();toast("Previous order details filled in. Check and send.")}}
   else if(d.bookacct){const c=accClient;if(c){$("#bAcct").value=c.code;const dt=$("#bAcct").closest("details");if(dt)dt.open=true;if(!$("#bSender").value)$("#bSender").value=c.name;if(!$("#bSPhone").value)$("#bSPhone").value=fmtPhone(c.phone);show("bbook");bEstimate()}}
   else if(d.newpin){const c=clientOf(d.newpin);if(c){c.pin=genPin();delete c.pwh;save();pAcct();toast(`New PIN for ${c.code}: ${c.pin}. Send it to the customer on WhatsApp.`)}}
   else if(d.chpin){const f=$("#accPinForm");if(f){f.hidden=!f.hidden;if(!f.hidden)$("#cpOld").focus()}}
-  else if(d.acclogout){acctTab="ledger";acctOpen="";if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";renderAccount()}
+  else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";renderAccount()}
   else if(d.clearacct){rateAcct=null;$("#rateAcct").value="";renderRates()}
   else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
   else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
