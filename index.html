@@ -2021,7 +2021,7 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
     <div class="panel">
       <h2 style="margin-bottom:10px">Imported challans</h2>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Challan</th><th>Date</th><th>Route</th><th>Vehicle</th><th class="num">Bilties</th><th>Status (change here)</th><th>Updated</th></tr></thead>
+        <thead><tr><th>Challan</th><th>Date</th><th>Route</th><th>Vehicle</th><th class="num">Bilties</th><th>Status (change here)</th><th>Auto-deliver timer</th><th>Updated</th></tr></thead>
         <tbody id="impRows"></tbody>
       </table></div>
     </div>
@@ -2189,6 +2189,18 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
     <div class="filters adtabs" role="group" aria-label="Admin sections">
       <button type="button" class="chipbtn" data-adtab="staff" aria-pressed="true">👤 Staff accounts</button>
       <button type="button" class="chipbtn" data-adtab="roles" aria-pressed="false">🏷️ Roles (categories)</button>
+      <button type="button" class="chipbtn" data-adtab="visits" aria-pressed="false">📈 Website visitors</button>
+    </div>
+    <div id="ad-visits" hidden style="display:grid;gap:18px">
+      <div class="panel" style="display:grid;gap:12px">
+        <div class="ph"><h2>Website visitors</h2><button class="btn ghost sm" type="button" id="visitsRefresh">Refresh</button></div>
+        <div class="ledger-sum" id="visitsSum"></div>
+        <p class="hint" style="margin:0"><b>Visitors</b> = different people (counted once a day per phone or computer). <b>Visits</b> = every time someone opened the site. KLC staff devices are not counted. Counting started on the day this was switched on, older visits are not available.</p>
+      </div>
+      <div class="panel">
+        <h2 style="margin-bottom:10px">Day by day (last 30 days)</h2>
+        <div class="tbl-wrap"><table><thead><tr><th>Date</th><th class="num">Visitors</th><th class="num">Visits</th></tr></thead><tbody id="visitsRows"></tbody></table></div>
+      </div>
     </div>
     <div id="ad-staff" style="display:grid;gap:18px">
       <div class="grid2">
@@ -3141,7 +3153,7 @@ function renderPanel(){
   $("#staffTab").hidden=!staffOK&&curView!=="panel";
   $("#lockForm").hidden=staffOK;$("#panelBody").hidden=!staffOK;$("#kpLoginHead").hidden=staffOK;
   if(!staffOK)return;
-  staffName=me().name;
+  staffName=me().name;runDueTimers();
   $("#whoami").textContent=`${staffName} · ${roleOf(me())?.name||"No role"}`;
   $("#kpDate").textContent=new Date().toLocaleDateString("en-PK",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
   if(!$(".kp-logo").src){const l=document.querySelector(".brand img");if(l)$(".kp-logo").src=l.src}
@@ -3154,6 +3166,7 @@ function renderPanel(){
   const pend=db.bilties.filter(b=>b.status<4).length;
   const dsum=db.bilties.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0)+db.clients.reduce((s,c)=>s+Math.max(0,ledger(c.code).bal),0);
   $("#stats").innerHTML=[[db.bilties.length,"Bilties in tracking"],[pend,"In transit / pending"],[(db.challans||[]).length,"Challans imported"],...(can("acct")?[[rs(dsum),"Payments outstanding"]]:[])].map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
+  if(can("admin")){$("#stats").insertAdjacentHTML("beforeend",'<div class="stat"><b id="visTile">'+(visitCache?visitSums(visitCache).t.v:"…")+'</b><span>Visitors today</span></div>');loadVisits().then(r=>{const t=$("#visTile");if(r&&t)t.textContent=visitSums(r).t.v})}
   SUBS.forEach(x=>$("#p-"+x).hidden=x!==sub);
   {const t=document.querySelector(`#subtabs [data-s="${sub}"]`);$("#kpSecI").textContent=t?.querySelector(".ti")?.textContent||"";$("#kpSecT").textContent=t?.querySelector("b")?.textContent||"";$("#kpSecD").textContent=t?.querySelector("small")?.textContent||""}
   if(!sub){toast("Your role has no sections switched on. Ask the admin.");return}
@@ -4555,6 +4568,14 @@ function renderImpPreview(){
         <label class="chipbtn"><input type="radio" name="impSt" value="3"> Reached destination</label>
         <label class="chipbtn"><input type="radio" name="impSt" value="4"> Delivered</label>
       </div>
+      <div id="impTimer" hidden style="display:grid;gap:8px;background:var(--chip);border-radius:8px;padding:12px 14px">
+        <b>Auto-deliver timer (optional)</b>
+        <div class="row2">
+          <label>Mark Delivered after<select id="impTimeSel"><option value="">No timer (I will change it by hand)</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours (1 day)</option><option value="36">36 hours</option><option value="48">48 hours (2 days)</option><option value="72">72 hours (3 days)</option><option value="custom">Other (type hours)</option></select></label>
+          <label id="impTimeCustWrap" hidden>Hours<input id="impTimeCust" type="number" min="1" max="720" step="1" inputmode="numeric" placeholder="e.g. 30"></label>
+        </div>
+        <p class="hint" style="margin:0">When the time is up, every bilty in this challan moves to Delivered by itself. Customers see the normal tracking, nothing else changes for them.</p>
+      </div>
       <div id="impArr" hidden style="display:grid;gap:10px">
         <label>Exact place at destination (customers see this)<input id="impPlace" placeholder="e.g. KPT side, QFS"></label>
         <div class="row2"><label>Contact person<input id="impContact" placeholder="Name"></label><label>Contact mobile<input id="impPhone" inputmode="tel" placeholder="03xx-xxxxxxx"></label></div>
@@ -4562,8 +4583,9 @@ function renderImpPreview(){
       <button class="btn" type="submit" style="justify-self:start">Update tracking for ${rows.length} bilties</button>
       <p class="hint" style="margin:0">${existing?`${existing} of these bilties are already in tracking and will be updated. `:""}Customers can then track each bilty by its number, for example ${esc(rows[0].id)} or just ${esc(rows[0].id.replace(/^\D+0*/,""))}.</p>
     </form></div>`;
-  const syncArr=()=>{$("#impArr").hidden=+document.querySelector("[name=impSt]:checked").value<3};
+  const syncArr=()=>{const v=+document.querySelector("[name=impSt]:checked").value;$("#impArr").hidden=v<3;$("#impTimer").hidden=v!==2};
   $$("[name=impSt]").forEach(r=>r.addEventListener("change",syncArr));syncArr();
+  $("#impTimeSel").addEventListener("change",()=>{$("#impTimeCustWrap").hidden=$("#impTimeSel").value!=="custom"});
   $("#impForm").addEventListener("submit",applyImport);
 }
 function applyImport(e){
@@ -4575,6 +4597,9 @@ function applyImport(e){
     if(ph&&!validMob(ph)){toast("Enter a valid contact mobile, like 0315-0364242");return}
     arrival={place:$("#impPlace").value.trim(),contact:$("#impContact").value.trim(),phone:ph};
   }
+  let autoHrs=0;
+  if(st===2){const sel=$("#impTimeSel").value;autoHrs=sel==="custom"?+$("#impTimeCust").value:+sel;
+    if(sel==="custom"&&!(autoHrs>=1&&autoHrs<=720)){toast("Enter timer hours between 1 and 720");return}}
   const now=new Date().toISOString(),chDate=dmyToIso(h.date);
   const challan={no:h.no,date:h.date,vehicle:h.vehicle,transporter:h.transporter};
   let added=0,updated=0;
@@ -4593,25 +4618,47 @@ function applyImport(e){
   db.challans=db.challans||[];
   const prev=db.challans.findIndex(c=>c.no===h.no&&c.from===h.from);
   const rec={no:h.no,date:h.date,from:h.from,to:h.to,vehicle:h.vehicle,count:rows.length,status:STATUSES[st],at:now,by:staffName};
+  if(autoHrs>0)rec.auto={at:new Date(Date.now()+autoHrs*3600000).toISOString(),to:4,hrs:autoHrs};
   prev>=0?db.challans[prev]=rec:db.challans.push(rec);
   save();impData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
-  $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${added} new and ${updated} updated bilties from challan ${esc(h.no)} are now in tracking as "${STATUSES[st]}".`;
+  $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${added} new and ${updated} updated bilties from challan ${esc(h.no)} are now in tracking as "${STATUSES[st]}".${autoHrs>0?` They will be marked Delivered automatically in ${autoHrs} hours.`:""}`;
   pImp();toast(`Challan ${h.no}: tracking updated`);
 }
 function pImp(){
   const list=(db.challans||[]).slice().reverse();
-  $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td><select data-chno="${esc(c.no)}" data-chfrom="${esc(c.from)}" aria-label="Status of challan ${esc(c.no)}">${STATUSES.map((x,i)=>`<option value="${i}" ${x===c.status?"selected":""}>${x}</option>`).join("")}</select></td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="7" class="empty">No challans imported yet.</td></tr>`;
-  $$("#impRows select").forEach(sel=>sel.addEventListener("change",()=>{
+  $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td><select data-chno="${esc(c.no)}" data-chfrom="${esc(c.from)}" aria-label="Status of challan ${esc(c.no)}">${STATUSES.map((x,i)=>`<option value="${i}" ${x===c.status?"selected":""}>${x}</option>`).join("")}</select></td><td>${c.status===STATUSES[2]?`${c.auto?`<div class="mono" style="font-size:12px;margin-bottom:4px"><b data-countdown="${esc(c.auto.at)}">${esc(fmtLeft(c.auto.at))}</b> left</div>`:""}<select data-chauto="${esc(c.no)}" data-chfrom2="${esc(c.from)}" aria-label="Auto-deliver timer for challan ${esc(c.no)}"><option value="">${c.auto?"Change timer…":"Set timer…"}</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="36">36 hours</option><option value="48">48 hours</option><option value="72">72 hours</option><option value="custom">Other hours…</option>${c.auto?'<option value="off">Cancel timer</option>':""}</select>`:'<span style="color:var(--muted)">-</span>'}</td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="8" class="empty">No challans imported yet.</td></tr>`;
+  $$("#impRows select[data-chauto]").forEach(sel=>sel.addEventListener("change",()=>{
+    const c=(db.challans||[]).find(x=>x.no===sel.dataset.chauto&&x.from===sel.dataset.chfrom2);if(!c)return;
+    let v=sel.value;if(!v)return;
+    if(v==="off"){delete c.auto;save();pImp();toast(`Challan ${c.no}: timer cancelled`);return}
+    if(v==="custom"){v=prompt("After how many hours should this challan be marked Delivered? (1 to 720)");if(v===null){pImp();return}}
+    const hrs=+v;if(!(hrs>=1&&hrs<=720)){toast("Enter hours between 1 and 720");pImp();return}
+    c.auto={at:new Date(Date.now()+hrs*3600000).toISOString(),to:4,hrs};save();pImp();toast(`Challan ${c.no}: will be Delivered in ${hrs} hours`);
+  }));
+  $$("#impRows select[data-chno]").forEach(sel=>sel.addEventListener("change",()=>{
     const n=+sel.value,no=sel.dataset.chno,fr=sel.dataset.chfrom;
     const c=(db.challans||[]).find(x=>x.no===no&&x.from===fr);if(!c)return;
     const now=new Date().toISOString();let k=0;
     db.bilties.forEach(b=>{if(b.challan&&b.challan.no===no&&b.from===fr){
       b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(now);
       b.status=n;k++}});
-    c.status=STATUSES[n];c.at=now;c.by=staffName;
+    c.status=STATUSES[n];c.at=now;c.by=staffName;delete c.auto;
     save();renderPanel();toast(`Challan ${no}: ${k} bilties set to "${STATUSES[n]}"`);
   }));
 }
+/* auto-deliver timer: when a challan "In Transit" timer runs out, its bilties become Delivered */
+function fmtLeft(iso){const ms=Date.parse(iso)-Date.now();if(!(ms>0))return"0m";const m=Math.ceil(ms/60000),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mm=m%60;return(d?d+"d ":"")+((d||h)?h+"h ":"")+mm+"m"}
+function runDueTimers(){
+  if(typeof me!=="function"||!me())return;
+  const now=Date.now(),iso=new Date().toISOString();let n=0;
+  (db.challans||[]).forEach(c=>{
+    if(!c.auto||c.status!==STATUSES[2]||!(Date.parse(c.auto.at)<=now))return;
+    db.bilties.forEach(b=>{if(b.challan&&b.challan.no===c.no&&b.from===c.from&&b.status<4){b.hist=b.hist.slice(0,Math.min(4,b.hist.length));while(b.hist.length<=4)b.hist.push(iso);b.status=4}});
+    c.status=STATUSES[4];c.at=iso;c.by="Auto timer";delete c.auto;n++});
+  if(n){save();if(curView==="panel")renderPanel();toast(`Timer finished: ${n} challan${n>1?"s":""} marked Delivered`)}
+}
+function tickCountdowns(){$$("[data-countdown]").forEach(e=>{e.textContent=fmtLeft(e.dataset.countdown)})}
+setInterval(()=>{runDueTimers();tickCountdowns()},30000);
 $("#impFile").addEventListener("change",e=>handleImportFile(e.target.files[0]));
 ["dragenter","dragover"].forEach(ev=>$("#impDrop").addEventListener(ev,e=>{e.preventDefault();$("#impDrop").classList.add("over")}));
 ["dragleave","drop"].forEach(ev=>$("#impDrop").addEventListener(ev,e=>{e.preventDefault();$("#impDrop").classList.remove("over")}));
@@ -4679,6 +4726,45 @@ document.addEventListener("change",e=>{
 document.addEventListener("click",e=>{const c=e.target.closest("[data-acc]");if(!c)return;const [code,ph]=c.dataset.acc.split("|");$("#accCode").value=code;$("#accPhone").value=ph;$("#accForm").requestSubmit()});
 /* ---- Supabase staff login ---- */
 const sbH=(tok)=>({"apikey":SB_KEY,"Content-Type":"application/json",...(tok?{"Authorization":"Bearer "+tok}:{})});
+/* ---------- visitor counter: one record per browser session, none for staff devices or bots ---------- */
+const pkDay=()=>new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Karachi"});
+function recordVisit(){try{
+  if(!/^https?:$/.test(location.protocol)||/^(localhost|127\.|\[::1\])/.test(location.hostname))return;
+  if(navigator.webdriver||/bot|crawl|spider|headless|lighthouse|preview/i.test(navigator.userAgent))return;
+  if(sessionStorage.getItem("klc-staff-user")||sessionStorage.getItem("klc-vsent"))return;
+  try{if(localStorage.getItem("klc-staff-dev"))return}catch(e){}
+  sessionStorage.setItem("klc-vsent","1");
+  const today=pkDay();let isNew=true;
+  try{isNew=localStorage.getItem("klc-vday")!==today;localStorage.setItem("klc-vday",today)}catch(e){}
+  fetch(SB_URL+"/rest/v1/rpc/record_visit",{method:"POST",headers:sbH(),body:JSON.stringify({p_new:isNew}),keepalive:true}).catch(()=>{});
+}catch(e){}}
+recordVisit();
+let visitCache=null,visitAt=0;
+async function loadVisits(force){
+  if(!force&&visitCache&&Date.now()-visitAt<60000)return visitCache;
+  const tok=await sbToken();if(!tok)return visitCache;
+  try{const r=await fetch(SB_URL+"/rest/v1/rpc/visit_stats",{method:"POST",headers:sbH(tok),body:"{}"});if(!r.ok)return visitCache;
+    const rows=await r.json();visitCache=Array.isArray(rows)?rows:[];visitAt=Date.now();return visitCache}catch(e){return visitCache}
+}
+function visitSums(rows){
+  const today=pkDay(),ymd=n=>{const d=new Date(Date.now()-n*864e5);return d.toLocaleDateString("en-CA",{timeZone:"Asia/Karachi"})};
+  const sum=(from)=>rows.filter(r=>r.day>=from&&r.day<=today).reduce((a,r)=>({v:a.v+r.visitors,n:a.n+r.views}),{v:0,n:0});
+  const one=d=>rows.find(r=>r.day===d)||{visitors:0,views:0};
+  const t=one(today),y=one(ymd(1)),w=sum(ymd(6)),m=sum(ymd(29)),all=rows.reduce((a,r)=>({v:a.v+r.visitors,n:a.n+r.views}),{v:0,n:0});
+  return {t:{v:t.visitors,n:t.views},y:{v:y.visitors,n:y.views},w,m,all};
+}
+async function renderVisits(force){
+  const box=$("#visitsSum");if(!box)return;
+  if(!visitCache)box.innerHTML='<div><b>…</b><span>Loading</span></div>';
+  const rows=await loadVisits(force);
+  if(!rows){box.innerHTML='<div><b>-</b><span>Could not load. Check internet and press Refresh.</span></div>';return}
+  const s=visitSums(rows),card=(l,x)=>`<div><b>${x.v}</b><span>${l} · ${x.n} visits</span></div>`;
+  box.innerHTML=card("Today",s.t)+card("Yesterday",s.y)+card("Last 7 days",s.w)+card("Last 30 days",s.m)+card("Since counting began",s.all);
+  const today=pkDay(),days=[];for(let i=0;i<30;i++)days.push(new Date(Date.now()-i*864e5).toLocaleDateString("en-CA",{timeZone:"Asia/Karachi"}));
+  $("#visitsRows").innerHTML=days.map(d=>{const r=rows.find(x=>x.day===d)||{visitors:0,views:0};const [yy,mm,dd]=d.split("-");return `<tr><td>${dd}-${mm}-${yy}${d===today?' <span class="tag">today</span>':""}</td><td class="num">${r.visitors}</td><td class="num">${r.views}</td></tr>`}).join("");
+  const tile=$("#visTile");if(tile)tile.textContent=s.t.v;
+}
+$("#visitsRefresh").addEventListener("click",()=>renderVisits(true));
 const sbGet=()=>{try{return JSON.parse(sessionStorage.getItem("klc-sb")||"null")}catch(e){return null}};
 const sbSet=d=>{try{d?sessionStorage.setItem("klc-sb",JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+(d.expires_in||3600)})):sessionStorage.removeItem("klc-sb")}catch(e){}};
 async function sbToken(){const x=sbGet();if(!x)return null;if(x.expires_at-60>Date.now()/1000)return x.access_token;
@@ -4706,7 +4792,7 @@ function staffEnter(email){
   const em=String(email).toLowerCase();let acc=db.staff.find(x=>x.user===em);
   if(!acc){acc=em===ADMIN_EMAIL?{user:em,name:"Zaib Islam",role:"admin",active:true}:{user:em,name:em.split("@")[0],role:"",active:true};db.staff.push(acc);save()}
   if(!acc.active){sbSet(null);toast("This account is switched off. Ask the admin.");return false}
-  staffUser=acc.user;staffOK=true;staffName=acc.name;try{sessionStorage.setItem("klc-staff-user",staffUser)}catch(err){}
+  staffUser=acc.user;staffOK=true;staffName=acc.name;try{sessionStorage.setItem("klc-staff-user",staffUser);localStorage.setItem("klc-staff-dev","1")}catch(err){}
   sub="";renderPanel();toast(`Signed in as ${staffName} (${roleOf(acc)?.name||"no role yet, ask the admin"})`);return true}
 /* ---- Shared online data (Supabase table klc_state) ---- */
 var syncOK=false,dbStamp=null,pushT=null,pushing=false,dirty=false;
@@ -4784,7 +4870,7 @@ go(0);tick();})();
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":["Organization","LocalBusiness"],"@id":"#klc","name":"Kashaf Lasani Cargo Services","alternateName":["KLC","KLC Cargo"],"description":"Cargo and transport company in Pakistan. Main route Sialkot to Karachi. Bilty booking, online bilty tracking and an online ledger for business clients.","areaServed":[{"@type":"City","name":"Sialkot"},{"@type":"City","name":"Karachi"},{"@type":"City","name":"Lahore"},{"@type":"City","name":"Gujranwala"},{"@type":"City","name":"Multan"},{"@type":"City","name":"Rawalpindi"},{"@type":"City","name":"Hyderabad"},{"@type":"City","name":"Sahiwal"},{"@type":"City","name":"Port Qasim"}],"telephone":"+92-300-6166561","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],"opens":"00:00","closes":"23:59"}],"address":[{"@type":"PostalAddress","streetAddress":"Maharaja Road, Butcher Khana Chowk, opposite Dr Adnan Clinic","addressLocality":"Sialkot","addressCountry":"PK"},{"@type":"PostalAddress","streetAddress":"Daska Road, Pakki Kothi, next to Nizam Sons","addressLocality":"Sialkot","addressCountry":"PK"}],"email":"kashaf.lasani@gmail.com","contactPoint":[{"@type":"ContactPoint","telephone":"+92-300-6166561","contactType":"customer service","availableLanguage":["English","Urdu"]},{"@type":"ContactPoint","telephone":"+92-307-6401597","contactType":"customer service","availableLanguage":["English","Urdu"]},{"@type":"ContactPoint","telephone":"+92-52-4587207","contactType":"customer service"}],"knowsAbout":["Bilty tracking","Cargo transport Pakistan","Sialkot to Karachi cargo","Port delivery KPT QICT Port Qasim"]},{"@type":"WebSite","name":"Kashaf Lasani Cargo Services (KLC)","inLanguage":"en","publisher":{"@id":"#klc"}},{"@type":"Service","name":"Bilty tracking","serviceType":"Shipment tracking","provider":{"@id":"#klc"},"areaServed":"PK","description":"Enter a bilty number to see the latest status, route and destination contact of a shipment."},{"@type":"Service","name":"Bilty booking","serviceType":"Cargo transport","provider":{"@id":"#klc"},"areaServed":"PK","description":"Book cartons, bales and part loads, charged by weight or volume (CBM), between cities in Pakistan, paid or to-pay."},{"@type":"Service","name":"Port delivery","serviceType":"Port cargo delivery","provider":{"@id":"#klc"},"areaServed":"Karachi","description":"Export cargo delivered to KPT, QFS, Port Qasim and the dry ports."}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is KLC?","acceptedAnswer":{"@type":"Answer","text":"Kashaf Lasani Cargo Services (KLC) is a cargo and transport company in Pakistan. It runs Sialkot to Karachi cargo, takes bilty bookings, and lets customers track a bilty online."}},{"@type":"Question","name":"How do I track my bilty?","acceptedAnswer":{"@type":"Answer","text":"Type your bilty number on the Home page, for example 151090, and press Track. You see the status, the route, the status dates and, once the goods have arrived, who to contact at the destination."}},{"@type":"Question","name":"What does tracking show, and what does it not show?","acceptedAnswer":{"@type":"Answer","text":"It shows the bilty number, status, where the goods are, the route and the contact person at the destination. To protect your privacy it never shows sender or customer names, quantity, weight or charges. After delivery it shows only the name of the person who received the goods."}},{"@type":"Question","name":"Can I track with my mobile number?","acceptedAnswer":{"@type":"Answer","text":"No. Tracking works with the bilty number only, which is written on your bilty slip. If you cannot find it, send us a message on WhatsApp at 0300-6166561."}},{"@type":"Question","name":"Can I get my bilty as a PDF?","acceptedAnswer":{"@type":"Answer","text":"The website is for tracking only. To get a PDF copy of your bilty, ask the KLC team on WhatsApp at 0300-6166561."}},{"@type":"Question","name":"How do I book a bilty?","acceptedAnswer":{"@type":"Answer","text":"Choose Book a Bilty and fill the short form. Your booking is written out and ready to send to KLC by WhatsApp or email. KLC confirms it, makes the final bilty on SmartCargo and sends you the bilty number."}},{"@type":"Question","name":"What are the cargo rates?","acceptedAnswer":{"@type":"Answer","text":"Charges depend on the route, the weight or CBM, local pickup and port delivery. The final charges are confirmed when KLC confirms your booking."}},{"@type":"Question","name":"Which cities do you serve?","acceptedAnswer":{"@type":"Answer","text":"KLC serves Sialkot, Karachi, Lahore, Gujranwala, Multan, Rawalpindi, Hyderabad, Sahiwal and Port Qasim. KLC's own main route is Sialkot to Karachi."}},{"@type":"Question","name":"Does KLC send cargo from Sialkot to Karachi?","acceptedAnswer":{"@type":"Answer","text":"Yes. Sialkot to Karachi is the main KLC route. You can book a bilty on this website and track it until delivery."}},{"@type":"Question","name":"How can I contact Kashaf Lasani Cargo Services?","acceptedAnswer":{"@type":"Answer","text":"Call or WhatsApp 0300-6166561 or 0307-6401597, call the office on 052-4587207, or email kashaf.lasani@gmail.com."}},{"@type":"Question","name":"Is cargo charged by weight or by volume?","acceptedAnswer":{"@type":"Answer","text":"A bilty can be booked with the weight in kg, the volume in CBM, or both. KLC confirms the charges when it confirms your booking."}},{"@type":"Question","name":"Does KLC deliver export cargo to the port?","acceptedAnswer":{"@type":"Answer","text":"Yes. KLC delivers export cargo to KPT, QFS, Port Qasim and the dry ports. Port status and vessel dates are on the News & Updates page."}},{"@type":"Question","name":"Can business clients see a ledger online?","acceptedAnswer":{"@type":"Answer","text":"Yes. Business clients with a KLC account code can open My Account to see their bilties, payments and balance."}}]}</script>
 <script>/* share repeated images: each picture is stored once */(function(){var f={},q=document.querySelectorAll('[data-imgkey]');function A(e){return e.tagName.toLowerCase()==='image'?'href':'src'}q.forEach(function(e){var v=e.getAttribute(A(e));if(v&&v.length>300&&!f[e.dataset.imgkey])f[e.dataset.imgkey]=v});q.forEach(function(e){var v=f[e.dataset.imgkey];if(v&&e.getAttribute(A(e))!==v)e.setAttribute(A(e),v)});document.documentElement.lang='en'})();</script>
-<script>document.addEventListener("click",function(e){var b=e.target.closest("[data-adtab]");if(!b)return;var r=b.dataset.adtab==="roles";document.getElementById("ad-staff").hidden=r;document.getElementById("ad-roles").hidden=!r;document.querySelectorAll("[data-adtab]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")})});</script>
+<script>document.addEventListener("click",function(e){var b=e.target.closest("[data-adtab]");if(!b)return;var t=b.dataset.adtab;document.getElementById("ad-staff").hidden=t!=="staff";document.getElementById("ad-roles").hidden=t!=="roles";document.getElementById("ad-visits").hidden=t!=="visits";document.querySelectorAll("[data-adtab]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});if(t==="visits"&&typeof renderVisits==="function")renderVisits(true)});</script>
 
 
 <script>
