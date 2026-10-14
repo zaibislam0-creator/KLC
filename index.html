@@ -1772,10 +1772,10 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
   </div>
   <form class="panel f" id="accForm" style="max-width:640px">
     <div class="row2">
-      <label>Account code<input id="accCode" required placeholder="03010195" autocomplete="off"></label>
-      <label>Registered mobile<input id="accPhone" required inputmode="tel" placeholder="03xx-xxxxxxx"></label>
+      <label>Account code<input id="accCode" name="kx-ac-code" class="nofill" required placeholder="03010195" autocomplete="off" autocapitalize="off" spellcheck="false" readonly data-lpignore="true" data-1p-ignore data-form-type="other"></label>
+      <label>Registered mobile<input id="accPhone" name="kx-ac-mob" class="nofill" required inputmode="tel" placeholder="03xx-xxxxxxx" autocomplete="off" readonly data-lpignore="true" data-1p-ignore data-form-type="other"></label>
     </div>
-    <label>PIN or password<input id="accPin" type="password" required autocomplete="current-password" maxlength="64" placeholder="PIN from KLC, or your own password"></label>
+    <label>PIN or password<input id="accPin" name="kx-ac-pw" class="nofill" type="password" required autocomplete="new-password" maxlength="64" placeholder="PIN from KLC, or your own password" readonly data-lpignore="true" data-1p-ignore data-form-type="other"></label>
     <div class="inline-actions"><button class="btn" type="submit">Open my ledger</button><button class="btn ghost" type="button" id="forgotBtn">Forgot code or PIN?</button></div>
     <p class="hint" id="accMsg" style="margin:0"></p>
   </form>
@@ -1964,8 +1964,8 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
   <form class="panel f lockcard" id="lockForm">
     <h2>Staff sign-in</h2>
     <p class="hint" style="margin:0">This area shows costs, profit and customer details, so it is for KLC staff only.</p>
-    <label>Email<input id="staffUser" type="email" autocomplete="username" required></label>
-    <label>Password<input id="pin" type="password" autocomplete="current-password" required></label>
+    <label>Email<input id="staffUser" name="kx-st-mail" class="nofill" type="text" inputmode="email" autocapitalize="off" spellcheck="false" autocomplete="off" required readonly data-lpignore="true" data-1p-ignore data-form-type="other"></label>
+    <label>Password<input id="pin" name="kx-st-pw" class="nofill" type="password" autocomplete="new-password" required readonly data-lpignore="true" data-1p-ignore data-form-type="other"></label>
     <button class="btn" type="submit">Sign in</button>
     <p class="hint" style="margin:0"><button class="linkbtn" type="button" id="staffForgot">Forgot password?</button> · Login is given by your KLC admin.</p>
   </form>
@@ -2632,6 +2632,7 @@ function show(v,stay){
   $$(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===v?"page":"false"));
   $$(".bottomnav button").forEach(b=>{if(b.dataset.nav===v||(b.dataset.nav==="book"&&v==="bbook"))b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
   if(v==="bbook"||v==="vehicle")prefill();
+  if(v==="account"||v==="panel")wipeLoginSoon();
   VIEWS.forEach(x=>$("#v-"+x).hidden=x!==v);
   $("#staffTab").hidden=!(v==="panel"||me());
   ({bbook:renderBB,vehicle:renderVehicle,account:renderAccount,rates:renderRates,import:renderDir,partners:renderPartners,panel:renderPanel})[v]?.();
@@ -2642,6 +2643,15 @@ function endTrack(){$("#v-track").classList.remove("focus","hasres");$("#results
 function setHH(){document.documentElement.style.setProperty("--hh",$("header.top").offsetHeight+"px")}
 function fitPoster(){const p=$(".poster"),sv=$(".poster-bg");if(!p||!sv)return;const r=p.clientWidth/Math.max(1,p.clientHeight);sv.setAttribute("preserveAspectRatio",r<2.05&&innerWidth>760?"xMaxYMax meet":"xMidYMid slice")}
 setHH();fitPoster();addEventListener("resize",()=>{setHH();fitPoster()});addEventListener("load",()=>{setHH();fitPoster()});
+
+/* ---------- login fields: never show an old ID, phone or password ---------- */
+const NOFILL_SEL=["#accCode","#accPhone","#accPin","#staffUser","#pin"];
+function wipeLogin(){NOFILL_SEL.forEach(s=>{const el=document.querySelector(s);if(!el||document.activeElement===el)return;el.value="";el.setAttribute("readonly","")})}
+function wipeLoginSoon(){wipeLogin();[150,600,1500].forEach(t=>setTimeout(wipeLogin,t))}
+document.querySelectorAll(".nofill").forEach(el=>{const open=()=>el.removeAttribute("readonly");el.addEventListener("focus",open);el.addEventListener("pointerdown",open);el.addEventListener("touchstart",open,{passive:true})});
+wipeLoginSoon();[2500,4000].forEach(t=>setTimeout(wipeLogin,t));
+addEventListener("pageshow",wipeLoginSoon);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(wipeLogin,100)});
 
 /* ---------- tracking ---------- */
 document.addEventListener("click",e=>{const a=e.target.closest("[data-scrollto]");if(!a)return;e.preventDefault();openTrack()});
@@ -3087,6 +3097,7 @@ $("#accForm").addEventListener("submit",async e=>{
     acctMerge(d);c=d.client}
   if(!c){accClient=null;renderAccount();msg.textContent="The code, mobile number and PIN or password do not match. Check all three, or contact KLC on WhatsApp 0300-6166561.";return}
   accClient=c;acctTab="ledger";acctOpen="";msg.textContent="";renderAccount();window.scrollTo({top:0});acctChatPrep(c);
+  ["#accCode","#accPhone","#accPin"].forEach(s=>{const el=$(s);if(el){el.value="";el.setAttribute("readonly","")}});
 });
 $("#forgotBtn").addEventListener("click",()=>{
   $("#accMsg").innerHTML=`For your safety the code and PIN are not shown here. Please WhatsApp KLC on <b>0300-6166561</b> from your registered number and we will send you a new PIN.`;
