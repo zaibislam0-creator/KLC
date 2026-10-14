@@ -16,6 +16,26 @@
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 </head><body>
 <style>
+.stbox{padding:0!important;overflow:hidden}
+.stbox>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;font:700 16px var(--body)}
+.stbox>summary::-webkit-details-marker{display:none}
+.stbox>summary::after{content:"+";font:600 22px var(--body);opacity:.6}
+.stbox[open]>summary::after{content:"\2212"}
+.stbox>summary small{margin-left:auto;font:600 12px var(--body);background:var(--chip);padding:3px 10px;border-radius:99px}
+.stbox>:not(summary){margin-inline:18px}
+.stbox>:last-child{margin-bottom:16px}
+.stlist{display:grid;gap:0;margin-top:8px!important}
+.strow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.strow b{display:block;font:700 14.5px var(--body)}
+.strow small,.strow .stc{font:500 13px var(--body);opacity:.75}
+.strow .stc span{display:block;font-variant-numeric:tabular-nums}
+.stform{display:grid;gap:10px;padding:12px;border:1.5px solid var(--accent);border-radius:12px;margin:8px 0}
+.stform .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stform label{font:600 12px var(--body)}
+.stform input{margin-top:3px}
+.stform .acts{display:flex;gap:8px;flex-wrap:wrap}
+.stform .acts .rm{margin-left:auto;color:#b42318}
+@media (max-width:640px){.strow{grid-template-columns:1fr auto}.strow .stc{grid-column:1/2}.stform .row2{grid-template-columns:1fr}}
 /* Layout: KLC-branded black top bar with logo + section tabs. Brand colors from the KLC eagle logo: black, signal red, white. */
 :root{
   --bg:#f7f7f7; --surface:#ffffff; --ink:#141414; --muted:#5f5f66; --line:#e2e2e5;
@@ -2090,12 +2110,12 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       <p class="hint" id="impMsg" style="margin:0"></p>
     </div>
     <div id="impPreview"></div>
-    <div class="panel" style="display:grid;gap:10px">
-      <h2>Delivery stations and contacts</h2>
-      <p class="hint" style="margin:0">Enter each station or warehouse once, with its contact person and mobile. When you update a challan to Arrived, press the station button and these details fill in by themselves. Customers see the place, name and number in tracking.</p>
-      <div id="stList" style="display:grid;gap:10px"></div>
+    <details class="panel stbox" id="stBox">
+      <summary><span>📍 Delivery stations</span><small id="stCount"></small></summary>
+      <p class="hint" style="margin-top:10px;margin-bottom:0">Save each station once with its contact. At Arrived, press the station button and everything fills in. Customers see place, name and number.</p>
+      <div id="stList" class="stlist"></div>
       <button class="btn ghost" type="button" id="stAdd" style="justify-self:start">+ Add station</button>
-    </div>
+    </details>
     <div class="panel">
       <h2 style="margin-bottom:10px">Imported challans</h2>
       <div class="tbl-wrap"><table>
@@ -4689,20 +4709,34 @@ function pickStation(title,cb){
   document.body.appendChild(w);
   w.addEventListener("click",e=>{const k=e.target.closest("[data-pk]"),x=e.target.closest("[data-pkx]");if(x||e.target===w){w.remove();cb(undefined);return}if(k){w.remove();cb((db.stations||[]).find(y=>y.id===k.dataset.pk)||null)}});
 }
+let stEdit="";
+function stFormHTML(x){return `<div class="stform" data-stform="${esc(x.id||"new")}">
+    <div class="row2"><label>Station name<input data-stf="name" value="${esc(x.name||"")}" placeholder="e.g. Cant Station"></label><label>Place customers see<input data-stf="place" value="${esc(x.place||"")}" placeholder="e.g. KPT, Abbasi Warehouse"></label></div>
+    <div class="row2"><label>Contact person<input data-stf="contact" value="${esc(x.contact||"")}" placeholder="Name"></label><label>Contact mobile<input data-stf="phone" inputmode="tel" value="${esc(x.phone?fmtPhone(x.phone):"")}" placeholder="03xx-xxxxxxx"></label></div>
+    <div class="acts"><button class="btn sm" type="button" data-stsave="1">Save</button><button class="btn ghost sm" type="button" data-stcancel="1">Cancel</button>${x.id?`<button class="btn ghost sm rm" type="button" data-stdel="${esc(x.id)}">Remove</button>`:""}</div></div>`}
 function pStations(){
   const el=$("#stList");if(!el)return;
-  el.innerHTML=(db.stations||[]).map(x=>`<div class="stcard" data-stid="${esc(x.id)}" style="display:grid;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px">
-    <div class="row2"><label>Station name<input data-stf="name" value="${esc(x.name)}" placeholder="e.g. Cant Station"></label><label>Place customers see<input data-stf="place" value="${esc(x.place)}" placeholder="e.g. KPT, Abbasi Warehouse"></label></div>
-    <div class="row2"><label>Contact person<input data-stf="contact" value="${esc(x.contact)}" placeholder="Name"></label><label>Contact mobile<input data-stf="phone" inputmode="tel" value="${esc(x.phone?fmtPhone(x.phone):"")}" placeholder="03xx-xxxxxxx"></label></div>
-    <button type="button" class="btn ghost" data-stdel="${esc(x.id)}" style="justify-self:start">Remove station</button></div>`).join("")||`<p class="hint">No stations yet.</p>`;
+  const L=db.stations||[];const cnt=$("#stCount");if(cnt)cnt.textContent=L.length+(L.length===1?" station":" stations");
+  el.innerHTML=(stEdit==="new"?stFormHTML({}):"")+L.map(x=>x.id===stEdit?stFormHTML(x):`<div class="strow"><div><b>${esc(x.name||"Unnamed")}</b><small>${esc(x.place||"")}</small></div><div class="stc">${x.contact?`<span>${esc(x.contact)}</span>`:`<span style="opacity:.6">No contact yet</span>`}${x.phone?`<span>${esc(fmtPhone(x.phone))}</span>`:""}</div><button class="btn ghost sm" type="button" data-stedit="${esc(x.id)}">Edit</button></div>`).join("")||(stEdit==="new"?"":`<p class="hint">No stations yet.</p>`);
 }
-document.addEventListener("change",e=>{const i=e.target.closest("[data-stf]");if(!i)return;const c=i.closest("[data-stid]"),x=(db.stations||[]).find(y=>y.id===c.dataset.stid);if(!x)return;
-  let v=i.value.trim();if(i.dataset.stf==="phone"){v=normPhone(v);if(v&&!validMob(v)){toast("Enter a valid mobile, like 0315-0364242");return}}
-  x[i.dataset.stf]=v;if(i.dataset.stf==="name"&&!x.place){x.place=v}save();toast("Station saved");if(i.dataset.stf==="phone")i.value=v?fmtPhone(v):""});
 document.addEventListener("click",e=>{
-  const d=e.target.closest("[data-stdel]");
-  if(d){const x=(db.stations||[]).find(y=>y.id===d.dataset.stdel);if(x&&confirm("Remove station "+x.name+"?")){db.stations=db.stations.filter(y=>y!==x);save();pStations();toast("Station removed")}return}
-  if(e.target.closest("#stAdd")){db.stations=db.stations||[];db.stations.push({id:"st"+Date.now().toString(36),name:"",place:"",contact:"",phone:""});save();pStations();const l=$$("#stList [data-stf=name]");if(l.length)l[l.length-1].focus()}
+  const t=e.target;let b;
+  if(t.closest("#stAdd")){stEdit="new";pStations();const f=$("#stList [data-stf=name]");if(f)f.focus();return}
+  if(b=t.closest("[data-stedit]")){stEdit=b.dataset.stedit;pStations();return}
+  if(t.closest("[data-stcancel]")){stEdit="";pStations();return}
+  if(b=t.closest("[data-stdel]")){const x=(db.stations||[]).find(y=>y.id===b.dataset.stdel);if(x&&confirm("Remove station "+x.name+"?")){db.stations=db.stations.filter(y=>y!==x);stEdit="";save();pStations();toast("Station removed")}return}
+  if(t.closest("[data-stsave]")){
+    const f=t.closest("[data-stform]"),g=k=>f.querySelector(`[data-stf=${k}]`).value.trim();
+    const name=g("name"),ph=normPhone(g("phone"));
+    if(!name){toast("Enter the station name");return}
+    if(ph&&!validMob(ph)){toast("Enter a valid mobile, like 0315-0364242");return}
+    const rec={name,place:g("place")||name,contact:g("contact"),phone:ph};
+    db.stations=db.stations||[];
+    if(f.dataset.stform==="new")db.stations.push({id:"st"+Date.now().toString(36),...rec});
+    else Object.assign(db.stations.find(y=>y.id===f.dataset.stform)||{},rec);
+    stEdit="";save();pStations();toast("Station saved");
+    if($("#impStations"))$("#impStations").innerHTML=stChipsHTML("impst");
+  }
 });
 function applyImport(e){
   e.preventDefault();if(!impData)return;
