@@ -1534,6 +1534,13 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 </div>
 <noscript><div style="padding:16px;max-width:760px;margin:0 auto"><h1>Kashaf Lasani Cargo Services (KLC)</h1><p>Cargo and transport company in Pakistan. Bilty tracking, bilty booking and an online ledger. Main route: Sialkot to Karachi. Call or WhatsApp 0300-6166561 or 0307-6401597, office 052-4587207, email kashaf.lasani@gmail.com. Please turn on JavaScript to track a bilty.</p></div></noscript>
 <style>
+.etabox{border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;background:var(--surface);text-align:center}
+.etalbl{font:600 12px var(--body);opacity:.75}
+.etaclock{font:800 32px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;color:var(--accent-d,#8c1d2b);margin-top:2px;font-variant-numeric:tabular-nums}
+.etasub{font:600 10.5px var(--body);opacity:.55;letter-spacing:.18em}
+#v-track.resonly .etabox{padding:6px 12px}
+#v-track.resonly .etaclock{font-size:26px}
+#v-track.resonly .etalbl,#v-track.resonly .etasub{font-size:10.5px}
 /* Tracking result: one clean screen (no scrolling) with a Back button at the top left */
 #v-track.resonly>*:not(.results){display:none!important}
 #v-track.resonly{min-height:0!important;padding-block:10px 0!important;align-content:start!important;gap:0!important}
@@ -2083,6 +2090,12 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       <p class="hint" id="impMsg" style="margin:0"></p>
     </div>
     <div id="impPreview"></div>
+    <div class="panel" style="display:grid;gap:10px">
+      <h2>Delivery stations and contacts</h2>
+      <p class="hint" style="margin:0">Enter each station or warehouse once, with its contact person and mobile. When you update a challan to Arrived, press the station button and these details fill in by themselves. Customers see the place, name and number in tracking.</p>
+      <div id="stList" style="display:grid;gap:10px"></div>
+      <button class="btn ghost" type="button" id="stAdd" style="justify-self:start">+ Add station</button>
+    </div>
     <div class="panel">
       <h2 style="margin-bottom:10px">Imported challans</h2>
       <div class="tbl-wrap"><table>
@@ -2480,6 +2493,7 @@ function seed(){
     dir:[],
     pending:[],
     challans:[],
+    stations:[{id:"st1",name:"Cant Station",place:"Cant Station",contact:"",phone:""},{id:"st2",name:"KPT Abbasi Warehouse",place:"KPT, Abbasi Warehouse",contact:"",phone:""},{id:"st3",name:"QFS Abbasi",place:"QFS, Abbasi",contact:"",phone:""}],
     biltyPdfs:{},
     roles:[
       {id:"admin",name:"Admin",perms:["bilty","rates","cost","acct","pay","news","dir","admin"],locked:true},
@@ -2750,6 +2764,7 @@ function biltyCard(b){
       <div class="cperson"><b>KLC team</b> <span class="phone">0300-6166561</span></div>
       <div class="inline-actions"><a class="btn sm wa" href="https://wa.me/923006166561?text=${waText}" target="_blank" rel="noopener">WhatsApp KLC</a><a class="btn ghost sm" href="tel:+923006166561">Call</a></div>
     </div>`;
+  const etaBox=b.status===2&&b.eta&&Date.parse(b.eta)>Date.now()?`<div class="etabox"><div class="etalbl">Expected to arrive in</div><div class="etaclock" data-eta="${esc(b.eta)}">${fmtClock(b.eta)}</div><div class="etasub">HRS : MIN : SEC</div></div>`:"";
   const lg=(document.querySelector(".brand img")||{}).src||"";
   const thanks=b.status>=4?`<div class="bt-thanks"><div class="bt-ty">Thank you for choosing KLC.</div><p>It was our pleasure to carry your cargo safely to ${esc(b.to)}. We hope to serve you again soon.</p><small>Aap ka aitmaad hamari pehchan hai.</small></div>`:"";
   return `<article class="card bt">
@@ -2759,6 +2774,7 @@ function biltyCard(b){
     <div class="route">${esc(b.from)} <span class="arrow">→</span> ${esc(b.to)}</div>
     ${contact}
     <div class="timeline">${steps}</div>
+    ${etaBox}
     <div><a class="hint" style="margin:0" href="https://wa.me/923006166561?text=${encodeURIComponent(`Assalam o Alaikum. Please send me the bilty PDF for ${b.id} (${b.from} to ${b.to}).`)}" target="_blank" rel="noopener">📄 Need the bilty PDF? Ask on WhatsApp</a></div>
     ${thanks}</article>`;
 }
@@ -4644,12 +4660,13 @@ function renderImpPreview(){
       <div id="impTimer" hidden style="display:grid;gap:8px;background:var(--chip);border-radius:8px;padding:12px 14px">
         <b>Auto-deliver timer (optional)</b>
         <div class="row2">
-          <label>Mark Delivered after<select id="impTimeSel"><option value="">No timer (I will change it by hand)</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours (1 day)</option><option value="36">36 hours</option><option value="48">48 hours (2 days)</option><option value="72">72 hours (3 days)</option><option value="custom">Other (type hours)</option></select></label>
+          <label>Mark Delivered after<select id="impTimeSel"><option value="">No timer (I will change it by hand)</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours (1 day)</option><option value="26">26 hours</option><option value="28">28 hours</option><option value="30">30 hours</option><option value="36">36 hours</option><option value="48">48 hours (2 days)</option><option value="72">72 hours (3 days)</option><option value="custom">Other (type hours)</option></select></label>
           <label id="impTimeCustWrap" hidden>Hours<input id="impTimeCust" type="number" min="1" max="720" step="1" inputmode="numeric" placeholder="e.g. 30"></label>
         </div>
         <p class="hint" style="margin:0">When the time is up, every bilty in this challan moves to Delivered by itself. Customers see the normal tracking, nothing else changes for them.</p>
       </div>
       <div id="impArr" hidden style="display:grid;gap:10px">
+        <div><b style="font-size:14px">Choose station</b><div id="impStations" class="filters" style="margin-top:6px">${stChipsHTML("impst")}</div></div>
         <label>Exact place at destination (customers see this)<input id="impPlace" placeholder="e.g. KPT side, QFS"></label>
         <div class="row2"><label>Contact person<input id="impContact" placeholder="Name"></label><label>Contact mobile<input id="impPhone" inputmode="tel" placeholder="03xx-xxxxxxx"></label></div>
       </div>
@@ -4661,6 +4678,32 @@ function renderImpPreview(){
   $("#impTimeSel").addEventListener("change",()=>{$("#impTimeCustWrap").hidden=$("#impTimeSel").value!=="custom"});
   $("#impForm").addEventListener("submit",applyImport);
 }
+/* delivery stations: name, place, contact person and mobile are kept once and picked with one button */
+function stChipsHTML(attr){return (db.stations||[]).map(x=>`<button type="button" class="chipbtn" data-${attr}="${esc(x.id)}">📍 ${esc(x.name)}</button>`).join("")||`<span class="hint">No stations yet. Add them under "Delivery stations and contacts" below.</span>`}
+function stationFill(x){$("#impPlace").value=x.place||x.name||"";$("#impContact").value=x.contact||"";$("#impPhone").value=x.phone?fmtPhone(x.phone):""}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-impst]");if(!b)return;const x=(db.stations||[]).find(y=>y.id===b.dataset.impst);if(!x)return;stationFill(x);$$("#impStations .chipbtn").forEach(c=>c.setAttribute("aria-pressed",String(c===b)))});
+function pickStation(title,cb){
+  const old=document.getElementById("stPick");if(old)old.remove();
+  const w=document.createElement("div");w.id="stPick";w.style.cssText="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px";
+  w.innerHTML=`<div role="dialog" aria-modal="true" style="background:var(--surface);color:var(--ink);border-radius:16px;padding:16px;max-width:420px;width:100%;display:grid;gap:10px"><b style="font:800 18px var(--display)">${esc(title)}</b><p class="hint" style="margin:0">Which station did it reach? Customers will see its name and contact.</p>${(db.stations||[]).map(x=>`<button type="button" class="chipbtn" data-pk="${esc(x.id)}" style="justify-content:flex-start;text-align:left">📍 <b>${esc(x.name)}</b>${x.contact?` <small>· ${esc(x.contact)}</small>`:""}</button>`).join("")}<button type="button" class="chipbtn" data-pk="" style="justify-content:flex-start">Without a station</button><button type="button" class="btn ghost" data-pkx="1">Cancel</button></div>`;
+  document.body.appendChild(w);
+  w.addEventListener("click",e=>{const k=e.target.closest("[data-pk]"),x=e.target.closest("[data-pkx]");if(x||e.target===w){w.remove();cb(undefined);return}if(k){w.remove();cb((db.stations||[]).find(y=>y.id===k.dataset.pk)||null)}});
+}
+function pStations(){
+  const el=$("#stList");if(!el)return;
+  el.innerHTML=(db.stations||[]).map(x=>`<div class="stcard" data-stid="${esc(x.id)}" style="display:grid;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px">
+    <div class="row2"><label>Station name<input data-stf="name" value="${esc(x.name)}" placeholder="e.g. Cant Station"></label><label>Place customers see<input data-stf="place" value="${esc(x.place)}" placeholder="e.g. KPT, Abbasi Warehouse"></label></div>
+    <div class="row2"><label>Contact person<input data-stf="contact" value="${esc(x.contact)}" placeholder="Name"></label><label>Contact mobile<input data-stf="phone" inputmode="tel" value="${esc(x.phone?fmtPhone(x.phone):"")}" placeholder="03xx-xxxxxxx"></label></div>
+    <button type="button" class="btn ghost" data-stdel="${esc(x.id)}" style="justify-self:start">Remove station</button></div>`).join("")||`<p class="hint">No stations yet.</p>`;
+}
+document.addEventListener("change",e=>{const i=e.target.closest("[data-stf]");if(!i)return;const c=i.closest("[data-stid]"),x=(db.stations||[]).find(y=>y.id===c.dataset.stid);if(!x)return;
+  let v=i.value.trim();if(i.dataset.stf==="phone"){v=normPhone(v);if(v&&!validMob(v)){toast("Enter a valid mobile, like 0315-0364242");return}}
+  x[i.dataset.stf]=v;if(i.dataset.stf==="name"&&!x.place){x.place=v}save();toast("Station saved");if(i.dataset.stf==="phone")i.value=v?fmtPhone(v):""});
+document.addEventListener("click",e=>{
+  const d=e.target.closest("[data-stdel]");
+  if(d){const x=(db.stations||[]).find(y=>y.id===d.dataset.stdel);if(x&&confirm("Remove station "+x.name+"?")){db.stations=db.stations.filter(y=>y!==x);save();pStations();toast("Station removed")}return}
+  if(e.target.closest("#stAdd")){db.stations=db.stations||[];db.stations.push({id:"st"+Date.now().toString(36),name:"",place:"",contact:"",phone:""});save();pStations();const l=$$("#stList [data-stf=name]");if(l.length)l[l.length-1].focus()}
+});
 function applyImport(e){
   e.preventDefault();if(!impData)return;
   const st=+document.querySelector("[name=impSt]:checked").value,{head:h,rows}=impData;
@@ -4687,6 +4730,7 @@ function applyImport(e){
       b.hist=b.hist.slice(0,st+1);b.status=st;
     }
     if(arrival)b.arrival=arrival;
+    if(st===2&&autoHrs>0)b.eta=new Date(Date.now()+autoHrs*3600000).toISOString();else delete b.eta;
   });
   db.challans=db.challans||[];
   const prev=db.challans.findIndex(c=>c.no===h.no&&c.from===h.from);
@@ -4698,35 +4742,45 @@ function applyImport(e){
   pImp();toast(`Challan ${h.no}: tracking updated`);
 }
 function pImp(){
+  pStations();
   const list=(db.challans||[]).slice().reverse();
-  $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td><select data-chno="${esc(c.no)}" data-chfrom="${esc(c.from)}" aria-label="Status of challan ${esc(c.no)}">${STATUSES.map((x,i)=>`<option value="${i}" ${x===c.status?"selected":""}>${x}</option>`).join("")}</select></td><td>${c.status===STATUSES[2]?`${c.auto?`<div class="mono" style="font-size:12px;margin-bottom:4px"><b data-countdown="${esc(c.auto.at)}">${esc(fmtLeft(c.auto.at))}</b> left</div>`:""}<select data-chauto="${esc(c.no)}" data-chfrom2="${esc(c.from)}" aria-label="Auto-deliver timer for challan ${esc(c.no)}"><option value="">${c.auto?"Change timer…":"Set timer…"}</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="36">36 hours</option><option value="48">48 hours</option><option value="72">72 hours</option><option value="custom">Other hours…</option>${c.auto?'<option value="off">Cancel timer</option>':""}</select>`:'<span style="color:var(--muted)">-</span>'}</td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="8" class="empty">No challans imported yet.</td></tr>`;
+  $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td><select data-chno="${esc(c.no)}" data-chfrom="${esc(c.from)}" aria-label="Status of challan ${esc(c.no)}">${STATUSES.map((x,i)=>`<option value="${i}" ${x===c.status?"selected":""}>${x}</option>`).join("")}</select></td><td>${c.status===STATUSES[2]?`${c.auto?`<div class="mono" style="font-size:12px;margin-bottom:4px"><b data-countdown="${esc(c.auto.at)}">${esc(fmtLeft(c.auto.at))}</b> left</div>`:""}<select data-chauto="${esc(c.no)}" data-chfrom2="${esc(c.from)}" aria-label="Auto-deliver timer for challan ${esc(c.no)}"><option value="">${c.auto?"Change timer…":"Set timer…"}</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="26">26 hours</option><option value="28">28 hours</option><option value="30">30 hours</option><option value="36">36 hours</option><option value="48">48 hours</option><option value="72">72 hours</option><option value="custom">Other hours…</option>${c.auto?'<option value="off">Cancel timer</option>':""}</select>`:'<span style="color:var(--muted)">-</span>'}</td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="8" class="empty">No challans imported yet.</td></tr>`;
   $$("#impRows select[data-chauto]").forEach(sel=>sel.addEventListener("change",()=>{
     const c=(db.challans||[]).find(x=>x.no===sel.dataset.chauto&&x.from===sel.dataset.chfrom2);if(!c)return;
     let v=sel.value;if(!v)return;
-    if(v==="off"){delete c.auto;save();pImp();toast(`Challan ${c.no}: timer cancelled`);return}
+    if(v==="off"){delete c.auto;setEta(c,null);save();pImp();toast(`Challan ${c.no}: timer cancelled`);return}
     if(v==="custom"){v=prompt("After how many hours should this challan be marked Delivered? (1 to 720)");if(v===null){pImp();return}}
     const hrs=+v;if(!(hrs>=1&&hrs<=720)){toast("Enter hours between 1 and 720");pImp();return}
-    c.auto={at:new Date(Date.now()+hrs*3600000).toISOString(),to:4,hrs};save();pImp();toast(`Challan ${c.no}: will be Delivered in ${hrs} hours`);
+    c.auto={at:new Date(Date.now()+hrs*3600000).toISOString(),to:4,hrs};setEta(c,c.auto.at);save();pImp();toast(`Challan ${c.no}: will be Delivered in ${hrs} hours`);
   }));
   $$("#impRows select[data-chno]").forEach(sel=>sel.addEventListener("change",()=>{
     const n=+sel.value,no=sel.dataset.chno,fr=sel.dataset.chfrom;
     const c=(db.challans||[]).find(x=>x.no===no&&x.from===fr);if(!c)return;
-    const now=new Date().toISOString();let k=0;
-    db.bilties.forEach(b=>{if(b.challan&&b.challan.no===no&&b.from===fr){
-      b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(now);
-      b.status=n;k++}});
-    c.status=STATUSES[n];c.at=now;c.by=staffName;delete c.auto;
-    save();renderPanel();toast(`Challan ${no}: ${k} bilties set to "${STATUSES[n]}"`);
+    const go=st=>{
+      const now=new Date().toISOString();let k=0;
+      db.bilties.forEach(b=>{if(b.challan&&b.challan.no===no&&b.from===fr){
+        b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(now);
+        b.status=n;delete b.eta;if(st)b.arrival={place:st.place||st.name,contact:st.contact||"",phone:st.phone||""};k++}});
+      c.status=STATUSES[n];c.at=now;c.by=staffName;delete c.auto;
+      save();renderPanel();toast(`Challan ${no}: ${k} bilties set to "${STATUSES[n]}"`)};
+    if(n===3&&(db.stations||[]).length){pickStation(`Challan ${no}: Arrived`,st=>{if(st===undefined){renderPanel();return}go(st)})}else go(null);
   }));
 }
+/* customer-facing digital countdown (bilty.eta = time the timer ends) */
+function setEta(c,iso){db.bilties.forEach(b=>{if(b.challan&&b.challan.no===c.no&&b.from===c.from){if(iso)b.eta=iso;else delete b.eta}})}
+function fmtClock(iso){const s=Math.max(0,Math.floor((Date.parse(iso)-Date.now())/1000));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(x).padStart(2,"0")}
+function tickEta(){$$("[data-eta]").forEach(e=>{const t=Date.parse(e.dataset.eta);if(t>Date.now())e.textContent=fmtClock(e.dataset.eta);else{const w=e.closest(".etabox");if(w)w.innerHTML='<div class="etalbl">Your goods are about to arrive</div>'}})}
+setInterval(tickEta,1000);
 /* auto-deliver timer: when a challan "In Transit" timer runs out, its bilties become Delivered */
 function fmtLeft(iso){const ms=Date.parse(iso)-Date.now();if(!(ms>0))return"0m";const m=Math.ceil(ms/60000),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mm=m%60;return(d?d+"d ":"")+((d||h)?h+"h ":"")+mm+"m"}
 function runDueTimers(){
   if(typeof me!=="function"||!me())return;
-  const now=Date.now(),iso=new Date().toISOString();let n=0;
+  const now=Date.now(),iso=new Date().toISOString();let n=0,bf=0;
+  (db.challans||[]).forEach(c=>{if(c.auto&&c.status===STATUSES[2]&&Date.parse(c.auto.at)>now)db.bilties.forEach(b=>{if(b.challan&&b.challan.no===c.no&&b.from===c.from&&b.status===2&&b.eta!==c.auto.at){b.eta=c.auto.at;bf++}})});
+  if(bf)save();
   (db.challans||[]).forEach(c=>{
     if(!c.auto||c.status!==STATUSES[2]||!(Date.parse(c.auto.at)<=now))return;
-    db.bilties.forEach(b=>{if(b.challan&&b.challan.no===c.no&&b.from===c.from&&b.status<4){b.hist=b.hist.slice(0,Math.min(4,b.hist.length));while(b.hist.length<=4)b.hist.push(iso);b.status=4}});
+    db.bilties.forEach(b=>{if(b.challan&&b.challan.no===c.no&&b.from===c.from&&b.status<4){b.hist=b.hist.slice(0,Math.min(4,b.hist.length));while(b.hist.length<=4)b.hist.push(iso);b.status=4;delete b.eta}});
     c.status=STATUSES[4];c.at=iso;c.by="Auto timer";delete c.auto;n++});
   if(n){save();if(curView==="panel")renderPanel();toast(`Timer finished: ${n} challan${n>1?"s":""} marked Delivered`)}
 }
