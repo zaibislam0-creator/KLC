@@ -199,6 +199,7 @@ input[aria-invalid="true"]{border-color:var(--rose)}
 .ledger-sum b{display:block;font:800 20px var(--display);font-variant-numeric:tabular-nums}
 .ledger-sum span{font-size:12px;color:var(--muted)}
 .ledger-sum b span{font-size:inherit}
+table.ledger{width:100%}table.ledger th,table.ledger td{padding:8px 8px;font-size:13px;vertical-align:top}table.ledger td.det{min-width:180px;line-height:1.4}table.ledger td.lact{width:1%;min-width:150px}table.ledger .inline-actions{gap:4px;justify-content:flex-end}table.ledger .btn.sm{padding:4px 8px;font-size:12px}
 table.ledger td.dr{color:var(--ink)} table.ledger td.cr{color:var(--teal)}
 table.ledger td.num,table.ledger td:first-child,table.ledger td.mono{white-space:nowrap}
 table.ledger tr.open td{font-weight:700;background:var(--chip)}
@@ -2602,6 +2603,7 @@ function payDetails(p){
   else if(p.method==="Online")bits.push(`${p.wallet||"Online"}${p.txn?`, txn ${p.txn}`:""}`);
   else bits.push("Cash");
   if(p.by)bits.push(`received by ${p.by}`);
+  if(+p.disc>0)bits.push(`discount ${rs(p.disc)}`);if(+p.tax>0)bits.push(`tax deducted ${rs(p.tax)}`);
   if(p.note)bits.push(p.note);
   return bits.join(" · ");
 }
@@ -2615,11 +2617,15 @@ function ledger(code,period){
     if(+b.paid>0)e.push({d:b.paidAt||b.hist[0],type:"Payment",desc:`Paid on bilty ${b.id}`,ref:b.id,mode:"Cash",dr:0,cr:+b.paid});
   });
   db.vreqs.filter(r=>r.acct===code&&TRIP_STEPS.includes(r.status)&&+r.quote>0).forEach(r=>e.push({d:r.hist?.Confirmed||r.at,type:"Vehicle trip",desc:`${vName(r.veh)}, ${r.from} → ${r.to}, ${r.goods}${r.vno?`, vehicle ${r.vno}`:""}`,ref:r.id,mode:"",dr:+r.quote,cr:0}));
-  (db.payments||[]).filter(p=>p.acct===code).forEach(p=>e.push({d:p.date,type:"Payment",desc:payDetails(p),ref:p.id,mode:p.method,dr:0,cr:payCounts(p)?+p.amount:0,pid:p.id,bounced:!payCounts(p),p}));
+  (db.payments||[]).filter(p=>p.acct===code).forEach(p=>e.push({d:p.date,type:"Payment",desc:payDetails(p),ref:p.id,mode:p.method,dr:0,cr:payCounts(p)?+p.amount:0,pid:p.id,bounced:!payCounts(p),p,_skip:!(+p.amount>0)&&((+p.disc>0)||(+p.tax>0))}));
+  (db.payments||[]).filter(p=>p.acct===code&&payCounts(p)).forEach(p=>{
+    if(+p.disc>0)e.push({d:p.date,type:"Discount",desc:"Discount allowed against receipt",ref:p.id,mode:"",dr:0,cr:+p.disc,adj:true});
+    if(+p.tax>0)e.push({d:p.date,type:"Tax deduction",desc:"Tax deducted by customer against receipt",ref:p.id,mode:"",dr:0,cr:+p.tax,adj:true})});
   const invs=(db.invoices||[]).filter(v=>v.acct===code&&v.iso),invN=new Set(invs.map(v=>bnum(v.id)));
   (db.lent||[]).filter(x=>x.acct===code).forEach(x=>{if((x.type==="Bilty"||x.type==="BOK")&&invN.has(bnum(x.ref)))return;e.push({lid:x.id,lent:x,d:x.d,type:x.type,desc:x.type==="Bilty"?cleanDesc(x.desc):x.desc,ref:x.ref||"",mode:x.mode||"",dr:+x.dr||0,cr:+x.cr||0})});
   {const have=new Set((db.bilties||[]).filter(b=>b.acct===code).map(b=>bnum(b.id)));
-   invs.filter(v=>!have.has(bnum(v.id))).forEach(v=>e.push({d:v.iso,type:"Bilty",desc:`${v.from} → ${v.to}${v.items?", "+v.items:""}`,ref:v.id,mode:"",dr:+v.total||0,cr:0}))}
+   invs.filter(v=>!have.has(bnum(v.id))).forEach(v=>e.push({d:v.iso,type:"Bilty",desc:`${v.from} → ${v.to}${v.items?", "+v.items:""}`,ref:v.id,mode:"",dr:+v.total||0,cr:0,invid:v.id}))}
+  for(let i=e.length-1;i>=0;i--)if(e[i]._skip)e.splice(i,1);
   e.sort((a,b)=>a.d.localeCompare(b.d));
   const from=period?.from?new Date(period.from+"T00:00:00"):null,to=period?.to?new Date(period.to+"T23:59:59"):null;
   let open=0;const rows=[];
@@ -2627,22 +2633,23 @@ function ledger(code,period){
   let bal=open;rows.forEach(x=>{bal+=x.dr-x.cr;x.bal=bal});
   const isOB=x=>x.type==="Opening balance",ob=rows.filter(isOB).reduce((s,x)=>s+x.dr-x.cr,0);
   const dr=rows.reduce((s,x)=>s+(isOB(x)?0:x.dr),0),cr=rows.reduce((s,x)=>s+(isOB(x)?0:x.cr),0);
-  const byMode={};MODES.forEach(m=>byMode[m]=0);rows.forEach(x=>{if(x.cr)byMode[x.mode||"Cash"]=(byMode[x.mode||"Cash"]||0)+x.cr});
+  const byMode={};MODES.forEach(m=>byMode[m]=0);rows.forEach(x=>{if(x.cr&&!x.adj)byMode[x.mode||"Cash"]=(byMode[x.mode||"Cash"]||0)+x.cr});
   return{rows,open,ob,dr,cr,bal:open+ob+dr-cr,byMode};
 }
 const balTxt=n=>n>0?`<span class="due">${rs(n)}</span>`:n<0?`<span class="ok">${rs(-n)} advance</span>`:`<span class="ok">Settled</span>`;
 const periods={staff:{from:"",to:""},cust:{from:"",to:""}};
 function ledgerHTML(c,staff){
-  const ctx=staff?"staff":"cust",P=periods[ctx],L=ledger(c.code,P),cols=9;
+  const ctx=staff?"staff":"cust",P=periods[ctx],L=ledger(c.code,P),cols=6;
   const rkey=x=>x.pid?"p:"+x.pid:(x.lid&&x.cr>0?"l:"+x.lid:""),rfile=x=>(x.p&&x.p.file)||(x.lent&&x.lent.file)||"";
   const rows=L.rows.map(x=>{const k=rkey(x),f=rfile(x);let act="";
     if(k)act+=`<button class="btn ghost sm" type="button" data-rview="${esc(k)}">${f?"📎 ":""}View</button>`;
     if(staff&&k&&can(x.pid?"pay":"acct"))act+=`<button class="btn ghost sm" type="button" data-rattach="${esc(k)}">${f?"Change file":"Attach file"}</button>`;
     if(staff){
       if(x.pid){act+=`${x.p.method==="Cheque"&&can("pay")?`<select data-chq="${esc(x.pid)}" aria-label="Cheque status" style="width:auto;padding:4px 6px;font-size:12px">${["Pending","Cleared","Bounced"].map(o=>`<option ${o===(x.p.chqStatus||"Cleared")?"selected":""}>${o}</option>`).join("")}</select>`:""}<button class="btn ghost sm" type="button" data-rcpt="${esc(x.pid)}">Receipt PDF</button>${can("pay")?`<button class="btn ghost sm" type="button" data-delpay="${esc(x.pid)}" aria-label="Remove payment">✕</button>`:""}`}
-      else if(x.lid&&x.cr>0&&can("acct")){act+=lentAsk===x.lid?`<button class="btn sm" type="button" data-dellentyes="${esc(x.lid)}">Yes, remove</button><button class="btn ghost sm" type="button" data-dellentno="1">No</button>`:`<button class="btn ghost sm" type="button" data-dellent="${esc(x.lid)}">Remove RCP</button>`}}
-    return `<tr${x.bounced?' style="opacity:.6"':""}><td>${esc(fmtD(x.d))}</td><td>${esc(x.type)}${x.prov?' <span class="tag">Provisional</span>':""}</td><td>${esc(x.desc)}${f?" 📎":""}</td><td class="mono" style="font-size:12px">${esc(x.ref)}</td><td>${x.mode?`<span class="tag">${esc(x.mode)}</span>`:""}</td><td class="num dr">${x.dr?rs(x.dr):""}</td><td class="num cr">${x.cr?rs(x.cr):x.bounced?"Bounced":""}</td><td class="num"><b>${dcTxt(x.bal)}</b></td><td>${act?`<div class="inline-actions">${act}</div>`:""}</td></tr>`}).join("");
-  const openRow=(P.from)?`<tr class="open"><td>${esc(fmtDay(P.from))}</td><td colspan="6">Opening balance</td><td class="num">${dcTxt(L.open)}</td><td></td></tr>`:"";
+      else if(x.lid&&(x.cr>0||x.type==="Bilty"||x.type==="BOK")&&can("acct")){const isB=x.type==="Bilty"||x.type==="BOK";if(isB)act+=`<button class="btn ghost sm" type="button" data-goup="1" data-target="${esc(c.code)}" title="Upload the corrected bilty PDF; the same bilty number is replaced">Replace</button>`;act+=lentAsk===x.lid?`<button class="btn sm" type="button" data-dellentyes="${esc(x.lid)}">Yes, remove</button><button class="btn ghost sm" type="button" data-dellentno="1">No</button>`:`<button class="btn ghost sm" type="button" data-dellent="${esc(x.lid)}">${isB?"Delete":"Remove RCP"}</button>`}
+      else if(x.invid&&can("acct")){act+=`<button class="btn ghost sm" type="button" data-goup="1" data-target="${esc(c.code)}" title="Upload the corrected bilty PDF; the same bilty number is replaced">Replace</button>`+(invAsk===x.invid?`<button class="btn sm" type="button" data-invdelyes="${esc(x.invid)}">Yes, delete</button><button class="btn ghost sm" type="button" data-invdelno="1">No</button>`:`<button class="btn ghost sm" type="button" data-invdel="${esc(x.invid)}">Delete</button>`)}}
+    return `<tr${x.bounced?' style="opacity:.6"':""}><td>${esc(fmtD(x.d))}</td><td class="det"><b>${esc(x.type)}</b>${x.prov?' <span class="tag">Provisional</span>':""}${x.mode?` <span class="tag">${esc(x.mode)}</span>`:""}${x.ref?` <span class="mono" style="font-size:12px">${esc(x.ref)}</span>`:""}<br>${esc(x.desc)}${f?" 📎":""}</td><td class="num dr">${x.dr?rs(x.dr):""}</td><td class="num cr">${x.cr?rs(x.cr):x.bounced?"Bounced":""}</td><td class="num"><b>${dcTxt(x.bal)}</b></td><td class="lact">${act?`<div class="inline-actions">${act}</div>`:""}</td></tr>`}).join("");
+  const openRow=(P.from)?`<tr class="open"><td>${esc(fmtDay(P.from))}</td><td colspan="3">Opening balance</td><td class="num">${dcTxt(L.open)}</td><td></td></tr>`:"";
   return `${staff?`<div class="card-head" style="margin-bottom:10px"><div><h2>${esc(c.name)}</h2><div class="hint" style="margin:4px 0 0">Account code <span class="codebox">${esc(c.code)}</span> · ${esc(fmtPhone(c.phone))}</div></div><div class="inline-actions"><button class="btn ghost sm" type="button" data-goup="1" data-target="${esc(c.code)}">⬆ Upload PDF</button><button class="btn ghost sm" type="button" data-closeledger="1">Close</button></div></div>`:""}
   <div class="inline-actions" style="align-items:end;margin-bottom:12px">
     <label style="flex:0 1 160px">From<input type="date" class="lp" data-ctx="${ctx}" data-k="from" value="${esc(P.from)}"></label>
@@ -2652,16 +2659,18 @@ function ledgerHTML(c,staff){
   </div>
   <div class="ledger-sum">${P.from||L.ob?`<div><span>Opening balance</span><b>${dcTxt(L.open+L.ob)}</b></div>`:""}<div><span>Billed (debit)</span><b>${rs(L.dr)}</b></div><div><span>Received (credit)</span><b>${rs(L.cr)}</b></div><div><span>Closing balance</span><b>${balTxt(L.bal)}</b></div></div>
   <div class="ledger-sum">${MODES.map(m=>`<div><span>Received in ${m.toLowerCase()}</span><b style="font-size:16px">${rs(L.byMode[m]||0)}</b></div>`).join("")}</div>
-  <div class="tbl-wrap"><table class="ledger"><thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Ref</th><th>Mode</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th><th></th></tr></thead>
+  <div class="tbl-wrap"><table class="ledger"><thead><tr><th>Date</th><th>Details</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th><th></th></tr></thead>
   <tbody>${openRow}${rows||`<tr><td colspan="${cols}" class="empty">No entries in this period.</td></tr>`}</tbody></table></div>
   <p class="hint" style="margin:8px 0 0"><b>Dr</b> is the amount due to KLC. <b>Cr</b> is an advance with KLC.</p>
     ${staff&&can("pay")?`<form class="f" id="payForm" data-acct="${esc(c.code)}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
     <h3>Receive payment</h3>
-    <div class="row2"><label>Amount (Rs)<input id="payAmt" type="number" min="1" required></label><label>Payment date<input id="payDate" type="date" value="${today()}" max="${today()}" required></label></div>
+    <div class="row2"><label>Amount received (Rs)<input id="payAmt" type="number" min="0" placeholder="0"></label><label>Payment date<input id="payDate" type="date" value="${today()}" max="${today()}" required></label></div>
     <div class="row2"><label>Payment mode<select id="payMethod">${MODES.map(m=>`<option>${m}</option>`).join("")}</select></label><label>Received by<input id="payBy" required placeholder="Staff name" value="${esc(staffName)}"></label></div>
     <div class="row2 pm pm-bank pm-chq" hidden><label>Bank name<input id="payBank" placeholder="e.g. HBL, Meezan, UBL"></label><label class="pm pm-bank" hidden>Slip / transaction no.<input id="payTxnB"></label><label class="pm pm-chq" hidden>Cheque no.<input id="payChq"></label></div>
     <div class="row2 pm pm-chq" hidden><label>Cheque date<input id="payChqDate" type="date"></label><label>Cheque status<select id="payChqStatus"><option>Pending</option><option>Cleared</option></select></label></div>
     <div class="row2 pm pm-online" hidden><label>Service<select id="payWallet">${ONLINE.map(o=>`<option>${o}</option>`).join("")}</select></label><label>Transaction ID<input id="payTxnO"></label></div>
+    <div class="row2"><label>Discount (Rs)<input id="payDisc" type="number" min="0" placeholder="0"></label><label>Tax deducted (Rs)<input id="payTax" type="number" min="0" placeholder="0"></label></div>
+    <p class="hint" id="payTot" style="margin:-4px 0 0"></p>
     <label>Note<input id="payNote" placeholder="Optional, e.g. against bilties of September"></label>
     <label>Cheque photo or receipt (optional)<input id="payFile" type="file" accept="image/*,application/pdf"></label><p class="hint" style="margin:-6px 0 0">A photo of the cheque, bank slip or online payment screenshot, or a PDF. The customer can see it when they click View on this payment.</p>
     <button class="btn" type="submit" style="justify-self:start">Add to ledger</button></form>`:`<p class="hint">Debit is what KLC billed you. Credit is what you paid, with the payment mode. Click <b>View</b> on a payment to see its details and the cheque or receipt copy. A bounced cheque is not counted. If anything looks wrong, contact KLC with the reference number.</p>`}`;
@@ -2713,8 +2722,8 @@ function statementPDF(c,P){
 function receiptPDF(p){
   const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"pt",format:"a5"}),c=clientOf(p.acct)||{name:p.acct,code:p.acct,phone:""},W=doc.internal.pageSize.getWidth();
   pdfHeader(doc,"Payment Receipt",p.id);
-  const after=ledger(c.code).rows.find(x=>x.pid===p.id)?.bal;
-  const rows=[["Receipt no.",p.id],["Date",fmtD(p.date)],["Received from",`${c.name} (${c.code})`],["Amount",pdfRs(p.amount)],["Payment mode",p.method]];
+  const after=ledger(c.code).rows.filter(x=>x.ref===p.id).pop()?.bal;
+  const rows=[["Receipt no.",p.id],["Date",fmtD(p.date)],["Received from",`${c.name} (${c.code})`],["Amount received",pdfRs(p.amount)],["Payment mode",p.method]];if(+p.disc>0)rows.push(["Discount",pdfRs(p.disc)]);if(+p.tax>0)rows.push(["Tax deducted",pdfRs(p.tax)]);if(+p.disc>0||+p.tax>0)rows.push(["Total credited to ledger",pdfRs((+p.amount||0)+(+p.disc||0)+(+p.tax||0))]);
   if(p.method==="Cheque")rows.push(["Cheque no.",p.chq||"-"],["Bank",p.bank||"-"],["Cheque date",p.chqDate?fmtDay(p.chqDate):"-"],["Cheque status",p.chqStatus||"Cleared"]);
   if(p.method==="Bank transfer")rows.push(["Bank",p.bank||"-"],["Slip / txn no.",p.txn||"-"]);
   if(p.method==="Online")rows.push(["Service",p.wallet||"-"],["Transaction ID",p.txn||"-"]);
@@ -2987,7 +2996,7 @@ function readProof(f){return new Promise(res=>{
     const r=new FileReader();r.onload=()=>res({file:String(r.result),fname:f.name});r.onerror=()=>{toast("The file could not be read.");res(false)};r.readAsDataURL(f);return}
   toast("Choose a photo (JPG or PNG) or a PDF.");res(false)})}
 function rcpOf(k){const t=k.slice(0,1),id=k.slice(2);
-  if(t==="p"){const p=(db.payments||[]).find(x=>x.id===id);return p?{o:p,pay:true,date:p.date,amt:+p.amount||0,mode:p.method,det:payDetails(p),ref:p.id,by:p.by||""}:null}
+  if(t==="p"){const p=(db.payments||[]).find(x=>x.id===id);return p?{o:p,pay:true,date:p.date,amt:(+p.amount||0)+(+p.disc||0)+(+p.tax||0),mode:p.method,det:payDetails(p),ref:p.id,by:p.by||""}:null}
   const x=(db.lent||[]).find(y=>y.id===id);return x?{o:x,pay:false,date:x.d,amt:+x.cr||0,mode:x.mode||"",det:x.desc||"",ref:x.ref||"",by:""}:null}
 function rcpView(k){
   const r=rcpOf(k);if(!r)return;const staff=!!me()&&curView==="panel",f=r.o.file||"";
@@ -3436,7 +3445,7 @@ $("#ledgerBox").addEventListener("click",e=>{
   const iv=e.target.closest("[data-invdel]");if(iv){invAsk=iv.dataset.invdel;pAcct();return}
   if(e.target.closest("[data-invdelno]")){invAsk="";pAcct();return}
   const iy=e.target.closest("[data-invdelyes]");if(iy){
-    const id=iy.dataset.invdelyes;db.invoices=(db.invoices||[]).filter(x=>x.id!==id);invAsk="";save();pAcct();toast(`Invoice ${id} removed`)}
+    const id=iy.dataset.invdelyes;{const iv0=(db.invoices||[]).find(x=>x.id===id);db.lent=(db.lent||[]).filter(x=>!(iv0&&x.acct===iv0.acct&&(x.type==="Bilty"||x.type==="BOK")&&bnum(x.ref)===bnum(id)))}db.invoices=(db.invoices||[]).filter(x=>x.id!==id);invAsk="";save();pAcct();toast(`Invoice ${id} removed`)}
 });
 $("#acctRows").addEventListener("click",acctClick);
 $("#acctViewTabs").addEventListener("click",e=>{const b=e.target.closest("[data-acv]");if(!b)return;acView=b.dataset.acv;ledgerCode="";acEditCode="";acDelAsk="";pAcct();const k=$(".kp-sec");if(k)k.scrollIntoView({behavior:"smooth",block:"start"})});
@@ -4920,16 +4929,17 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("submit",async e=>{
   if(e.target.id!=="payForm")return;e.preventDefault();
-  const amt=Math.round(+$("#payAmt").value||0);if(amt<=0){toast("Enter an amount");return}
+  const amt=Math.round(+$("#payAmt").value||0),disc=Math.round(+$("#payDisc").value||0),tax=Math.round(+$("#payTax").value||0);if(amt<0||disc<0||tax<0||amt+disc+tax<=0){toast("Enter the amount received, or a discount or tax amount");return}
   const m=$("#payMethod").value,by=$("#payBy").value.trim();if(!by){toast("Enter who received the payment");return}
-  const pay={acct:e.target.dataset.acct,date:new Date($("#payDate").value+"T12:00:00").toISOString(),amount:amt,method:m,by,note:$("#payNote").value.trim()};
+  const pay={acct:e.target.dataset.acct,date:new Date($("#payDate").value+"T12:00:00").toISOString(),amount:amt,method:m,by,note:$("#payNote").value.trim()};if(disc>0)pay.disc=disc;if(tax>0)pay.tax=tax;
   if(m==="Cheque"){pay.chq=$("#payChq").value.trim();pay.bank=$("#payBank").value.trim();pay.chqDate=$("#payChqDate").value;pay.chqStatus=$("#payChqStatus").value;if(!pay.chq||!pay.bank){toast("Enter the cheque number and bank name");return}}
   if(m==="Bank transfer"){pay.bank=$("#payBank").value.trim();pay.txn=$("#payTxnB").value.trim();if(!pay.bank){toast("Enter the bank name");return}}
   if(m==="Online"){pay.wallet=$("#payWallet").value;pay.txn=$("#payTxnO").value.trim();if(!pay.txn){toast("Enter the transaction ID");return}}
   {const pf=$("#payFile")&&$("#payFile").files[0];if(pf){const r=await readProof(pf);if(r===false)return;if(r){pay.file=r.file;pay.fname=r.fname}}}
   db.payments=db.payments||[];pay.id=nextNum(db.payments,"RCPT-",1000);db.payments.push(pay);
-  save();renderPanel();toast(`${rs(amt)} received by ${m.toLowerCase()}. Receipt ${pay.id} added to the ledger.`);
+  save();renderPanel();toast(`${rs(amt+disc+tax)} credited${disc||tax?` (${rs(amt)} received, ${rs(disc)} discount, ${rs(tax)} tax)`:` by ${m.toLowerCase()}`}. Receipt ${pay.id} added to the ledger.`);
 });
+document.addEventListener("input",e=>{if(!/^pay(Amt|Disc|Tax)$/.test(e.target.id))return;const a=+$("#payAmt").value||0,d=+$("#payDisc").value||0,t=+$("#payTax").value||0,el=$("#payTot");if(el)el.textContent=(d||t)?`Credited to the ledger: ${rs(a+d+t)} (received ${rs(a)} + discount ${rs(d)} + tax ${rs(t)})`:""});
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="payMethod")payModeUI();
