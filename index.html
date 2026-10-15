@@ -3189,7 +3189,7 @@ function renderAccount(){
     $("#accView").innerHTML=`<div class="acc-focus"><div class="trackbar accbar"><button class="tb-back" type="button" data-accback="1" aria-label="Back">← Back</button><b style="font-family:var(--display);font-size:18px">${ttl}</b>${tools}</div><div style="display:grid;gap:14px;margin-top:10px">${body}</div></div>`;
     if(acctOpen)orderTrackFill(acctOpen);
     return}
-  {const rq=myReqHTML();if(rq)body=`<div class="panel">${rq}</div>`;else body=""}
+  {const rq=myReqHTML();body=homeHTML(c)+(rq?`<div class="panel">${rq}</div>`:"")+helpStrip()}
   const logo=(document.querySelector(".brand img")||{}).src||"";
   $("#accView").innerHTML=`<section class="acc-banner" aria-label="Your account">
     <div class="ab-top"><span class="ab-badge"><img src="${esc(logo)}" alt="KLC" width="46" height="46"><span><b>KLC</b><small>Kashaf Lasani Cargo Services</small></span></span>
@@ -3202,7 +3202,29 @@ function renderAccount(){
     ${pinFormHTML()}
     <div class="filters" role="tablist" aria-label="Account sections">${tabs.map(t=>t[0]==="book"?`<button type="button" class="chipbtn hl" data-bookacct="1" title="Book a new bilty">${t[1]}</button>`:`<button type="button" class="chipbtn" role="tab" data-acctab="${t[0]}" aria-pressed="false">${t[1]}</button>`).join("")}</div></div>
   <div style="display:grid;gap:14px;margin-top:14px">${body}</div>`;
-  if(acctOpen)orderTrackFill(acctOpen);
+  if(acctOpen)orderTrackFill(acctOpen);else homeWayFill(c.code);
+}
+const wayCache={};
+function homeHTML(c){
+  const L=ledger(c.code).rows.filter(x=>x.type!=="Opening balance").slice(-5).reverse();
+  return `<div class="panel home-way"><div class="card-head" style="margin-bottom:6px"><h3 style="margin:0">🚚 On the way</h3></div><div id="homeWay" class="hint" style="margin:0">Checking your bilties…</div></div>
+  <div class="panel home-led"><div class="card-head" style="margin-bottom:6px"><h3 style="margin:0">📒 Recent ledger</h3><button class="btn ghost sm" type="button" data-acctab="ledger">View full ledger</button></div>
+  ${L.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Details</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${L.map(x=>`<tr><td>${esc(fmtD(x.d))}</td><td>${esc(x.type)}${x.ref?` · <span class="mono" style="font-size:12px">${esc(x.ref)}</span>`:""}</td><td class="num dr">${x.dr?rs(x.dr):""}</td><td class="num cr">${x.cr?rs(x.cr):""}</td></tr>`).join("")}</tbody></table></div>`:`<p class="empty" style="margin:0">No entries yet.</p>`}</div>`;
+}
+function helpStrip(){return `<div class="panel help-strip" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><b>Need help with a bilty or payment?</b><div class="hint" style="margin:2px 0 0">We reply on WhatsApp during office hours.</div></div><div class="inline-actions"><a class="btn sm wa" href="https://wa.me/923006166561" target="_blank" rel="noopener">WhatsApp</a><a class="btn ghost sm" href="tel:+923006166561">Call</a><button class="btn ghost sm" type="button" data-chatopen="1">💬 Chat</button></div></div>`}
+async function homeWayFill(code){
+  const box=$("#homeWay");if(!box)return;
+  const L=ordersOf(code).filter(o=>!o.ledgerOnly).slice(0,6);
+  if(!L.length){box.textContent="No bilties yet.";return}
+  const c=wayCache[code];let rows;
+  if(c&&Date.now()-c.t<60000)rows=c.rows;else{
+    rows=[];await Promise.all(L.map(async o=>{try{const r=await trackBilties(o.id);const b=r&&r[0];if(b)rows.push({o,b})}catch(e){}}));
+    rows.sort((a,z)=>String(z.o.iso).localeCompare(String(a.o.iso)));wayCache[code]={t:Date.now(),rows}}
+  const b2=$("#homeWay");if(!b2)return;
+  const act=rows.filter(x=>x.b.status<4);
+  if(!act.length){b2.innerHTML=rows.length?`Nothing on the way right now. Your latest bilties are delivered.`:`Tracking is not available online yet for your latest bilties.`;return}
+  b2.innerHTML=act.map(({o,b})=>{const eta=b.eta&&Date.parse(b.eta)>Date.now()?`<span class="tag">Expected in ${esc(fmtClock(b.eta).slice(0,5).replace(":","h ")+"m")}</span>`:"";
+    return `<div class="inline-actions" style="align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px"><span><b class="mono">${esc(o.id)}</b> · ${esc(ordRoute(o))}<br><span class="tag port">${esc(STATUSES[b.status]||"")}</span> ${eta}</span><button class="btn ghost sm" type="button" data-ordopen="${esc(o.id)}">Track</button></div>`}).join("");
 }
 async function acctChatPrep(c){
   try{rememberMe(c.name,c.phone);
