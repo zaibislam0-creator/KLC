@@ -2076,7 +2076,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
     <div class="kp-group"><div class="kp-gl">Daily work</div>
       <button class="chipbtn" aria-pressed="false" data-s="inbox"><span class="ti">📩</span><b>Inbox &amp; chat</b><small>Booking requests and messages from customers, and team chat</small><i class="kp-badge"></i></button>
       <button class="chipbtn" aria-pressed="false" data-s="imp"><span class="ti">⬆️</span><b>Upload challan</b><small>Add bilties from a SmartCargo PDF</small><i class="kp-badge"></i></button>
-      <button class="chipbtn" aria-pressed="true" data-s="bilty"><span class="ti">📦</span><b>Bilties</b><small>Create bilties and update their status</small><i class="kp-badge"></i></button>
+      <button class="chipbtn" aria-pressed="true" data-s="bilty"><span class="ti">📦</span><b>Bilties</b><small>Upload bilties and update their status</small><i class="kp-badge"></i></button>
     </div>
     <div class="kp-group"><div class="kp-gl">Website</div>
       <button class="chipbtn" aria-pressed="false" data-s="news"><span class="ti">📰</span><b>News &amp; Updates</b><small>Port status, news posts and vessel schedule</small><i class="kp-badge"></i></button>
@@ -2137,37 +2137,12 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
   </div>
 
   <div id="p-bilty" class="grid2">
-    <div class="panel">
-      <h2 style="margin-bottom:12px">New bilty (walk-in)</h2>
-      <form class="f" id="newForm">
-        <div class="row2">
-          <label>From<input id="nFrom" required value="Karachi"></label>
-          <label>To<input id="nTo" required value="Multan"></label>
-        </div>
-        <div class="row2">
-          <label>Sender<input id="nSender" required></label>
-          <label>Sender mobile<input id="nSPhone" inputmode="tel" placeholder="03xx-xxxxxxx"></label>
-        </div>
-        <div class="row2">
-          <label>Receiver<input id="nRecv" required></label>
-          <label>Receiver mobile<input id="nPhone" required inputmode="tel" placeholder="03xx-xxxxxxx"></label>
-        </div>
-        <div class="row2">
-          <label>Goods<input id="nItems" required></label>
-          <label>Weight (kg)<input id="nKg" required type="number" min="1"></label>
-        </div>
-        <label>Billed to account<select id="nAcct"></select></label>
-        <div class="row2">
-          <label>Freight charges<input id="nFreight" type="number" min="0" required></label>
-          <label>Labour / loading<input id="nLabour" type="number" min="0" value="0"></label>
-        </div>
-        <div class="row2">
-          <label>Payment<select id="nPay"><option>To Pay</option><option>Paid</option></select></label>
-          <label>Advance received<input id="nAdv" type="number" min="0" value="0"></label>
-        </div>
-        <div class="estimate" id="nTotal"></div>
-        <button class="btn" type="submit">Create bilty</button>
-      </form>
+    <div class="panel" style="display:grid;gap:12px;align-content:start">
+      <h2>Upload bilty</h2>
+      <p class="hint" style="margin:0">Bilties are made on SmartCargo, not here. Every customer, even a walk-in, needs a company account. Make the bilty on SmartCargo, choose the account below and upload the PDF.</p>
+      <label>Company account<select id="bpAcct"></select></label>
+      <button class="btn" type="button" id="bpGo">🧾 Choose bilty PDF</button>
+      <p class="hint" style="margin:0">Customer has no account yet? <button class="linkbtn" type="button" id="bpNew">Add a company account</button></p>
     </div>
     <div class="panel">
       <div class="ph"><h2>All bilties</h2><span class="hint" id="coCount"></span></div>
@@ -3328,40 +3303,26 @@ function renderPanel(){
   if(rTier==="cost"&&!can("cost"))rTier="cust";
   ({imp:pImp,bilty:pBilty,rates:pRates,acct:pAcct,news:pNews,dir:pDir,partners:pPartners,inbox:pInbox,admin:pAdmin})[sub]();
 }
-function nTotal(){
-  $("#nAdv").disabled=$("#nPay").value==="Paid";
-  const t=(+$("#nFreight").value||0)+(+$("#nLabour").value||0);
-  const paid=$("#nPay").value==="Paid"?t:Math.min(+$("#nAdv").value||0,t);
-  $("#nTotal").innerHTML=`Total charges<b>${rs(t)}</b><span class="hint">Balance due: ${rs(t-paid)}</span>`;
-}
-["#nFreight","#nLabour","#nAdv"].forEach(s=>$(s).addEventListener("input",nTotal));$("#nPay").addEventListener("change",nTotal);
 function pBilty(){
-  const sel=$("#nAcct"),cur=sel.value;
-  sel.innerHTML=`<option value="">Walk-in customer</option>`+db.clients.map(c=>`<option value="${esc(c.code)}" ${c.code===cur?"selected":""}>${esc(c.code)} · ${esc(c.name)}</option>`).join("");
-  nTotal();
+  const sel=$("#bpAcct"),cur=sel.value;
+  sel.innerHTML=`<option value="">Choose the account…</option>`+db.clients.map(c=>`<option value="${esc(c.code)}" ${c.code===cur?"selected":""}>${esc(c.name)} (${esc(c.code)})</option>`).join("");
   const rows=db.bilties.slice().sort((a,b)=>b.id.localeCompare(a.id));
   $("#coCount").textContent=rows.length+" bilties";
   $("#coRows").innerHTML=rows.length?rows.map(b=>{const d=due(b),c=clientOf(b.acct),t=total(b);return `<tr><td class="mono"><b>${esc(b.id)}</b>${b.challan?`<br><span style="font-size:11px;color:var(--muted)">Challan ${esc(b.challan.no)}</span>`:""}</td><td>${esc(b.from)} → ${esc(b.to)}</td>
     <td>${esc(b.recv||"—")}${b.phone?`<br><span class="mono" style="color:var(--muted);font-size:12px">${esc(fmtPhone(b.phone))}</span>`:""}${c?`<br><span class="tag">${esc(c.name)}</span>`:""}</td>
     <td class="num">${t?rs(t):"—"}${b.pay?`<br><span style="color:var(--muted);font-size:12px">${esc(b.pay)}</span>`:""}</td>
     <td class="num">${!t?"—":b.acct?`<span style="color:var(--muted);font-size:12px">On account</span>`:d>0?`<span class="due">${rs(d)}</span><br><button class="btn ghost sm" data-collect="${esc(b.id)}">Mark paid</button>`:`<span class="ok">Paid</span>`}</td>
-    <td><select data-bid="${esc(b.id)}" aria-label="Status ${esc(b.id)}">${STATUSES.map((s,i)=>`<option value="${i}" ${i===b.status?"selected":""}>${s}</option>`).join("")}</select>${b.deliv&&b.deliv.name?`<br><span style="font-size:11px;color:var(--muted)">Received by ${esc(b.deliv.name)}</span>`:""}</td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No bilties yet. Import a SmartCargo challan or create one with the form.</td></tr>`;
+    <td><select data-bid="${esc(b.id)}" aria-label="Status ${esc(b.id)}">${STATUSES.map((s,i)=>`<option value="${i}" ${i===b.status?"selected":""}>${s}</option>`).join("")}</select>${b.deliv&&b.deliv.name?`<br><span style="font-size:11px;color:var(--muted)">Received by ${esc(b.deliv.name)}</span>`:""}</td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No bilties yet. Upload a SmartCargo challan or bilty PDF.</td></tr>`;
   $$("#coRows select").forEach(sel=>sel.addEventListener("change",()=>{
     const b=db.bilties.find(x=>x.id===sel.dataset.bid),n=+sel.value;
     b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(new Date().toISOString());
     b.status=n;save();renderPanel();toast(n===4&&!b.acct&&due(b)>0?`${b.id} delivered, but ${rs(due(b))} is still due. Collect it and press Mark paid.`:`${b.id}: ${STATUSES[n]}. The customer will get an SMS.`);
   }));
 }
-$("#newForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  const phone=normPhone($("#nPhone").value);if(!validMob(phone)){toast("Enter a valid receiver mobile number, like 0300-1234567");return}
-  const sph=normPhone($("#nSPhone").value);if(sph&&!validMob(sph)){toast("Enter a valid sender mobile number or leave it empty");return}
-  const id=nextBiltyId();
-  const freight=+$("#nFreight").value||0,labour=+$("#nLabour").value||0,t=freight+labour,pay=$("#nPay").value;
-  db.bilties.push({id,from:$("#nFrom").value.trim(),to:$("#nTo").value.trim(),sender:$("#nSender").value.trim(),sphone:sph,recv:$("#nRecv").value.trim(),phone,items:$("#nItems").value.trim(),kg:$("#nKg").value,status:0,hist:[new Date().toISOString()],acct:$("#nAcct").value,freight,labour,pay,paid:pay==="Paid"?t:Math.min(+$("#nAdv").value||0,t),paidAt:new Date().toISOString()});
-  save();["#nSender","#nSPhone","#nRecv","#nPhone","#nItems","#nKg","#nFreight"].forEach(s=>$(s).value="");$("#nLabour").value=0;$("#nAdv").value=0;
-  renderPanel();toast(`Bilty ${id} created`);
-});
+$("#bpGo").addEventListener("click",()=>{const a=$("#bpAcct").value;if(!a){toast("Choose the company account first");return}
+  if(!canSub("imp")){toast("Your role cannot upload. Ask the admin.");return}
+  upTarget=a;sub="imp";renderPanel();setImpKind("bilty");if($("#impAcct"))$("#impAcct").value=a;window.scrollTo({top:0});const f=$("#impFile");if(f)f.click()});
+$("#bpNew").addEventListener("click",()=>{if(!canSub("acct")){toast("Your role cannot add accounts. Ask the admin.");return}sub="acct";renderPanel();window.scrollTo({top:0})});
 function pRates(){
   if(rTier==="cost"&&!can("cost")){rTier="cust";pressGroup("#tierSel",$("[data-tier=cust]"))}
   $("#tierHint").textContent=TIER_HINT[rTier];
