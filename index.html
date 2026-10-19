@@ -2619,8 +2619,9 @@ function ledger(code,period){
   db.vreqs.filter(r=>r.acct===code&&TRIP_STEPS.includes(r.status)&&+r.quote>0).forEach(r=>e.push({d:r.hist?.Confirmed||r.at,type:"Vehicle trip",desc:`${vName(r.veh)}, ${r.from} → ${r.to}, ${r.goods}${r.vno?`, vehicle ${r.vno}`:""}`,ref:r.id,mode:"",dr:+r.quote,cr:0}));
   (db.payments||[]).filter(p=>p.acct===code).forEach(p=>e.push({d:p.date,type:"Payment",desc:payDetails(p),ref:p.id,mode:p.method,dr:0,cr:payCounts(p)?+p.amount:0,pid:p.id,bounced:!payCounts(p),p,_skip:!(+p.amount>0)&&((+p.disc>0)||(+p.tax>0))}));
   (db.payments||[]).filter(p=>p.acct===code&&payCounts(p)).forEach(p=>{
-    if(+p.disc>0)e.push({d:p.date,type:"Discount",desc:"Discount allowed against receipt",ref:p.id,mode:"",dr:0,cr:+p.disc,adj:true});
-    if(+p.tax>0)e.push({d:p.date,type:"Tax deduction",desc:"Tax deducted by customer against receipt",ref:p.id,mode:"",dr:0,cr:+p.tax,adj:true})});
+    const own=!(+p.amount>0);
+    if(+p.disc>0)e.push({d:p.date,type:"Discount",desc:"Discount allowed against receipt",ref:p.id,mode:"",dr:0,cr:+p.disc,adj:true,...(own?{pid:p.id,p}:{})});
+    if(+p.tax>0)e.push({d:p.date,type:"Tax deduction",desc:"Tax deducted by customer against receipt",ref:p.id,mode:"",dr:0,cr:+p.tax,adj:true,...(own&&!(+p.disc>0)?{pid:p.id,p}:{})})});
   const invs=(db.invoices||[]).filter(v=>v.acct===code&&v.iso),invN=new Set(invs.map(v=>bnum(v.id)));
   (db.lent||[]).filter(x=>x.acct===code).forEach(x=>{if((x.type==="Bilty"||x.type==="BOK")&&invN.has(bnum(x.ref)))return;e.push({lid:x.id,lent:x,d:x.d,type:x.type,desc:x.type==="Bilty"?cleanDesc(x.desc):x.desc,ref:x.ref||"",mode:x.mode||"",dr:+x.dr||0,cr:+x.cr||0})});
   {const have=new Set((db.bilties||[]).filter(b=>b.acct===code).map(b=>bnum(b.id)));
@@ -2664,12 +2665,12 @@ function ledgerHTML(c,staff){
   <p class="hint" style="margin:8px 0 0"><b>Dr</b> is the amount due to KLC. <b>Cr</b> is an advance with KLC.</p>
     ${staff&&can("pay")?`<form class="f" id="payForm" data-acct="${esc(c.code)}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
     <h3>Receive payment</h3>
-    <div class="row2"><label>Amount received (Rs)<input id="payAmt" type="number" min="0" placeholder="0"></label><label>Payment date<input id="payDate" type="date" value="${today()}" max="${today()}" required></label></div>
+    <div class="row2"><label>Amount received (Rs)<input id="payAmt" type="number" min="0" step="any" placeholder="0"></label><label>Payment date<input id="payDate" type="date" value="${today()}" max="${today()}" required></label></div>
     <div class="row2"><label>Payment mode<select id="payMethod">${MODES.map(m=>`<option>${m}</option>`).join("")}</select></label><label>Received by<input id="payBy" required placeholder="Staff name" value="${esc(staffName)}"></label></div>
     <div class="row2 pm pm-bank pm-chq" hidden><label>Bank name<input id="payBank" placeholder="e.g. HBL, Meezan, UBL"></label><label class="pm pm-bank" hidden>Slip / transaction no.<input id="payTxnB"></label><label class="pm pm-chq" hidden>Cheque no.<input id="payChq"></label></div>
     <div class="row2 pm pm-chq" hidden><label>Cheque date<input id="payChqDate" type="date"></label><label>Cheque status<select id="payChqStatus"><option>Pending</option><option>Cleared</option></select></label></div>
     <div class="row2 pm pm-online" hidden><label>Service<select id="payWallet">${ONLINE.map(o=>`<option>${o}</option>`).join("")}</select></label><label>Transaction ID<input id="payTxnO"></label></div>
-    <div class="row2"><label>Discount (Rs)<input id="payDisc" type="number" min="0" placeholder="0"></label><label>Tax deducted (Rs)<input id="payTax" type="number" min="0" placeholder="0"></label></div>
+    <div class="row2"><label>Discount (Rs)<input id="payDisc" type="number" min="0" step="any" placeholder="0"></label><label>Tax deducted (Rs)<input id="payTax" type="number" min="0" step="any" placeholder="0"></label></div>
     <p class="hint" id="payTot" style="margin:-4px 0 0"></p>
     <label>Note<input id="payNote" placeholder="Optional, e.g. against bilties of September"></label>
     <label>Cheque photo or receipt (optional)<input id="payFile" type="file" accept="image/*,application/pdf"></label><p class="hint" style="margin:-6px 0 0">A photo of the cheque, bank slip or online payment screenshot, or a PDF. The customer can see it when they click View on this payment.</p>
@@ -4678,7 +4679,7 @@ function renderInvPreview(){
     <div class="inline-actions"><button class="btn" type="button" id="invGo">Import bilties (${R.filter(r=>invKind(r)==="new").length} new, ${R.filter(r=>invKind(r)==="upd").length} updated, ${R.filter(r=>invKind(r)==="same").length} unchanged)</button><button class="btn ghost" type="button" id="invCancel">Cancel</button></div></div>`;
 }
 $("#impPreview").addEventListener("click",async e=>{
-  if(e.target.closest("#invCancel")){upTarget="";invData=null;$("#impPreview").innerHTML="";$("#impFile").value="";return}
+  if(e.target.closest("#invCancel")){upTarget="";invData=null;invFile=null;$("#impPreview").innerHTML="";$("#impFile").value="";return}
   if(!e.target.closest("#invGo")||!invData)return;
   e.target.closest("#invGo").disabled=true;$("#impMsg").textContent="Saving the original PDF…";
   const pdfName=invFile?await uploadOriginal(invFile):null;if(invFile&&!pdfName)toast("Original PDF could not be saved; details were still imported");if(!invData)return;
@@ -4915,7 +4916,6 @@ document.addEventListener("click",e=>{
   else if(d.newpin){const c=clientOf(d.newpin);if(c){c.pin=genPin();delete c.pwh;save();pAcct();toast(`New PIN for ${c.code}: ${c.pin}. Send it to the customer on WhatsApp.`)}}
   else if(d.chpin){const f=$("#accPinForm");if(f){f.hidden=!f.hidden;if(!f.hidden)$("#cpOld").focus()}}
   else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";renderAccount()}
-  else if(d.clearacct){rateAcct=null;$("#rateAcct").value="";renderRates()}
   else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
   else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
   else if(d.delnews){db.news=db.news.filter(n=>n.id!=d.delnews);save();pNews()}
