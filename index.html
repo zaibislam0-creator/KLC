@@ -2542,15 +2542,17 @@ function seed(){
   };
 }
 let db;
-try{const s=localStorage.getItem(KEY);db=s?JSON.parse(s):seed()}catch(e){db=seed()}
+/* privacy: the working copy of the data lives only in this tab (sessionStorage) and is erased when the tab closes; old copies kept in the browser's permanent storage by earlier versions are deleted here */
+try{Object.keys(localStorage).forEach(k=>{if(/^klc-cargo-site-v\d+$/.test(k)||k==="klc-me"||k==="klc-mine")localStorage.removeItem(k)})}catch(e){}
+try{const s=sessionStorage.getItem(KEY);db=s?JSON.parse(s):seed()}catch(e){db=seed()}
 const SB_URL="https://vcsesaxjjgiaqrkcvjyk.supabase.co",SB_KEY="sb_publishable_wG5pSbwbSmKXB2KQhFNJPQ_vLTecM_m",ADMIN_EMAIL="zaibislam0@gmail.com";
 function fixStaff(){/* demo accounts and stored passwords are removed; logins live in Supabase */
   try{db.staff=(Array.isArray(db.staff)?db.staff:[]).filter(u=>/@/.test(u.user||"")).map(u=>{const c={...u};delete c.pass;return c});
   const a=db.staff.find(u=>u.user===ADMIN_EMAIL);if(a){a.role="admin";a.active=true}else db.staff.unshift({user:ADMIN_EMAIL,name:"Zaib Islam",role:"admin",active:true});
-  localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}
+  sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}
 }
 fixStaff();
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}if(typeof klcPush==="function")klcPush()}
+function save(){try{sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}if(typeof klcPush==="function")klcPush()}
 let city="";try{city=localStorage.getItem(CITYKEY)||""}catch(e){}
 
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
@@ -2566,8 +2568,8 @@ function pressGroup(sel,btn){$$(sel+" .chipbtn").forEach(b=>b.setAttribute("aria
 const validMob=p=>/^03\d{9}$/.test(p);
 const rsOr=n=>n?rs(n):"On request";
 const fmtDay=d=>{const x=new Date(d+"T00:00:00");return isNaN(x)?d:x.toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"})};
-let mine={bb:[],vb:[]};try{mine=Object.assign(mine,JSON.parse(localStorage.getItem("klc-mine")||"{}"))}catch(e){}
-function saveMine(){try{localStorage.setItem("klc-mine",JSON.stringify(mine))}catch(e){}}
+let mine={bb:[],vb:[]};try{mine=Object.assign(mine,JSON.parse(sessionStorage.getItem("klc-mine")||"{}"))}catch(e){}
+function saveMine(){try{sessionStorage.setItem("klc-mine",JSON.stringify(mine))}catch(e){}}
 const PERMS=[
   {k:"bilty",label:"Bilties: import challans, create and update status"},
   {k:"rates",label:"Rates and charges: bilty, sea freight, pickup and delivery"},
@@ -2745,8 +2747,10 @@ const nextBiltyId=()=>nextNum(db.bilties,"KLC-",10000);
 /* ---------- city ---------- */
 $$(".citysel2").forEach(sel=>{sel.innerHTML=BOOK_CITIES.map(c=>`<option>${c}</option>`).join("")});
 $("#bFrom").value="Karachi";$("#bTo").value="Multan";$("#vFrom").value="Karachi";$("#vTo").value="Multan";
-let prof={};try{prof=JSON.parse(localStorage.getItem("klc-me")||"{}")}catch(e){}
-function rememberMe(name,phone){prof={name,phone};try{localStorage.setItem("klc-me",JSON.stringify(prof))}catch(e){}}
+let prof={};try{prof=JSON.parse(sessionStorage.getItem("klc-me")||"{}")}catch(e){}
+function rememberMe(name,phone){prof={name,phone};try{sessionStorage.setItem("klc-me",JSON.stringify(prof))}catch(e){}}
+/* wipe everything a previous person could see on this device, then start fresh */
+function wipeDevice(){try{["klc-me","klc-mine","klc-tid","klc-team-seen"].forEach(k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)});Object.keys(localStorage).forEach(k=>{if(/^klc-cargo-site-v\d+$/.test(k))localStorage.removeItem(k)});sessionStorage.removeItem(KEY)}catch(e){}}
 function prefill(){if(prof.phone){if(!$("#bSPhone").value)$("#bSPhone").value=fmtPhone(prof.phone);if(!$("#vPhone").value)$("#vPhone").value=fmtPhone(prof.phone)}if(prof.name){if(!$("#bSender").value)$("#bSender").value=prof.name;if(!$("#vName").value)$("#vName").value=prof.name}}
 $("#city").innerHTML=`<option value="">All cities</option>`+CITIES.map(c=>`<option ${c===city?"selected":""}>${c}</option>`).join("");
 $("#nwCity").innerHTML=`<option value="">All of Pakistan</option>`+CITIES.map(c=>`<option>${c}</option>`).join("");
@@ -4915,7 +4919,7 @@ document.addEventListener("click",e=>{
   else if(d.bookacct){const c=accClient;if(c){$("#bAcct").value=c.code;const dt=$("#bAcct").closest("details");if(dt)dt.open=true;if(!$("#bSender").value)$("#bSender").value=c.name;if(!$("#bSPhone").value)$("#bSPhone").value=fmtPhone(c.phone);show("bbook");bEstimate()}}
   else if(d.newpin){const c=clientOf(d.newpin);if(c){c.pin=genPin();delete c.pwh;save();pAcct();toast(`New PIN for ${c.code}: ${c.pin}. Send it to the customer on WhatsApp.`)}}
   else if(d.chpin){const f=$("#accPinForm");if(f){f.hidden=!f.hidden;if(!f.hidden)$("#cpOld").focus()}}
-  else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";renderAccount()}
+  else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";wipeDevice();location.reload();return}
   else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
   else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
   else if(d.delnews){db.news=db.news.filter(n=>n.id!=d.delnews);save();pNews()}
@@ -5067,7 +5071,7 @@ if(staffOK&&sbGet())syncPull(true).then(ok=>{if(ok){renderPanel()}else{toast("On
   sbSet({access_token:p.get("access_token"),refresh_token:p.get("refresh_token"),expires_in:+p.get("expires_in")||3600});
   history.replaceState(null,"",location.pathname+location.search);
   fetch(SB_URL+"/auth/v1/user",{headers:sbH(p.get("access_token"))}).then(r=>r.json()).then(u=>{if(u&&u.email){syncPull(true).then(()=>{staffEnter(u.email);show("panel");pwModal(true)})}}).catch(()=>{})}})();
-$("#lockBtn").addEventListener("click",()=>{staffOK=false;staffUser="";staffName="";try{sessionStorage.removeItem("klc-staff-user")}catch(err){}sbSet(null);syncOK=false;try{localStorage.removeItem(KEY)}catch(err){}location.reload();return;renderPanel();if(typeof kBadges==="function"){kBadges();closeChat()}toast("Signed out")});
+$("#lockBtn").addEventListener("click",()=>{staffOK=false;staffUser="";staffName="";try{sessionStorage.removeItem("klc-staff-user")}catch(err){}sbSet(null);syncOK=false;wipeDevice();location.reload();return;renderPanel();if(typeof kBadges==="function"){kBadges();closeChat()}toast("Signed out")});
 
 
 $("#vDate").value=today();$("#vDate").min=today();
