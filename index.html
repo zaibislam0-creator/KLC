@@ -16,7 +16,7 @@
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 </head><body>
 <style>
-.uptabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.uptabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
 .uptab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:700 14px var(--body);cursor:pointer}
 .uptab span{font-size:20px}
 .uptab[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -1498,6 +1498,13 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 .acc-top .filters .chipbtn.hl,.filters .chipbtn.hl{background:var(--accent)!important;color:var(--accent-ink)!important;border:1.5px solid var(--accent)!important;border-radius:999px!important;padding:9px 20px!important;font-weight:800!important;margin-left:auto}
 .chipbtn.hl:hover{filter:brightness(1.08)}
 @keyframes hlpulse{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--accent) 12%,transparent)}}
+.os-alert{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:2px solid #b42318;background:color-mix(in srgb,#b42318 12%,var(--surface));color:var(--ink);border-radius:14px;padding:12px 16px}
+.os-alert .big{font-size:22px;color:#b42318}
+.os-ok{border-color:#067647;background:color-mix(in srgb,#067647 12%,var(--surface))}
+.chipbtn.alert{background:#b42318!important;color:#fff!important;border-color:#b42318!important;font-weight:800}
+@keyframes ospulse{50%{box-shadow:0 0 0 8px color-mix(in srgb,#b42318 18%,transparent)}}
+@media (prefers-reduced-motion:no-preference){.os-alert.pend,.chipbtn.alert{animation:ospulse 2.2s ease-in-out infinite}}
+.os-tbl td,.os-tbl th{white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.chipbtn.hl{animation:none}}
 #impPreview,#impMsg,.kp-sec{scroll-margin-top:84px}
 #acctViewTabs{gap:8px}
@@ -2111,6 +2118,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
         <button type="button" class="uptab" data-impkind="challan" aria-pressed="true"><span>📦</span>Challan</button>
         <button type="button" class="uptab" data-impkind="delivery" aria-pressed="false"><span>🚚</span>Delivery</button>
         <button type="button" class="uptab" data-impkind="bilty" aria-pressed="false"><span>🧾</span>Bilty</button>
+        <button type="button" class="uptab" data-impkind="outstanding" aria-pressed="false"><span>💰</span>Outstanding</button>
       </div>
       <p class="hint" id="impHint" style="margin:0"></p>
       <label id="impAcctWrap" hidden>Company account for these bilties<select id="impAcct"></select></label>
@@ -2127,6 +2135,14 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       <div id="stList" class="stlist"></div>
       <button class="btn ghost" type="button" id="stAdd" style="justify-self:start">+ Add station</button>
     </details>
+    <div class="panel">
+      <h2 style="margin-bottom:6px">Monthly outstanding statements</h2>
+      <p class="hint" style="margin:0 0 10px">Customers see their statement in My Account, highlighted in red until it is paid. It turns green when payments recorded after the statement cover it, or when you press Mark cleared.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Account</th><th>Period</th><th class="num">Statement</th><th class="num">Still due</th><th>Status</th><th></th></tr></thead>
+        <tbody id="osRows"></tbody>
+      </table></div>
+    </div>
     <div class="panel">
       <h2 style="margin-bottom:10px">Imported challans</h2>
       <div class="tbl-wrap"><table>
@@ -3018,6 +3034,76 @@ function myInvHTML(code){
   const L=(db.invoices||[]).filter(x=>x.acct===code).sort((a,b)=>String(b.iso).localeCompare(String(a.iso)));
   if(!L.length)return"";
   return `<h3 style="margin:16px 0 6px">My invoices</h3><div class="tbl-wrap"><table><thead><tr><th>Bilty</th><th>Date</th><th>Route</th><th>Goods</th><th class="num">Total</th><th class="num">Received</th><th></th></tr></thead><tbody>${L.map(v=>`<tr><td class="mono"><b>${esc(v.id)}</b></td><td>${esc(v.date)}</td><td>${esc(v.from)} → ${esc(v.to)}</td><td>${esc(v.items)}${v.qty?` · ${v.qty} pcs`:""}${v.kg?` · ${v.kg} kg`:""}</td><td class="num">${rs(v.total)}</td><td class="num">${rs(v.received)}</td><td><div class="inline-actions"><button class="btn ghost sm" type="button" data-ordopen="${esc(v.id)}">Open</button><button class="btn ghost sm" type="button" data-invpdf="${esc(v.id)}">⬇ PDF</button>${origBtn(v)}</div></td></tr>`).join("")}</tbody></table></div>`}
+
+/* ---------- monthly outstanding (SmartCargo "Customer Outstanding Detail") ---------- */
+let osData=null;
+function osOf(code){return (db.outstanding||[]).filter(o=>o.acct===code).sort((a,b)=>String(b.upAt).localeCompare(String(a.upAt)))[0]||null}
+function osState(o){
+  if(!o)return null;let paid=0;
+  (db.payments||[]).filter(p=>p.acct===o.acct&&payCounts(p)&&(p.at?p.at>=o.upAt:String(p.date).slice(0,10)>o.to)).forEach(p=>{paid+=(+p.amount||0)+(+p.disc||0)+(+p.tax||0)});
+  (db.lent||[]).filter(x=>x.acct===o.acct&&+x.cr>0&&x.type!=="Bilty"&&x.type!=="BOK"&&String(x.d).slice(0,10)>o.to).forEach(x=>{paid+=+x.cr});
+  const rem=o.cleared?0:Math.max(0,(+o.total||0)-paid);
+  return{paid,rem,done:rem<=0,days:Math.max(0,Math.floor((Date.now()-new Date(o.upAt).getTime())/864e5))}
+}
+function osAlertHTML(c){
+  const o=osOf(c.code),s=osState(o);if(!o)return"";
+  if(s.done)return `<div class="os-alert os-ok"><div><b>✅ Monthly outstanding cleared</b><div class="hint" style="margin:2px 0 0">${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))}. Thank you.</div></div><button class="btn ghost sm" type="button" data-acctab="outstanding">View</button></div>`;
+  return `<div class="os-alert pend" role="alert"><div><b>⚠ Outstanding payment due: <span class="big">${rs(s.rem)}</span></b><div class="hint" style="margin:2px 0 0">For ${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))} · ${o.rows.length} bilties${s.paid?` · ${rs(s.paid)} received since`:""} · statement ${s.days?s.days+" day"+(s.days>1?"s":"")+" old":"issued today"}</div></div><button class="btn sm" type="button" data-acctab="outstanding">View details &amp; pay</button></div>`}
+function osHTML(c){
+  const o=osOf(c.code);if(!o)return '<p class="empty">No monthly outstanding statement yet.</p>';
+  const s=osState(o),wa="https://wa.me/923006166561?text="+encodeURIComponent(`Assalam-o-Alaikum, ${c.name} (account ${c.code}). I am sending payment for the outstanding of ${fmtDay(o.from)} to ${fmtDay(o.to)}.`);
+  return `<div class="os-alert ${s.done?"os-ok":"pend"}"><div><b>${s.done?"✅ Cleared. Thank you.":`⚠ Please pay <span class="big">${rs(s.rem)}</span>`}</b><div class="hint" style="margin:2px 0 0">Statement for ${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))}</div></div>${s.done?"":`<div class="inline-actions"><a class="btn sm wa" href="${wa}" target="_blank" rel="noopener">Send payment slip on WhatsApp</a><button class="btn ghost sm" type="button" data-chatopen="1">💬 Chat</button></div>`}</div>
+  <div class="ledger-sum" style="margin-top:12px"><div><span>Billed</span><b>${rs(o.billed)}</b></div><div><span>Discount</span><b>${rs(o.disc)}</b></div><div><span>Statement outstanding</span><b>${rs(o.total)}</b></div><div><span>Paid since statement</span><b>${rs(s.paid)}</b></div><div><span>Still due</span><b>${s.done?'<span class="ok">Cleared</span>':`<span class="due">${rs(s.rem)}</span>`}</b></div></div>
+  <div class="tbl-wrap" style="margin-top:12px"><table class="os-tbl"><thead><tr><th>Date</th><th>Bilty</th><th class="num">Weight</th><th class="num">Qty</th><th class="num">Freight</th><th class="num">Other</th><th class="num">Amount</th><th class="num">Discount</th><th class="num">Outstanding</th></tr></thead><tbody>${o.rows.map(r=>`<tr><td>${esc(fmtDay(r.d))}</td><td class="mono"><b>${esc(r.bn)}</b></td><td class="num">${r.w}</td><td class="num">${r.q}</td><td class="num">${rs(r.fr)}</td><td class="num">${rs(r.ot)}</td><td class="num">${rs(r.amt)}</td><td class="num">${r.disc?rs(r.disc):""}</td><td class="num"><b>${rs(r.out)}</b></td></tr>`).join("")}<tr><td colspan="6"><b>Total (${o.rows.length})</b></td><td class="num"><b>${rs(o.billed)}</b></td><td class="num"><b>${rs(o.disc)}</b></td><td class="num"><b>${rs(o.total)}</b></td></tr></tbody></table></div>
+  <p class="hint">Pay by cash, cheque or bank transfer, then send the slip on WhatsApp or chat. This notice stays highlighted until your payment is received.</p>`}
+function parseOutstanding(lines){
+  const num=x=>+String(x).replace(/,/g,""),iso=(d,m,y)=>`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const T=lines.map(l=>l.text).join("\n"),pm=T.match(/Period From:\s*(\d{1,2})-(\d{1,2})-(\d{4})\s+To:\s*(\d{1,2})-(\d{1,2})-(\d{4})/i);
+  const from=pm?iso(pm[1],pm[2],pm[3]):"",to=pm?iso(pm[4],pm[5],pm[6]):"";
+  const blocks=[];let cur=null;
+  const RW=/^([A-Z]{2,5})\s+\d{4}\s+(\d{1,2})-(\d{1,2})-(\d{4})\s+\d+\s+([\d,]+)\s+([\d,]+)\s+(\S+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)$/;
+  lines.forEach(l=>{const t=l.text;
+    let m=t.match(/^Customer\s*:\s*(\d+)\s+(.+)$/i);
+    if(m){let nm=m[2].trim();const w=nm.split(" ");if(w.length>1&&/^[A-Z]{3,}$/.test(w[w.length-1]))w.pop();nm=w.join(" ");
+      cur=blocks.find(b=>b.code===m[1]);if(!cur){cur={code:m[1],name:nm,rows:[],tot:null};blocks.push(cur)}return}
+    if(!cur)return;
+    m=t.match(RW);
+    if(m){cur.rows.push({bn:m[7],d:iso(m[2],m[3],m[4]),amt:num(m[5]),rcv:num(m[6]),w:num(m[8]),q:num(m[9]),fr:num(m[10]),ot:num(m[11]),disc:num(m[12]),out:num(m[13])});return}
+    m=t.match(/\*\*\*\s*Customer Total\s*\*\*\*\s*\((\d+)\)\s+(.+)$/i);
+    if(m){const n=m[2].trim().split(/\s+/).map(num);cur.tot={n:+m[1],out:n[n.length-1],amt:n[0]}}
+  });
+  blocks.forEach(b=>{b.billed=b.rows.reduce((s,r)=>s+r.amt,0);b.disc=b.rows.reduce((s,r)=>s+r.disc,0);b.total=b.rows.reduce((s,r)=>s+r.out,0);b.rcv=b.rows.reduce((s,r)=>s+r.rcv,0);b.ok=b.rows.length>0&&(!b.tot||(b.tot.out===b.total&&b.tot.n===b.rows.length))});
+  return{from,to,blocks:blocks.filter(b=>b.rows.length)};
+}
+function renderOsPreview(){
+  const D=osData;
+  $("#impPreview").innerHTML=`<div class="panel" style="display:grid;gap:14px">
+    <div class="card-head"><h2>Monthly outstanding · ${D.blocks.length} customer${D.blocks.length>1?"s":""}</h2><span class="pill ${D.blocks.every(b=>b.ok)?"s4":"s3"}">${D.blocks.every(b=>b.ok)?"All read":"Check the PDF"}</span></div>
+    <p class="hint" style="margin:0">Period ${esc(fmtDay(D.from))} to ${esc(fmtDay(D.to))}. Choose the account for each customer. It will show in their My Account in red until it is paid. A newer statement replaces the older one.</p>
+    ${D.blocks.map((b,i)=>{const g=clientOf(b.code)||guessClient(b.name),old=g&&osOf(g.code);return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px">
+      <div class="card-head" style="margin:0"><b>${esc(b.name)} <span class="mono">(${esc(b.code)})</span></b><span class="pill ${b.ok?"s4":"s3"}">${b.rows.length} bilties · ${rs(b.total)}</span></div>
+      <label>Account<select data-oslink="${i}"><option value="">Do not save this customer</option>${(db.clients||[]).map(c=>`<option value="${esc(c.code)}"${g&&g.code===c.code?" selected":""}>${esc(c.name)} (${esc(c.code)})</option>`).join("")}</select></label>
+      ${old?`<span class="hint">Replaces the older statement (${esc(fmtDay(old.from))} to ${esc(fmtDay(old.to))}).</span>`:""}
+      <details><summary>Show bilties</summary><div class="tbl-wrap"><table class="os-tbl"><thead><tr><th>Date</th><th>Bilty</th><th class="num">Amount</th><th class="num">Discount</th><th class="num">Outstanding</th></tr></thead><tbody>${b.rows.map(r=>`<tr><td>${esc(fmtDay(r.d))}</td><td class="mono">${esc(r.bn)}</td><td class="num">${rs(r.amt)}</td><td class="num">${r.disc?rs(r.disc):""}</td><td class="num">${rs(r.out)}</td></tr>`).join("")}</tbody></table></div></details></div>`}).join("")}
+    <div class="inline-actions"><button class="btn" type="button" id="osGo">Save outstanding</button><button class="btn ghost" type="button" id="osCancel">Cancel</button></div></div>`;
+}
+$("#impPreview").addEventListener("click",e=>{
+  if(e.target.closest("#osCancel")){osData=null;$("#impPreview").innerHTML="";$("#impFile").value="";return}
+  if(!e.target.closest("#osGo")||!osData)return;
+  const D=osData,now=new Date().toISOString();let n=0;db.outstanding=db.outstanding||[];
+  D.blocks.forEach((b,i)=>{const sel=document.querySelector(`[data-oslink="${i}"]`),ac=sel&&sel.value;if(!ac)return;
+    db.outstanding=db.outstanding.filter(x=>x.acct!==ac);
+    db.outstanding.push({id:"OS-"+Date.now().toString(36)+i,acct:ac,code:b.code,name:b.name,from:D.from,to:D.to,upAt:now,by:staffName,rows:b.rows,total:b.total,billed:b.billed,disc:b.disc,rcv:b.rcv});n++});
+  if(!n){toast("Choose an account first");return}
+  save();osData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${n} outstanding statement${n>1?"s":""} saved. Customers now see it highlighted in My Account.`;renderPanel();toast("Outstanding saved")});
+document.addEventListener("click",e=>{
+  const c=e.target.closest("[data-oscl]"),d=e.target.closest("[data-osdel]");
+  if(c){const o=(db.outstanding||[]).find(x=>x.id===c.dataset.oscl);if(o){o.cleared=!o.cleared;save();pImp();toast(o.cleared?"Marked cleared":"Reopened")}return}
+  if(d){if(!d.dataset.sure){d.dataset.sure="1";d.textContent="Sure? Delete";return}db.outstanding=(db.outstanding||[]).filter(x=>x.id!==d.dataset.osdel);save();pImp();toast("Statement deleted")}});
+function pOs(){
+  const L=(db.outstanding||[]).slice().sort((a,b)=>String(b.upAt).localeCompare(String(a.upAt)));
+  $("#osRows").innerHTML=L.length?L.map(o=>{const s=osState(o),c=clientOf(o.acct);return `<tr><td><b>${esc(c?c.name:o.name)}</b><br><span class="mono" style="font-size:12px">${esc(o.acct)}</span></td><td>${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))}<br><span class="hint">uploaded ${esc(fmtD(o.upAt))}</span></td><td class="num">${rs(o.total)}</td><td class="num">${s.done?'<span class="ok">0</span>':`<span class="due">${rs(s.rem)}</span>`}</td><td>${s.done?'<span class="tag port">Cleared</span>':`<span class="tag" style="color:#b42318">Due · ${s.days} day${s.days===1?"":"s"}</span>`}</td><td><div class="inline-actions"><button class="btn ghost sm" type="button" data-oscl="${esc(o.id)}">${o.cleared?"Reopen":"Mark cleared"}</button><button class="btn ghost sm" type="button" data-osdel="${esc(o.id)}">Delete</button></div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No outstanding statements yet. Press Outstanding above and choose the SmartCargo PDF.</td></tr>`}
 function invoicePDF(v){
   const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"pt",format:"letter",orientation:"landscape"}),c=clientOf(v.acct)||{name:v.sender||v.acct,code:v.acct,phone:""};
   const T=pdfTxt,N=n=>Number(n||0).toLocaleString("en-US"),ink=[25,25,25],gry=[120,120,125],W=doc.internal.pageSize.getWidth();
@@ -3165,20 +3251,21 @@ function renderAccount(){
   $("#accReqBox").hidden=!!accClient;$("#accForm").hidden=!!accClient;{const h=$("#v-account").firstElementChild;if(h)h.hidden=!!accClient}
   if(!accClient){$("#accView").innerHTML="";return}
   const c=accClient,L=ledger(c.code),n=ordersOf(c.code).length;
-  const tabs=[["ledger","📒 Ledger"],["invoices","🧾 Invoices"],["book","📦 Booking bilty"]];if(acctTab!=="invoices")acctTab="ledger";
+  const tabs=[["ledger","📒 Ledger"],["invoices","🧾 Invoices"],["book","📦 Booking bilty"]];if(acctTab!=="invoices"&&acctTab!=="outstanding")acctTab="ledger";const osO=osOf(c.code),osP=osO&&!osState(osO).done;if(osO)tabs.splice(2,0,["outstanding","💰 Outstanding"]);
   let body="";
   if(acctOpen)body=orderDetail(c.code,acctOpen);
   else if(acctTab==="ledger")body=`<div class="panel">${ledgerHTML(c,false)}</div>`;
   else if(acctTab==="invoices")body=`<div class="panel">${myInvHTML(c.code)||'<p class="empty">No invoices yet.</p>'}</div>`;
+  else if(acctTab==="outstanding")body=`<div class="panel">${osHTML(c)}</div>`;
   else body=`<div class="panel">${ledgerHTML(c,false)}</div>`;
   /* Ledger, Invoices or an opened bilty fill the screen on their own, with Back at the top left */
   if(acctOpen||acctShow){
-    const ttl=acctOpen?`Bilty ${esc(acctOpen)}`:acctTab==="invoices"?"My invoices":"My ledger";
+    const ttl=acctOpen?`Bilty ${esc(acctOpen)}`:acctTab==="invoices"?"My invoices":acctTab==="outstanding"?"Monthly outstanding":"My ledger";
     const tools="";
     $("#accView").innerHTML=`<div class="acc-focus"><div class="trackbar accbar"><button class="tb-back" type="button" data-accback="1" aria-label="Back">← Back</button><b style="font-family:var(--display);font-size:18px">${ttl}</b>${tools}</div><div style="display:grid;gap:14px;margin-top:10px">${body}</div></div>`;
     if(acctOpen)orderTrackFill(acctOpen);
     return}
-  {const rq=myReqHTML();body=homeHTML(c)+(rq?`<div class="panel">${rq}</div>`:"")+helpStrip()}
+  {const rq=myReqHTML();body=osAlertHTML(c)+homeHTML(c)+(rq?`<div class="panel">${rq}</div>`:"")+helpStrip()}
   const logo=(document.querySelector(".brand img")||{}).src||"";
   $("#accView").innerHTML=`<section class="acc-banner" aria-label="Your account">
     <div class="ab-top"><span class="ab-badge"><img src="${esc(logo)}" alt="KLC" width="46" height="46"><span><b>KLC</b><small>Kashaf Lasani Cargo Services</small></span></span>
@@ -3189,7 +3276,7 @@ function renderAccount(){
   </section>
   <div class="panel acc-top" style="display:grid;gap:14px;margin-top:14px">
     ${pinFormHTML()}
-    <div class="filters" role="tablist" aria-label="Account sections">${tabs.map(t=>t[0]==="book"?`<button type="button" class="chipbtn hl" data-bookacct="1" title="Book a new bilty">${t[1]}</button>`:`<button type="button" class="chipbtn" role="tab" data-acctab="${t[0]}" aria-pressed="false">${t[1]}</button>`).join("")}</div></div>
+    <div class="filters" role="tablist" aria-label="Account sections">${tabs.map(t=>t[0]==="book"?`<button type="button" class="chipbtn hl" data-bookacct="1" title="Book a new bilty">${t[1]}</button>`:`<button type="button" class="chipbtn${t[0]==="outstanding"&&osP?" alert":""}" role="tab" data-acctab="${t[0]}" aria-pressed="false">${t[1]}</button>`).join("")}</div></div>
   <div style="display:grid;gap:14px;margin-top:14px">${body}</div>`;
   if(acctOpen)orderTrackFill(acctOpen);else homeWayFill(c.code);
 }
@@ -3226,7 +3313,7 @@ async function acctOnline(code,ph,pin){
   try{const r=await fetch(SB_URL+"/rest/v1/rpc/acct_data",{method:"POST",headers:sbH(),body:JSON.stringify({c:code,ph,pin})});if(!r.ok)return{error:"net"};return await r.json()}catch(e){return{error:"net"}}}
 function acctMerge(d){const code=d.client.code;
   db.clients=(db.clients||[]).filter(x=>x.code!==code);db.clients.push(d.client);
-  ["bilties","payments","vreqs","lent","invoices"].forEach(k=>{db[k]=(db[k]||[]).filter(x=>x.acct!==code).concat(d[k]||[])})}
+  ["bilties","payments","vreqs","lent","invoices","outstanding"].forEach(k=>{db[k]=(db[k]||[]).filter(x=>x.acct!==code).concat(d[k]||[])})}
 $("#accForm").addEventListener("submit",async e=>{
   e.preventDefault();const ph=normPhone($("#accPhone").value),code=$("#accCode").value,pin=$("#accPin").value.trim();const msg=$("#accMsg");
   let c=null;
@@ -4658,18 +4745,19 @@ $("#impPreview").addEventListener("click",async e=>{
 });
 const dmyToIso=d=>{const [dd,mm,yy]=d.split("/");return new Date(`${yy}-${mm}-${dd}T09:00:00`).toISOString()};
 let impKind="challan";
-const IMPK={challan:{t:"📄 Choose challan PDF",h:"Booking Challan from SmartCargo, saved as PDF. The bilties in it are added to tracking."},delivery:{t:"📄 Choose delivery report PDF",h:"Daily Delivery Report PDF. It marks those bilties Delivered and shows who received them."},bilty:{t:"📄 Choose bilty PDF",h:"Bilty (customer copy) PDF. Pick the company account first: the bilties go into that account's ledger, with their details read from the file."}};
+const IMPK={challan:{t:"📄 Choose challan PDF",h:"Booking Challan from SmartCargo, saved as PDF. The bilties in it are added to tracking."},delivery:{t:"📄 Choose delivery report PDF",h:"Daily Delivery Report PDF. It marks those bilties Delivered and shows who received them."},outstanding:{t:"📄 Choose outstanding PDF",h:"Customer Outstanding Detail report from SmartCargo (one customer or all customers). Customers see it in My Account and it stays highlighted in red until it is paid."},bilty:{t:"📄 Choose bilty PDF",h:"Bilty (customer copy) PDF. Pick the company account first: the bilties go into that account's ledger, with their details read from the file."}};
 function fillImpAcct(){const el=$("#impAcct");if(!el)return;const cur=el.value;el.innerHTML=`<option value="">Match from the bilty file (account code printed on it)</option>`+(db.clients||[]).map(c=>`<option value="${esc(c.code)}">${esc(c.name)} (${esc(c.code)})</option>`).join("");if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur}
 function setImpKind(k){impKind=k;$$("[data-impkind]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.impkind===k)));const m=IMPK[k];if($("#impDropT"))$("#impDropT").textContent=m.t;if($("#impHint"))$("#impHint").textContent=m.h;if($("#impAcctWrap"))$("#impAcctWrap").hidden=k!=="bilty";if(k==="bilty")fillImpAcct()}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-impkind]");if(!b)return;setImpKind(b.dataset.impkind);impData=null;delData=null;invData=null;ledData=null;$("#impPreview").innerHTML="";$("#impMsg").textContent="";$("#impFile").value=""});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-impkind]");if(!b)return;setImpKind(b.dataset.impkind);impData=null;delData=null;invData=null;ledData=null;osData=null;$("#impPreview").innerHTML="";$("#impMsg").textContent="";$("#impFile").value=""});
 async function handleImportFile(f){
   if(!f)return;
   if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){$("#impMsg").textContent="Please choose a PDF file.";return}ledData=null;
   $("#impMsg").textContent="Reading the PDF…";$("#impPreview").innerHTML="";
   try{
     delData=null;const lines=await pdfLines(await f.arrayBuffer());
-    {const T=lines.map(l=>l.text).join("\n"),kd=/Daily Delivery Report/i.test(T)?"delivery":/LEDGER ACCOUNTING SYSTEM/i.test(T)?"ledger":(/Customer Copy/i.test(T)&&/Bilty No\./i.test(T)&&!/BOOKING CHALLAN/i.test(T))?"bilty":"challan";
-      if(kd!=="ledger"&&kd!==impKind){const nm={challan:"Challan",delivery:"Delivery",bilty:"Bilty"};$("#impMsg").innerHTML=`<span style="color:#b42318">This looks like a <b>${nm[kd]}</b> file.</span> Press the <b>${nm[kd]}</b> button above and choose it again.`;$("#impFile").value="";return}}
+    {const T=lines.map(l=>l.text).join("\n"),kd=/Customer Outstanding Detail/i.test(T)?"outstanding":/Daily Delivery Report/i.test(T)?"delivery":/LEDGER ACCOUNTING SYSTEM/i.test(T)?"ledger":(/Customer Copy/i.test(T)&&/Bilty No\./i.test(T)&&!/BOOKING CHALLAN/i.test(T))?"bilty":"challan";
+      if(kd!=="ledger"&&kd!==impKind){const nm={challan:"Challan",delivery:"Delivery",bilty:"Bilty",outstanding:"Outstanding"};$("#impMsg").innerHTML=`<span style="color:#b42318">This looks like a <b>${nm[kd]}</b> file.</span> Press the <b>${nm[kd]}</b> button above and choose it again.`;$("#impFile").value="";return}}
+    if(/Customer Outstanding Detail/i.test(lines.map(l=>l.text).join("\n"))){osData=parseOutstanding(lines);osData.file=f.name;delData=null;ledData=null;invData=null;impData=null;if(!osData.blocks.length)throw new Error("no_rows");$("#impMsg").textContent="";renderOsPreview();return}
     if(/Daily Delivery Report/i.test(lines.map(l=>l.text).join("\n"))){delData=parseDelivery(lines);delData.file=f.name;ledData=null;invData=null;impData=null;if(!delData.rows.length)throw new Error("no_rows");$("#impMsg").textContent="";renderDelPreview();return}
     if(/LEDGER ACCOUNTING SYSTEM/i.test(lines.map(l=>l.text).join("\n"))){ledData=parseLedger(lines);ledData.file=f.name;impData=null;if(!ledData.accounts.length)throw new Error("no_rows");$("#impMsg").textContent="";renderLedPreview();return}
     if(/Customer Copy/i.test(lines.map(l=>l.text).join("\n"))&&/Bilty No\./i.test(lines.map(l=>l.text).join("\n"))&&!/BOOKING CHALLAN/i.test(lines.map(l=>l.text).join("\n"))){invData=parseInvoices(lines);invData.file=f.name;invFile=f;ledData=null;impData=null;if(!invData.rows.length)throw new Error("no_rows");$("#impMsg").textContent="";renderInvPreview();return}
@@ -4801,7 +4889,7 @@ function applyImport(e){
   pImp();toast(`Challan ${h.no}: tracking updated`);
 }
 function pImp(){
-  pStations();setImpKind(impKind);
+  pStations();setImpKind(impKind);pOs();
   const list=(db.challans||[]).slice().reverse();
   $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td><select data-chno="${esc(c.no)}" data-chfrom="${esc(c.from)}" aria-label="Status of challan ${esc(c.no)}">${STATUSES.map((x,i)=>`<option value="${i}" ${x===c.status?"selected":""}>${x}</option>`).join("")}</select></td><td>${c.status===STATUSES[2]?`${c.auto?`<div class="mono" style="font-size:12px;margin-bottom:4px"><b data-countdown="${esc(c.auto.at)}">${esc(fmtLeft(c.auto.at))}</b> left${c.auto.arrival&&c.auto.arrival.place?` · ${esc(c.auto.arrival.place)}`:""}</div>`:""}<select data-chauto="${esc(c.no)}" data-chfrom2="${esc(c.from)}" aria-label="Auto-arrive timer for challan ${esc(c.no)}"><option value="">${c.auto?"Change timer…":"Set timer…"}</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="26">26 hours</option><option value="28">28 hours</option><option value="30">30 hours</option><option value="36">36 hours</option><option value="48">48 hours</option><option value="72">72 hours</option><option value="custom">Other hours…</option>${c.auto?'<option value="off">Cancel timer</option>':""}</select>`:'<span style="color:var(--muted)">-</span>'}</td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="8" class="empty">No challans imported yet.</td></tr>`;
   $$("#impRows select[data-chauto]").forEach(sel=>sel.addEventListener("change",()=>{
@@ -4880,7 +4968,7 @@ document.addEventListener("click",e=>{
   else if(d.bookacct){const c=accClient;if(c){$("#bAcct").value=c.code;const dt=$("#bAcct").closest("details");if(dt)dt.open=true;if(!$("#bSender").value)$("#bSender").value=c.name;if(!$("#bSPhone").value)$("#bSPhone").value=fmtPhone(c.phone);show("bbook");bEstimate()}}
   else if(d.newpin){const c=clientOf(d.newpin);if(c){c.pin=genPin();delete c.pwh;save();pAcct();toast(`New PIN for ${c.code}: ${c.pin}. Send it to the customer on WhatsApp.`)}}
   else if(d.chpin){const f=$("#accPinForm");if(f){f.hidden=!f.hidden;if(!f.hidden)$("#cpOld").focus()}}
-  else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";wipeDevice();location.reload();return}
+  else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","outstanding","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";wipeDevice();location.reload();return}
   else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
   else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
   else if(d.delnews){db.news=db.news.filter(n=>n.id!=d.delnews);save();pNews()}
@@ -4896,7 +4984,7 @@ document.addEventListener("submit",async e=>{
   if(e.target.id!=="payForm")return;e.preventDefault();
   const amt=Math.round(+$("#payAmt").value||0),disc=Math.round(+$("#payDisc").value||0),tax=Math.round(+$("#payTax").value||0);if(amt<0||disc<0||tax<0||amt+disc+tax<=0){toast("Enter the amount received, or a discount or tax amount");return}
   const m=$("#payMethod").value,by=$("#payBy").value.trim();if(!by){toast("Enter who received the payment");return}
-  const pay={acct:e.target.dataset.acct,date:new Date($("#payDate").value+"T12:00:00").toISOString(),amount:amt,method:m,by,note:$("#payNote").value.trim()};if(disc>0)pay.disc=disc;if(tax>0)pay.tax=tax;
+  const pay={acct:e.target.dataset.acct,at:new Date().toISOString(),date:new Date($("#payDate").value+"T12:00:00").toISOString(),amount:amt,method:m,by,note:$("#payNote").value.trim()};if(disc>0)pay.disc=disc;if(tax>0)pay.tax=tax;
   if(m==="Cheque"){pay.chq=$("#payChq").value.trim();pay.bank=$("#payBank").value.trim();pay.chqDate=$("#payChqDate").value;pay.chqStatus=$("#payChqStatus").value;if(!pay.chq||!pay.bank){toast("Enter the cheque number and bank name");return}}
   if(m==="Bank transfer"){pay.bank=$("#payBank").value.trim();pay.txn=$("#payTxnB").value.trim();if(!pay.bank){toast("Enter the bank name");return}}
   if(m==="Online"){pay.wallet=$("#payWallet").value;pay.txn=$("#payTxnO").value.trim();if(!pay.txn){toast("Enter the transaction ID");return}}
