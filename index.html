@@ -2656,6 +2656,7 @@ function ledgerHTML(c,staff){
   <div class="tbl-wrap"><table class="ledger"><thead><tr><th>Date</th><th>Details</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th><th></th></tr></thead>
   <tbody>${openRow}${rows||`<tr><td colspan="${cols}" class="empty">No entries in this period.</td></tr>`}</tbody></table></div>
   <p class="hint" style="margin:8px 0 0"><b>Dr</b> is the amount due to KLC. <b>Cr</b> is an advance with KLC.</p>
+    ${staff&&osOf(c.code)?`<details class="panel" open style="margin-top:14px"><summary style="font-weight:800;cursor:pointer">💰 Monthly outstanding${osState(osOf(c.code)).done?" (cleared)":" · "+rs(osState(osOf(c.code)).rem)+" due"}</summary><div style="margin-top:10px">${osHTML(c,true)}</div></details>`:""}
     ${staff&&can("pay")?`<form class="f" id="payForm" data-acct="${esc(c.code)}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
     <h3>Receive payment</h3>
     <div class="row2"><label>Amount received (Rs)<input id="payAmt" type="number" min="0" step="any" placeholder="0"></label><label>Payment date<input id="payDate" type="date" value="${today()}" max="${today()}" required></label></div>
@@ -2713,6 +2714,24 @@ function statementPDF(c,P){
     margin:{left:40,right:40,bottom:44}});
   pdfFooter(doc);return doc.output("blob");
 }
+function osPDF(o,c){
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"pt",format:"a4"}),W=doc.internal.pageSize.getWidth(),st=osState(o);
+  pdfHeader(doc,"Monthly Outstanding Statement",`Generated ${fmtD(new Date().toISOString())}`);
+  doc.setFontSize(10);doc.setTextColor(20,20,20);doc.setFont("helvetica","bold");doc.text(pdfTxt(c.name),40,140);
+  doc.setFont("helvetica","normal");doc.text(pdfTxt(`Account code: ${c.code}   |   Mobile: ${fmtPhone(c.phone)}   |   Period: ${fmtDay(o.from)} to ${fmtDay(o.to)}`),40,155);
+  const boxes=[["Billed",pdfRs(o.billed)],["Discount",pdfRs(o.disc)],["Statement outstanding",pdfRs(o.total)],["Paid since statement",pdfRs(st.paid)],["Still due",st.done?"Cleared":pdfRs(st.rem)]],bw=(W-80-(boxes.length-1)*6)/boxes.length;
+  boxes.forEach((b,i)=>{const x=40+i*(bw+6),last=i===boxes.length-1;doc.setFillColor(241,241,242);doc.roundedRect(x,166,bw,40,4,4,"F");doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(95,95,102);doc.text(b[0],x+6,180);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(last&&!st.done?200:20,last&&!st.done?40:20,last&&!st.done?50:20);doc.text(b[1],x+6,197)});
+  doc.autoTable({startY:222,head:[["Date","Bilty","Weight","Qty","Freight","Other","Amount","Discount","Outstanding"]],
+    body:o.rows.map(r=>[fmtDay(r.d),r.bn,r.w,r.q,pdfRs(r.fr),pdfRs(r.ot),pdfRs(r.amt),r.disc?pdfRs(r.disc):"",pdfRs(r.out)]),
+    foot:[["Total ("+o.rows.length+")","","","","","",pdfRs(o.billed),pdfRs(o.disc),pdfRs(o.total)]],
+    styles:{fontSize:8,cellPadding:4,textColor:[20,20,20]},headStyles:{fillColor:[20,20,20],textColor:255},footStyles:{fillColor:[241,241,242],textColor:20,fontStyle:"bold"},alternateRowStyles:{fillColor:[250,250,250]},
+    columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"}},margin:{left:40,right:40,bottom:44}});
+  pdfFooter(doc);return doc.output("blob");
+}
+document.addEventListener("click",e=>{
+  const a=e.target.closest("[data-ospdf]"),b=e.target.closest("[data-osprint]");if(!a&&!b)return;
+  const code=(a||b).dataset.ospdf||(a||b).dataset.osprint,c=clientOf(code),o=osOf(code);if(!c||!o)return;
+  if(a)offerPDF(()=>osPDF(o,c),`KLC-Outstanding-${c.code}-${today()}.pdf`);else printPDF(()=>osPDF(o,c))});
 function receiptPDF(p){
   const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"pt",format:"a5"}),c=clientOf(p.acct)||{name:p.acct,code:p.acct,phone:""},W=doc.internal.pageSize.getWidth();
   pdfHeader(doc,"Payment Receipt",p.id);
@@ -3049,13 +3068,14 @@ function osAlertHTML(c){
   const o=osOf(c.code),s=osState(o);if(!o)return"";
   if(s.done)return `<div class="os-alert os-ok"><div><b>✅ Monthly outstanding cleared</b><div class="hint" style="margin:2px 0 0">${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))}. Thank you.</div></div><button class="btn ghost sm" type="button" data-acctab="outstanding">View</button></div>`;
   return `<div class="os-alert pend" role="alert"><div><b>⚠ Outstanding payment due: <span class="big">${rs(s.rem)}</span></b><div class="hint" style="margin:2px 0 0">For ${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))} · ${o.rows.length} bilties${s.paid?` · ${rs(s.paid)} received since`:""} · statement ${s.days?s.days+" day"+(s.days>1?"s":"")+" old":"issued today"}</div></div><button class="btn sm" type="button" data-acctab="outstanding">View details &amp; pay</button></div>`}
-function osHTML(c){
+function osHTML(c,staff){
   const o=osOf(c.code);if(!o)return '<p class="empty">No monthly outstanding statement yet.</p>';
   const s=osState(o),wa="https://wa.me/923006166561?text="+encodeURIComponent(`Assalam-o-Alaikum, ${c.name} (account ${c.code}). I am sending payment for the outstanding of ${fmtDay(o.from)} to ${fmtDay(o.to)}.`);
-  return `<div class="os-alert ${s.done?"os-ok":"pend"}"><div><b>${s.done?"✅ Cleared. Thank you.":`⚠ Please pay <span class="big">${rs(s.rem)}</span>`}</b><div class="hint" style="margin:2px 0 0">Statement for ${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))}</div></div>${s.done?"":`<div class="inline-actions"><a class="btn sm wa" href="${wa}" target="_blank" rel="noopener">Send payment slip on WhatsApp</a><button class="btn ghost sm" type="button" data-chatopen="1">💬 Chat</button></div>`}</div>
+  return `<div class="os-alert ${s.done?"os-ok":"pend"}"><div><b>${s.done?"✅ Cleared. Thank you.":`⚠ Please pay <span class="big">${rs(s.rem)}</span>`}</b><div class="hint" style="margin:2px 0 0">Statement for ${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))}</div></div>${s.done||staff?"":`<div class="inline-actions"><a class="btn sm wa" href="${wa}" target="_blank" rel="noopener">Send payment slip on WhatsApp</a><button class="btn ghost sm" type="button" data-chatopen="1">💬 Chat</button></div>`}</div>
+  <div class="inline-actions" style="margin-top:12px"><button class="btn sm" type="button" data-ospdf="${esc(c.code)}">⬇ Download PDF</button><button class="btn ghost sm" type="button" data-osprint="${esc(c.code)}">🖨 Print</button></div>
   <div class="ledger-sum" style="margin-top:12px"><div><span>Billed</span><b>${rs(o.billed)}</b></div><div><span>Discount</span><b>${rs(o.disc)}</b></div><div><span>Statement outstanding</span><b>${rs(o.total)}</b></div><div><span>Paid since statement</span><b>${rs(s.paid)}</b></div><div><span>Still due</span><b>${s.done?'<span class="ok">Cleared</span>':`<span class="due">${rs(s.rem)}</span>`}</b></div></div>
   <div class="tbl-wrap" style="margin-top:12px"><table class="os-tbl"><thead><tr><th>Date</th><th>Bilty</th><th class="num">Weight</th><th class="num">Qty</th><th class="num">Freight</th><th class="num">Other</th><th class="num">Amount</th><th class="num">Discount</th><th class="num">Outstanding</th></tr></thead><tbody>${o.rows.map(r=>`<tr><td>${esc(fmtDay(r.d))}</td><td class="mono"><b>${esc(r.bn)}</b></td><td class="num">${r.w}</td><td class="num">${r.q}</td><td class="num">${rs(r.fr)}</td><td class="num">${rs(r.ot)}</td><td class="num">${rs(r.amt)}</td><td class="num">${r.disc?rs(r.disc):""}</td><td class="num"><b>${rs(r.out)}</b></td></tr>`).join("")}<tr><td colspan="6"><b>Total (${o.rows.length})</b></td><td class="num"><b>${rs(o.billed)}</b></td><td class="num"><b>${rs(o.disc)}</b></td><td class="num"><b>${rs(o.total)}</b></td></tr></tbody></table></div>
-  <p class="hint">Pay by cash, cheque or bank transfer, then send the slip on WhatsApp or chat. This notice stays highlighted until your payment is received.</p>`}
+  ${staff?`<p class="hint">Uploaded ${esc(fmtD(o.upAt))}${o.by?" by "+esc(o.by):""}. Customers see this in red until payments recorded after it cover ${rs(o.total)}.</p>`:`<p class="hint">Pay by cash, cheque or bank transfer, then send the slip on WhatsApp or chat. This notice stays highlighted until your payment is received.</p>`}`}
 function parseOutstanding(lines){
   const num=x=>+String(x).replace(/,/g,""),iso=(d,m,y)=>`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   const T=lines.map(l=>l.text).join("\n"),pm=T.match(/Period From:\s*(\d{1,2})-(\d{1,2})-(\d{4})\s+To:\s*(\d{1,2})-(\d{1,2})-(\d{4})/i);
