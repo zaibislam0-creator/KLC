@@ -2632,6 +2632,23 @@ function ledger(code,period){
 }
 const balTxt=n=>n>0?`<span class="due">${rs(n)}</span>`:n<0?`<span class="ok">${rs(-n)} advance</span>`:`<span class="ok">Settled</span>`;
 const periods={staff:{from:"",to:""},cust:{from:"",to:""}};
+let acSec="ledger",acOsAsk="";
+function acSegHTML(c){
+  const o=osOf(c.code),pend=o&&!osState(o).done,n=(db.invoices||[]).filter(x=>x.acct===c.code).length;
+  const T=[["ledger","📒 Ledger"],["outstanding","💰 Outstanding"+(pend?" •":"")],...(can("pay")?[["pay","💵 Receive payment"]]:[]),["bilties","🧾 Bilty folder ("+n+")"]];
+  return `<div class="filters" role="tablist" aria-label="Company sections" style="margin:0 0 14px">${T.map(t=>`<button type="button" class="chipbtn${t[0]==="outstanding"&&pend?" alert":""}" role="tab" data-acsec="${t[0]}" aria-pressed="${t[0]===acSec}">${t[1]}</button>`).join("")}</div>`}
+function acOsPanel(c){
+  const o=osOf(c.code);
+  if(!o)return `<div style="display:grid;gap:10px;justify-items:start"><p class="empty" style="margin:0">No monthly outstanding for this company yet.</p><button class="btn sm" type="button" data-goos="1">⬆ Upload outstanding PDF</button></div>`;
+  return `<div class="inline-actions" style="margin-bottom:12px"><button class="btn ghost sm" type="button" data-oscl2="${esc(o.id)}">${o.cleared?"↺ Reopen":"✓ Mark cleared"}</button>${acOsAsk===o.id?`<button class="btn sm" type="button" data-osdely="${esc(o.id)}">Yes, delete</button><button class="btn ghost sm" type="button" data-osdeln="1">No</button>`:`<button class="btn ghost sm" type="button" data-osdelq="${esc(o.id)}">Delete</button>`}<button class="btn ghost sm" type="button" data-goos="1" style="margin-left:auto">⬆ Upload new</button></div>${osHTML(c,true)}`}
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-acsec]");if(g){acSec=g.dataset.acsec;acOsAsk="";pAcct();return}
+  const a=e.target.closest("[data-oscl2],[data-osdelq],[data-osdely],[data-osdeln],[data-goos]");if(!a)return;
+  if(a.dataset.goos){if(!canSub("imp")){toast("Your role cannot upload. Ask the admin.");return}upTarget="";sub="imp";renderPanel();setImpKind("outstanding");window.scrollTo({top:0});const f=$("#impFile");if(f)f.click();return}
+  if(a.dataset.oscl2){const o=(db.outstanding||[]).find(x=>x.id===a.dataset.oscl2);if(o){o.cleared=!o.cleared;save();pAcct();toast(o.cleared?"Marked cleared":"Reopened")}return}
+  if(a.dataset.osdelq){acOsAsk=a.dataset.osdelq;pAcct();return}
+  if(a.dataset.osdeln){acOsAsk="";pAcct();return}
+  if(a.dataset.osdely){db.outstanding=(db.outstanding||[]).filter(x=>x.id!==a.dataset.osdely);acOsAsk="";save();pAcct();toast("Outstanding deleted")}});
 function ledgerHTML(c,staff){
   const ctx=staff?"staff":"cust",P=periods[ctx],L=ledger(c.code,P),cols=6;
   const rkey=x=>x.pid?"p:"+x.pid:(x.lid&&x.cr>0?"l:"+x.lid:""),rfile=x=>(x.p&&x.p.file)||(x.lent&&x.lent.file)||"";
@@ -2645,7 +2662,7 @@ function ledgerHTML(c,staff){
     return `<tr${x.bounced?' style="opacity:.6"':""}><td>${esc(fmtD(x.d))}</td><td class="det"><b>${esc(x.type)}</b>${x.prov?' <span class="tag">Provisional</span>':""}${x.mode?` <span class="tag">${esc(x.mode)}</span>`:""}${x.ref?` <span class="mono" style="font-size:12px">${esc(x.ref)}</span>`:""}<br>${esc(x.desc)}${f?" 📎":""}</td><td class="num dr">${x.dr?rs(x.dr):""}</td><td class="num cr">${x.cr?rs(x.cr):x.bounced?"Bounced":""}</td><td class="num"><b>${dcTxt(x.bal)}</b></td><td class="lact">${act?`<div class="inline-actions">${act}</div>`:""}</td></tr>`}).join("");
   const openRow=(P.from)?`<tr class="open"><td>${esc(fmtDay(P.from))}</td><td colspan="3">Opening balance</td><td class="num">${dcTxt(L.open)}</td><td></td></tr>`:"";
   return `${staff?`<div class="card-head" style="margin-bottom:10px"><div><h2>${esc(c.name)}</h2><div class="hint" style="margin:4px 0 0">Account code <span class="codebox">${esc(c.code)}</span> · ${esc(fmtPhone(c.phone))}</div></div><div class="inline-actions"><button class="btn ghost sm" type="button" data-goup="1" data-target="${esc(c.code)}">⬆ Upload PDF</button><button class="btn ghost sm" type="button" data-closeledger="1">Close</button></div></div>`:""}
-  <div class="inline-actions" style="align-items:end;margin-bottom:12px">
+  ${staff?acSegHTML(c):""}${!staff||acSec==="ledger"?`<div class="inline-actions" style="align-items:end;margin-bottom:12px">
     <label style="flex:0 1 160px">From<input type="date" class="lp" data-ctx="${ctx}" data-k="from" value="${esc(P.from)}"></label>
     <label style="flex:0 1 160px">To<input type="date" class="lp" data-ctx="${ctx}" data-k="to" value="${esc(P.to)}"></label>
     <button class="btn ghost sm" type="button" data-lpclear="${ctx}">All dates</button>
@@ -2655,9 +2672,9 @@ function ledgerHTML(c,staff){
   <div class="ledger-sum">${MODES.map(m=>`<div><span>Received in ${m.toLowerCase()}</span><b style="font-size:16px">${rs(L.byMode[m]||0)}</b></div>`).join("")}</div>
   <div class="tbl-wrap"><table class="ledger"><thead><tr><th>Date</th><th>Details</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th><th></th></tr></thead>
   <tbody>${openRow}${rows||`<tr><td colspan="${cols}" class="empty">No entries in this period.</td></tr>`}</tbody></table></div>
-  <p class="hint" style="margin:8px 0 0"><b>Dr</b> is the amount due to KLC. <b>Cr</b> is an advance with KLC.</p>
-    ${staff&&osOf(c.code)?`<details class="panel" open style="margin-top:14px"><summary style="font-weight:800;cursor:pointer">💰 Monthly outstanding${osState(osOf(c.code)).done?" (cleared)":" · "+rs(osState(osOf(c.code)).rem)+" due"}</summary><div style="margin-top:10px">${osHTML(c,true)}</div></details>`:""}
-    ${staff&&can("pay")?`<form class="f" id="payForm" data-acct="${esc(c.code)}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+  <p class="hint" style="margin:8px 0 0"><b>Dr</b> is the amount due to KLC. <b>Cr</b> is an advance with KLC.</p>`:""}
+    ${staff&&acSec==="outstanding"?acOsPanel(c):""}
+    ${staff?(acSec==="pay"&&can("pay")?`<form class="f" id="payForm" data-acct="${esc(c.code)}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
     <h3>Receive payment</h3>
     <div class="row2"><label>Amount received (Rs)<input id="payAmt" type="number" min="0" step="any" placeholder="0"></label><label>Payment date<input id="payDate" type="date" value="${today()}" max="${today()}" required></label></div>
     <div class="row2"><label>Payment mode<select id="payMethod">${MODES.map(m=>`<option>${m}</option>`).join("")}</select></label><label>Received by<input id="payBy" required placeholder="Staff name" value="${esc(staffName)}"></label></div>
@@ -2668,7 +2685,7 @@ function ledgerHTML(c,staff){
     <p class="hint" id="payTot" style="margin:-4px 0 0"></p>
     <label>Note<input id="payNote" placeholder="Optional, e.g. against bilties of September"></label>
     <label>Cheque photo or receipt (optional)<input id="payFile" type="file" accept="image/*,application/pdf"></label><p class="hint" style="margin:-6px 0 0">A photo of the cheque, bank slip or online payment screenshot, or a PDF. The customer can see it when they click View on this payment.</p>
-    <button class="btn" type="submit" style="justify-self:start">Add to ledger</button></form>`:`<p class="hint">Debit is what KLC billed you. Credit is what you paid, with the payment mode. Click <b>View</b> on a payment to see its details and the cheque or receipt copy. A bounced cheque is not counted. If anything looks wrong, contact KLC with the reference number.</p>`}`;
+    <button class="btn" type="submit" style="justify-self:start">Add to ledger</button></form>`:""):`<p class="hint">Debit is what KLC billed you. Credit is what you paid, with the payment mode. Click <b>View</b> on a payment to see its details and the cheque or receipt copy. A bounced cheque is not counted. If anything looks wrong, contact KLC with the reference number.</p>`}`;
 }
 function payModeUI(){
   const m=$("#payMethod")?.value;if(!m)return;
@@ -3469,7 +3486,7 @@ function pAcct(){
       <p class="hint" style="margin:0">The code must be the same as the account code in SmartCargo (for example 03010195), otherwise the ledger and invoices will not show for this customer. If you change it, tell the customer the new code. A new PIN can be made from the list.</p>
       <div class="inline-actions"><button class="btn" type="button" data-aesave="${esc(ec.code)}">Save changes</button><button class="btn ghost" type="button" data-aecancel="1">Cancel</button></div></div>`:""}
   const c=clientOf(ledgerCode),box=$("#ledgerBox");
-  box.hidden=!c;box.innerHTML=c?ledgerHTML(c,true)+staffInvHTML(c.code):"";payModeUI();
+  box.hidden=!c;box.innerHTML=c?ledgerHTML(c,true)+(acSec==="bilties"?staffInvHTML(c.code):""):"";payModeUI();
   {const det=!!(c||clientOf(acEditCode));
    $("#acctForm").hidden=acView!=="new";$("#acctListBox").hidden=acView!=="list"||det;
    if(acView!=="list"){box.hidden=true;eb.hidden=true}
@@ -4972,7 +4989,7 @@ document.addEventListener("click",e=>{
   else if(d.uact){const u=db.staff.find(x=>x.user===d.uact);u.active=!u.active;if(activeAdmins()===0){u.active=true;toast("At least one active user must keep admin access");return}save();pAdmin();toast(`${u.name} switched ${u.active?"on":"off"}`)}
   else if(d.udel){const u=db.staff.find(x=>x.user===d.udel);if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Sure? Remove";return}db.staff=db.staff.filter(x=>x!==u);if(activeAdmins()===0){db.staff.push(u);toast("At least one active user must keep admin access");pAdmin();return}save();pAdmin();toast(`User ${u.user} removed`)}
   else if(d.upass){sbRecover(d.upass).then(ok=>toast(ok?"Reset email sent to "+d.upass:"Could not send. Try again later."))}
-  else if(d.ledger){ledgerCode=d.ledger;pAcct();$("#ledgerBox").scrollIntoView({behavior:"smooth",block:"start"})}
+  else if(d.ledger){ledgerCode=d.ledger;acSec="ledger";acOsAsk="";pAcct();$("#ledgerBox").scrollIntoView({behavior:"smooth",block:"start"})}
   else if(d.closeledger){ledgerCode="";pAcct()}
   else if(d.lpclear){periods[d.lpclear]={from:"",to:""};d.lpclear==="staff"?pAcct():renderAccount()}
   else if(d.invpdf){const v=(db.invoices||[]).find(x=>x.id===d.invpdf);if(v)offerPDF(()=>invoicePDF(v),`KLC-Invoice-${v.id}.pdf`)}
@@ -5010,7 +5027,7 @@ document.addEventListener("submit",async e=>{
   if(m==="Online"){pay.wallet=$("#payWallet").value;pay.txn=$("#payTxnO").value.trim();if(!pay.txn){toast("Enter the transaction ID");return}}
   {const pf=$("#payFile")&&$("#payFile").files[0];if(pf){const r=await readProof(pf);if(r===false)return;if(r){pay.file=r.file;pay.fname=r.fname}}}
   db.payments=db.payments||[];pay.id=nextNum(db.payments,"RCPT-",1000);db.payments.push(pay);
-  save();renderPanel();toast(`${rs(amt+disc+tax)} credited${disc||tax?` (${rs(amt)} received, ${rs(disc)} discount, ${rs(tax)} tax)`:` by ${m.toLowerCase()}`}. Receipt ${pay.id} added to the ledger.`);
+  acSec="ledger";save();renderPanel();toast(`${rs(amt+disc+tax)} credited${disc||tax?` (${rs(amt)} received, ${rs(disc)} discount, ${rs(tax)} tax)`:` by ${m.toLowerCase()}`}. Receipt ${pay.id} added to the ledger.`);
 });
 document.addEventListener("input",e=>{if(!/^pay(Amt|Disc|Tax)$/.test(e.target.id))return;const a=+$("#payAmt").value||0,d=+$("#payDisc").value||0,t=+$("#payTax").value||0,el=$("#payTot");if(el)el.textContent=(d||t)?`Credited to the ledger: ${rs(a+d+t)} (received ${rs(a)} + discount ${rs(d)} + tax ${rs(t)})`:""});
 document.addEventListener("change",e=>{
