@@ -1725,6 +1725,11 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
 .acc-focus .accbar{margin-top:8px}
 @media (max-width:560px){#accView .acc-top .filters .chipbtn{flex:1 1 44%}.acc-nav{gap:6px}.acc-nav .chipbtn{flex:1 1 30%;font-size:14px;padding:10px 6px!important}}
 </style>
+<style id="ac-search">
+.ac-search{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+.ac-search input{flex:1 1 280px;max-width:460px;padding:11px 14px 11px 40px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center;font:500 15px var(--body,inherit);color:var(--ink)}
+.ac-search input:focus{outline:0;border-color:var(--accent)}
+</style>
 <main class="wrap">
 
 <!-- ============ TRACK ============ -->
@@ -2329,6 +2334,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
     </form>
     <div class="panel" id="acctListBox">
       <h2 style="margin-bottom:10px">Company accounts</h2>
+      <div class="ac-search"><input id="acSearch" type="search" placeholder="Search by company name, code or mobile" autocomplete="off" aria-label="Search company accounts"><span class="hint" id="acCount" style="margin:0"></span></div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>Code</th><th>Company</th><th class="num">Billed</th><th class="num">Received</th><th class="num">Balance</th><th></th></tr></thead>
         <tbody id="acctRows"></tbody>
@@ -3577,8 +3583,16 @@ function staffInvHTML(code){
   return `<div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px"><h3 style="margin:0 0 8px">Bilty folder (${L.length})</h3>
   <div class="up-box"><button class="btn sm" type="button" data-goup="1" data-target="${esc(code)}">⬆ Upload bilty PDFs</button><p class="hint">Upload the customer-copy PDF from SmartCargo (one or many bilties). Each bilty goes into this customer's Invoices and straight into the ledger as a final entry. If a bilty is edited in SmartCargo, upload it again: the same bilty number is <b>replaced</b>, not added twice.${up?` Last upload: ${esc(fmtD(up))}.`:""}</p></div>
   ${L.length?`<div class="tbl-wrap"><table><thead><tr><th>Bilty</th><th>Date</th><th>Route</th><th class="num">Total</th><th class="num">Received</th><th>Uploaded</th><th></th></tr></thead><tbody>${L.map(v=>`<tr><td class="mono"><b>${esc(v.id)}</b>${(v.rev||1)>1?` <span class="tag">Updated ×${(v.rev||1)-1}</span>`:""}</td><td>${esc(v.date||"")}</td><td>${esc(v.from||"")} → ${esc(v.to||"")}</td><td class="num">${rs(v.total||0)}</td><td class="num">${rs(v.received||0)}</td><td>${v.upAt?esc(fmtD(v.upAt)):""}</td><td>${invAsk===v.id?`<div class="inline-actions"><button class="btn sm" type="button" data-invdelyes="${esc(v.id)}">Yes, remove</button><button class="btn ghost sm" type="button" data-invdelno="1">No</button></div>`:`<div class="inline-actions">${origBtn(v)}<button class="btn ghost sm" type="button" data-invdel="${esc(v.id)}">Remove</button></div>`}</td></tr>`).join("")}</tbody></table></div>`:`<p class="hint" style="margin:0">No bilties uploaded for this account yet.</p>`}</div>`}
+let acQ="";
+const acNorm=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+function acFiltered(){const q=acNorm(acQ);if(!q)return db.clients;return db.clients.filter(c=>acNorm(c.name).includes(q)||acNorm(c.code).includes(q)||acNorm(c.phone).includes(q))}
+function acRowsRender(){
+  const acList=acFiltered(),tot=db.clients.length;
+  {const n=$("#acCount");if(n)n.textContent=acQ.trim()?`${acList.length} of ${tot} accounts`:`${tot} accounts`}
+  $("#acctRows").innerHTML=acList.length?acList.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td><div style="display:flex;gap:10px;align-items:flex-start">${dpHTML(c,true)}<div>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span><br><span style="font-size:12px">${c.pwh?`<b>Own password set</b>`:`PIN: <b class="mono">${esc(c.pin||"not set")}</b>`} <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin||c.pwh?"New PIN":"Make PIN"}</button></span><br><span style="font-size:12px"><button class="btn ghost sm" type="button" data-dpset="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.dp?"Change photo":"Add photo"}</button>${c.dp?` <button class="btn ghost sm" type="button" data-dprm="${esc(c.code)}" style="padding:2px 8px;font-size:11px">Remove</button>`:""}</span></div></div></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button><div class="inline-actions" style="margin-top:6px;gap:6px"><button class="btn ghost sm" type="button" data-acedit="${esc(c.code)}">Edit</button>${acDelAsk===c.code?`<button class="btn sm" type="button" data-acdelyes="${esc(c.code)}">Yes, delete</button><button class="btn ghost sm" type="button" data-acdelno="1">No</button>`:`<button class="btn ghost sm" type="button" data-acdel="${esc(c.code)}">Delete</button>`}</div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">${tot?"No account matches your search.":"No company accounts yet."}</td></tr>`;
+}
 function pAcct(){
-  $("#acctRows").innerHTML=db.clients.length?db.clients.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td><div style="display:flex;gap:10px;align-items:flex-start">${dpHTML(c,true)}<div>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span><br><span style="font-size:12px">${c.pwh?`<b>Own password set</b>`:`PIN: <b class="mono">${esc(c.pin||"not set")}</b>`} <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin||c.pwh?"New PIN":"Make PIN"}</button></span><br><span style="font-size:12px"><button class="btn ghost sm" type="button" data-dpset="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.dp?"Change photo":"Add photo"}</button>${c.dp?` <button class="btn ghost sm" type="button" data-dprm="${esc(c.code)}" style="padding:2px 8px;font-size:11px">Remove</button>`:""}</span></div></div></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button><div class="inline-actions" style="margin-top:6px;gap:6px"><button class="btn ghost sm" type="button" data-acedit="${esc(c.code)}">Edit</button>${acDelAsk===c.code?`<button class="btn sm" type="button" data-acdelyes="${esc(c.code)}">Yes, delete</button><button class="btn ghost sm" type="button" data-acdelno="1">No</button>`:`<button class="btn ghost sm" type="button" data-acdel="${esc(c.code)}">Delete</button>`}</div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No company accounts yet.</td></tr>`;
+  acRowsRender();
   const eb=$("#acctEditBox");{const ec=clientOf(acEditCode);eb.hidden=!ec;
     eb.innerHTML=ec?`<div class="panel f"><div class="card-head"><h2>Edit account ${esc(ec.code)}</h2><button class="btn ghost sm" type="button" data-aecancel="1">Close</button></div>
       <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${dpHTML(ec)}<div class="inline-actions"><button class="btn ghost sm" type="button" data-dpset="${esc(ec.code)}">${ec.dp?"Change photo":"Add photo"}</button>${ec.dp?`<button class="btn ghost sm" type="button" data-dpadj="${esc(ec.code)}">Adjust photo</button><button class="btn ghost sm" type="button" data-dprm="${esc(ec.code)}">Remove photo</button>`:""}</div></div>
@@ -3660,6 +3674,7 @@ $("#ledgerBox").addEventListener("click",e=>{
   if(v>0)db.lent.push({id:"OB-"+code,acct:code,d:new Date(ds+"T00:00:00").toISOString(),type:"Opening balance",desc:"Balance brought forward",ref:"",mode:"",dr:side==="Dr"?v:0,cr:side==="Cr"?v:0,src:"MAN"});
   obOpen="";save();pAcct();toast(v>0?`Opening balance saved: ${rs(v)} ${side}`:"Opening balance removed")});
 $("#acctRows").addEventListener("click",acctClick);
+$("#acSearch").addEventListener("input",e=>{acQ=e.target.value;acRowsRender()});
 $("#acctViewTabs").addEventListener("click",e=>{const b=e.target.closest("[data-acv]");if(!b)return;acView=b.dataset.acv;ledgerCode="";acEditCode="";acDelAsk="";pAcct();const k=$(".kp-sec");if(k)k.scrollIntoView({behavior:"smooth",block:"start"})});
 $("#acctEditBox").addEventListener("click",acctClick);
 $("#acDp").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;dpEdit(f).then(d=>{if(d){acDpData=d;$("#acDpNote").textContent="Photo ready. It will be saved with the account."}else{acDpData="";e.target.value="";$("#acDpNote").textContent="";if(!/^image\//.test(f.type))toast("This file is not a picture. Choose a JPG or PNG.")}})});
