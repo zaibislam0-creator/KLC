@@ -1704,8 +1704,11 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
 }
 </style>
 <style id="home-tweaks">
-.khero-exp{display:inline-flex;align-items:center;gap:8px;margin:-6px 0 22px;padding:7px 14px;border:1px solid #e6d6cc;border-radius:999px;background:#fff;font:600 13.5px var(--body,inherit);color:#7d1a1f}
-.khero-exp::before{content:"";width:8px;height:8px;border-radius:50%;background:#c9242b;flex:none}
+.khero-exp{display:block;margin:-4px 0 24px;padding:12px 20px 12px 18px;border-left:4px solid #c9242b;border-radius:0 12px 12px 0;background:#fff;box-shadow:0 1px 0 #e6d6cc,0 8px 22px -14px rgba(125,26,31,.45);max-width:max-content}
+.khero-exp small{display:block;font:700 11.5px var(--body,inherit);letter-spacing:.12em;text-transform:uppercase;color:#c9242b}
+.khero-exp b{display:block;margin:2px 0;font:700 clamp(24px,3.4vw,32px)/1.15 var(--display,Georgia,serif);color:#7d1a1f}
+.khero-exp b i{font-style:normal;color:#c9242b;margin:0 4px}
+.khero-exp span{display:block;font:500 13.5px var(--body,inherit);color:#5f5f66}
 .route-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),340px))}
 </style>
 <style id="acct-nav">
@@ -1730,7 +1733,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
         <div class="eyebrow">Kashaf Lasani Cargo Services</div>
         <h1 id="welcomeH"><span>Your Cargo.</span> <span>Our Commitment.</span></h1>
         <p class="khero-lead">Book cargo, track your bilty, and manage your shipments with Kashaf Lasani Cargo Services.</p>
-        <p class="khero-exp">Sialkot's cargo expert for Sialkot → Karachi</p>
+        <div class="khero-exp"><small>Your trusted cargo partner</small><b>Sialkot <i>→</i> Karachi</b><span>Our main route, handled with care</span></div>
         <div class="khero-ctas"><a class="btn btn-lg" href="#trackForm" data-scrollto="trackBox">Track Your Bilty</a><button class="btn btn-lg outline" type="button" data-booksheet="1">Book Your Cargo</button></div>
       </div>
       <img data-imgkey="k1" class="khero-logo" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="KLC eagle logo" width="250" height="239">
