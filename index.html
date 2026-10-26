@@ -1739,6 +1739,10 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
 .cfa{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px 18px;flex-wrap:wrap}
 .cfa .btn{flex:1 1 140px}
 .cfyes{background:#b42318!important;color:#fff!important}
+.slr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) 200px;gap:12px;align-items:center;padding:11px 18px;border-bottom:1px solid var(--line)}
+.slr-r{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.slmore{text-align:center;padding:14px}
+@media (max-width:640px){.slr{grid-template-columns:minmax(0,1fr) auto}.slr>.olc:nth-child(2){grid-column:1/-1;order:3}}
 .olf{padding:10px 18px;border-bottom:1px solid var(--line)}
 .olf input{width:100%;font-size:15px;padding:10px 12px;border-radius:10px}
 .olb{display:grid;max-height:62vh;overflow:auto}
@@ -3224,6 +3228,43 @@ function myInvHTML(code){
 /* ---------- monthly outstanding (SmartCargo "Customer Outstanding Detail") ---------- */
 let osData=null;
 /* Payments outstanding tile: list of customers who owe money */
+/* Stat tiles: bilties, pending, challans, visitors */
+let stKind="",stCap=100,stQ="";
+const ST_T={bilties:["Bilties in tracking","bilties","Search bilty number, receiver, route or company"],pending:["In transit / pending","bilties","Search bilty number, receiver, route or company"],challans:["Challans imported","challans","Search challan number, route or vehicle"]};
+function stOk(k){return k==="visits"?can("admin"):k==="challans"?canSub("imp"):canSub("bilty")}
+function closeStat(){const m=document.getElementById("stBg");if(m)m.remove();stKind=""}
+function stRows(){
+  const q=olNorm(stQ);
+  if(stKind==="challans"){return (db.challans||[]).slice().sort((a,b)=>String(b.at||b.date).localeCompare(String(a.at||a.date))).filter(c=>!q||olNorm([c.no,c.from,c.to,c.vehicle,c.status,c.by].join(" ")).includes(q))}
+  let L=db.bilties.slice().sort((a,b)=>b.id.localeCompare(a.id));
+  if(stKind==="pending")L=L.filter(b=>b.status<4);
+  return L.filter(b=>{if(!q)return true;const c=clientOf(b.acct);return olNorm([b.id,b.from,b.to,b.recv,b.phone,STATUSES[b.status],b.challan&&b.challan.no,c&&c.name].join(" ")).includes(q)})
+}
+function stRowHTML(x){
+  if(stKind==="challans")return `<div class="slr"><div class="olc"><b>Challan ${esc(x.no)}</b><small>${esc(x.date||"")}${x.vehicle?" · "+esc(x.vehicle):""}</small></div><div class="olc"><b>${esc(x.from)} → ${esc(x.to)}</b><small>${x.count} bilties${x.by?" · by "+esc(x.by):""}</small></div><div class="slr-r"><span class="pill s${Math.max(0,STATUSES.indexOf(x.status))}">${esc(x.status||"")}</span></div></div>`;
+  const c=clientOf(x.acct);
+  return `<div class="slr"><div class="olc"><b class="mono">${esc(x.id)}</b><small>${x.challan?"Challan "+esc(x.challan.no):"&nbsp;"}</small></div><div class="olc"><b>${esc(x.from)} → ${esc(x.to)}</b><small>${esc(x.recv||"—")}${c?" · "+esc(c.name):""}</small></div><div class="slr-r"><span class="pill s${x.status}">${esc(STATUSES[x.status]||"")}</span><button class="btn ghost sm" type="button" data-sttrack="${esc(x.id)}">Track</button></div></div>`
+}
+function renderStBody(){
+  const rows=stRows(),shown=rows.slice(0,stCap),t=ST_T[stKind],box=document.getElementById("stRows");if(!box)return;
+  box.innerHTML=shown.map(stRowHTML).join("")+(rows.length>shown.length?`<div class="slmore"><button class="btn ghost sm" type="button" data-stmore="1">Show 100 more (${rows.length-shown.length} left)</button></div>`:"")+(rows.length?"":`<p class="empty">${stQ?"Nothing found. Try another word or number.":"Nothing here yet."}</p>`);
+  const c=document.getElementById("stCnt");if(c)c.textContent=`${rows.length} ${rows.length===1?(stKind==="challans"?"challan":"bilty"):t[1]}${stQ?" found":""}${rows.length>shown.length?" · showing "+shown.length:""}`
+}
+function openStatList(k){
+  if(k==="visits"){if(!stOk(k)){toast("Your role cannot see this. Ask the admin.");return}closeStat();sub="admin";renderPanel();setTimeout(()=>{const b=document.querySelector('[data-adtab="visits"]');if(b)b.click()},60);return}
+  if(!ST_T[k])return;if(!stOk(k)){toast("Your role cannot see this. Ask the admin.");return}
+  closeStat();closeOutList();stKind=k;stCap=100;stQ="";const t=ST_T[k];
+  document.body.insertAdjacentHTML("beforeend",`<div class="olbg" id="stBg" role="dialog" aria-modal="true" aria-label="${esc(t[0])}"><div class="ol"><div class="olh"><div><h2>${esc(t[0])}</h2><p id="stCnt"></p></div><button type="button" class="btn ghost sm" data-stclose="1">Close</button></div><div class="olf"><input id="stFind" type="search" placeholder="${esc(t[2])}" autocomplete="off" aria-label="Search"></div><div class="olb" id="stRows"></div></div></div>`);
+  renderStBody();if(!matchMedia("(pointer:coarse)").matches){const f=document.getElementById("stFind");if(f)f.focus()}
+}
+document.addEventListener("click",e=>{
+  const t=e.target;if(!t.closest)return;
+  const st=t.closest("[data-stat]");if(st){openStatList(st.dataset.stat);return}
+  if(t.id==="stBg"||t.closest("[data-stclose]")){closeStat();return}
+  if(t.closest("[data-stmore]")){stCap+=100;renderStBody();return}
+  const tr=t.closest("[data-sttrack]");if(tr){const id=tr.dataset.sttrack;closeStat();if(typeof goTrack==="function")goTrack(id)}
+});
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="stFind"){stQ=e.target.value;stCap=100;renderStBody()}});
 /* Confirm popup: used before deleting an account */
 let cfCb=null;
 function closeConfirm(){const m=document.getElementById("cfBg");if(m)m.remove();cfCb=null}
@@ -3269,7 +3310,7 @@ document.addEventListener("click",e=>{
     sub="acct";acView="list";ledgerCode=code;acSec=s&&!s.done?"outstanding":"ledger";acOsAsk="";renderPanel();
     setTimeout(()=>{const b=document.getElementById("ledgerBox");if(b)b.scrollIntoView({behavior:"smooth",block:"start"})},50)}
 });
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(document.getElementById("cfBg"))closeConfirm();else closeOutList()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(document.getElementById("cfBg"))closeConfirm();else if(document.getElementById("stBg"))closeStat();else closeOutList()}});
 document.addEventListener("click",e=>{
   const t=e.target;if(!t.closest)return;
   if(t.id==="cfBg"||t.closest("[data-cfno]")){closeConfirm();return}
@@ -3629,8 +3670,8 @@ function renderPanel(){
   $$("#subtabs .chipbtn").forEach(b=>{b.hidden=!canSub(b.dataset.s);b.setAttribute("aria-pressed",b.dataset.s===sub)});
   const pend=db.bilties.filter(b=>b.status<4).length;
   const dsum=db.bilties.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0)+db.clients.reduce((s,c)=>s+Math.max(0,ledger(c.code).bal),0);
-  $("#stats").innerHTML=[[db.bilties.length,"Bilties in tracking"],[pend,"In transit / pending"],[(db.challans||[]).length,"Challans imported"],...(can("acct")?[[rs(dsum),"Payments outstanding"]]:[])].map(([n,l])=>l==="Payments outstanding"?`<button type="button" class="stat" data-outlist="1" title="See which customers owe money"><b>${n}</b><span>${l}</span><span class="stgo">View customer details ›</span></button>`:`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
-  if(can("admin")){$("#stats").insertAdjacentHTML("beforeend",'<div class="stat"><b id="visTile">'+(visitCache?visitSums(visitCache).t.v:"…")+'</b><span>Visitors today</span></div>');loadVisits().then(r=>{const t=$("#visTile");if(r&&t)t.textContent=visitSums(r).t.v})}
+  $("#stats").innerHTML=[[db.bilties.length,"Bilties in tracking"],[pend,"In transit / pending"],[(db.challans||[]).length,"Challans imported"],...(can("acct")?[[rs(dsum),"Payments outstanding"]]:[])].map(([n,l])=>l==="Payments outstanding"?`<button type="button" class="stat" data-outlist="1" title="See which customers owe money"><b>${n}</b><span>${l}</span><span class="stgo">View customer details ›</span></button>`:`<button type="button" class="stat" data-stat="${l==="Challans imported"?"challans":l==="Bilties in tracking"?"bilties":"pending"}"><b>${n}</b><span>${l}</span><span class="stgo">View details ›</span></button>`).join("");
+  if(can("admin")){$("#stats").insertAdjacentHTML("beforeend",'<button type="button" class="stat" data-stat="visits"><b id="visTile">'+(visitCache?visitSums(visitCache).t.v:"…")+'</b><span>Visitors today</span><span class="stgo">View details ›</span></button>');loadVisits().then(r=>{const t=$("#visTile");if(r&&t)t.textContent=visitSums(r).t.v})}
   SUBS.forEach(x=>$("#p-"+x).hidden=x!==sub);
   {const t=document.querySelector(`#subtabs [data-s="${sub}"]`);$("#kpSecI").textContent=t?.querySelector(".ti")?.textContent||"";$("#kpSecT").textContent=t?.querySelector("b")?.textContent||"";$("#kpSecD").textContent=t?.querySelector("small")?.textContent||""}
   if(!sub){toast("Your role has no sections switched on. Ask the admin.");return}
