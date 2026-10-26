@@ -1730,7 +1730,18 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
 .olh h2{margin:0;font-size:20px;color:#7d1a1f}
 .olh p{margin:4px 0 0;color:var(--muted);font-size:14px}
 .olh p b{color:var(--ink)}
-.olb{display:grid;max-height:70vh;overflow:auto}
+.ol.cf{width:min(440px,100%);margin-top:12vh}
+.cfh h2{color:#7d1a1f}
+.cfb{padding:16px 18px 6px;font-size:15px;line-height:1.5}
+.cfb p{margin:0 0 10px}
+.cfn span{color:var(--muted);font-size:13px}
+.cfw{color:#b42318;font-weight:700}
+.cfa{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px 18px;flex-wrap:wrap}
+.cfa .btn{flex:1 1 140px}
+.cfyes{background:#b42318!important;color:#fff!important}
+.olf{padding:10px 18px;border-bottom:1px solid var(--line)}
+.olf input{width:100%;font-size:15px;padding:10px 12px;border-radius:10px}
+.olb{display:grid;max-height:62vh;overflow:auto}
 .olr{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.2fr) auto;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
 .olr:last-child{border-bottom:0}
 .olc b{display:block;font:700 14.5px var(--body)}
@@ -3213,21 +3224,42 @@ function myInvHTML(code){
 /* ---------- monthly outstanding (SmartCargo "Customer Outstanding Detail") ---------- */
 let osData=null;
 /* Payments outstanding tile: list of customers who owe money */
+/* Confirm popup: used before deleting an account */
+let cfCb=null;
+function closeConfirm(){const m=document.getElementById("cfBg");if(m)m.remove();cfCb=null}
+function askConfirm(o){
+  closeConfirm();cfCb=o.onYes;
+  document.body.insertAdjacentHTML("beforeend",`<div class="olbg" id="cfBg" role="alertdialog" aria-modal="true" aria-label="${esc(o.title)}"><div class="ol cf"><div class="olh cfh"><div><h2>${esc(o.title)}</h2></div></div><div class="cfb">${o.body}</div><div class="cfa"><button type="button" class="btn ghost" data-cfno="1">No, keep it</button><button type="button" class="btn cfyes" data-cfyes="1">${esc(o.yes||"Yes, delete")}</button></div></div></div>`);
+  const n=document.querySelector("#cfBg [data-cfno]");if(n)n.focus()
+}
+function delAccount(code){
+  const c=clientOf(code);if(!c)return;
+  const nl=(db.lent||[]).filter(x=>x.acct===code).length,ni=(db.invoices||[]).filter(x=>x.acct===code).length;
+  db.clients=db.clients.filter(x=>x.code!==code);
+  db.lent=(db.lent||[]).filter(x=>x.acct!==code);db.invoices=(db.invoices||[]).filter(x=>x.acct!==code);
+  db.bilties.forEach(b=>{if(b.acct===code)b.acct=""});
+  if(ledgerCode===code)ledgerCode="";if(acEditCode===code)acEditCode="";acDelAsk="";
+  save();pAcct();toast(`Account ${code} deleted (${nl} ledger entries and ${ni} invoices removed). Its bilties stay in tracking.`)
+}
 function closeOutList(){const m=document.getElementById("olBg");if(m)m.remove()}
 function openOutList(){
   if(!can("acct"))return;closeOutList();
-  const rows=db.clients.map(c=>{const bal=Math.max(0,ledger(c.code).bal),o=osOf(c.code),s=o?osState(o):null,st=s&&!s.done?s.rem:0;return{c,bal,o,s,st}}).filter(r=>r.bal>0||r.st>0).sort((a,b)=>b.bal-a.bal||b.st-a.st);
-  const walk=db.bilties.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0),tot=rows.reduce((s,r)=>s+r.bal,0)+walk;
+  const rows=db.clients.map(c=>{const bal=Math.max(0,ledger(c.code).bal),o=osOf(c.code),s=o?osState(o):null,st=s&&!s.done?s.rem:0;return{c,bal,o,s,st}}).sort((a,b)=>(b.bal>0||b.st>0)-(a.bal>0||a.st>0)||b.bal-a.bal||b.st-a.st);
+  const walk=db.bilties.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0),tot=rows.reduce((s,r)=>s+r.bal,0)+walk,owe=rows.filter(r=>r.bal>0||r.st>0).length;
   const html=`<div class="olbg" id="olBg" role="dialog" aria-modal="true" aria-label="Payments outstanding"><div class="ol">
-    <div class="olh"><div><h2>Payments outstanding</h2><p>${rows.length} customer${rows.length===1?"":"s"} · total <b>${rs(tot)}</b></p></div><button type="button" class="btn ghost sm" data-olclose="1">Close</button></div>
-    <div class="olb">${rows.map(r=>`<div class="olr"><div class="olc"><b>${esc(r.c.name)}</b><small>Account ${esc(r.c.code)}${r.c.phone?" · "+esc(fmtPhone(r.c.phone)):""}</small></div>
+    <div class="olh"><div><h2>Payments outstanding</h2><p><span id="olCnt">${owe} customer${owe===1?"":"s"}</span> · total <b>${rs(tot)}</b></p></div><button type="button" class="btn ghost sm" data-olclose="1">Close</button></div>
+    <div class="olf"><input id="olFind" type="search" placeholder="Search customer name, account code or mobile" autocomplete="off" aria-label="Search customers"></div>
+    <div class="olb">${rows.map(r=>`<div class="olr" data-q="${esc(olNorm(r.c.name+" "+r.c.code+" "+(r.c.phone||"")))}" ${r.bal>0||r.st>0?"":'data-zero="1" hidden'}><div class="olc"><b>${esc(r.c.name)}</b><small>Account ${esc(r.c.code)}${r.c.phone?" · "+esc(fmtPhone(r.c.phone)):""}${r.bal>0||r.st>0?"":" · nothing due"}</small></div>
       <div class="olv"><span>Ledger balance</span><b>${rs(r.bal)}</b></div>
       <div class="olv"><span>Monthly outstanding</span><b>${r.st?rs(r.st):"—"}</b>${r.o&&r.st?`<small>${esc(fmtDay(r.o.from))} to ${esc(fmtDay(r.o.to))} · ${r.s.days?r.s.days+" day"+(r.s.days>1?"s":"")+" old":"today"}</small>`:""}</div>
-      <button class="btn sm" type="button" data-olopen="${esc(r.c.code)}">Open</button></div>`).join("")||'<p class="empty">No customer has an outstanding balance.</p>'}
-      ${walk>0?`<div class="olr"><div class="olc"><b>Bilties without an account</b><small>Unpaid bilties not linked to a company account</small></div><div class="olv"><span>Due</span><b>${rs(walk)}</b></div></div>`:""}
+      <button class="btn sm" type="button" data-olopen="${esc(r.c.code)}">Open</button></div>`).join("")||'<p class="empty">No customer accounts yet.</p>'}
+      <p class="empty" id="olNone" hidden>No customer found. Try another name, code or number.</p>
+      ${walk>0?`<div class="olr" data-q="bilties without an account walk-in unpaid"><div class="olc"><b>Bilties without an account</b><small>Unpaid bilties not linked to a company account</small></div><div class="olv"><span>Due</span><b>${rs(walk)}</b></div></div>`:""}
     </div></div></div>`;
   document.body.insertAdjacentHTML("beforeend",html);
+  if(!matchMedia("(pointer:coarse)").matches){const f=document.getElementById("olFind");if(f)f.focus()}
 }
+function olNorm(x){return String(x||"").toLowerCase().replace(/[\s\-]+/g,"")}
 document.addEventListener("click",e=>{
   const t=e.target;if(!t.closest)return;
   if(t.closest("[data-outlist]")){openOutList();return}
@@ -3237,7 +3269,18 @@ document.addEventListener("click",e=>{
     sub="acct";acView="list";ledgerCode=code;acSec=s&&!s.done?"outstanding":"ledger";acOsAsk="";renderPanel();
     setTimeout(()=>{const b=document.getElementById("ledgerBox");if(b)b.scrollIntoView({behavior:"smooth",block:"start"})},50)}
 });
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeOutList()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(document.getElementById("cfBg"))closeConfirm();else closeOutList()}});
+document.addEventListener("click",e=>{
+  const t=e.target;if(!t.closest)return;
+  if(t.id==="cfBg"||t.closest("[data-cfno]")){closeConfirm();return}
+  if(t.closest("[data-cfyes]")){const f=cfCb;closeConfirm();if(f)f()}
+});
+document.addEventListener("input",e=>{
+  if(!e.target||e.target.id!=="olFind")return;
+  const q=olNorm(e.target.value),rs_=[...document.querySelectorAll("#olBg .olr")];let n=0;
+  rs_.forEach(r=>{const cust=!/^bilties without/.test(r.dataset.q||"");const m=(r.dataset.q||"").includes(q);const ok=q?m:!r.dataset.zero;r.hidden=!ok;if(cust&&ok)n++});
+  const c=document.getElementById("olCnt");if(c)c.textContent=q?`${n} customer${n===1?"":"s"} found`:`${n} customer${n===1?"":"s"}`;
+  const none=document.getElementById("olNone");if(none)none.hidden=!(q&&rs_.every(r=>r.hidden))});
 function osOf(code){return (db.outstanding||[]).filter(o=>o.acct===code).sort((a,b)=>String(b.upAt).localeCompare(String(a.upAt)))[0]||null}
 function osState(o){
   if(!o)return null;let paid=0;
@@ -3652,7 +3695,7 @@ function acFiltered(){const q=acNorm(acQ);if(!q)return db.clients;return db.clie
 function acRowsRender(){
   const acList=acFiltered(),tot=db.clients.length;
   {const n=$("#acCount");if(n)n.textContent=acQ.trim()?`${acList.length} of ${tot} accounts`:`${tot} accounts`}
-  $("#acctRows").innerHTML=acList.length?acList.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td><div style="display:flex;gap:10px;align-items:flex-start">${dpHTML(c,true)}<div>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span><br><span style="font-size:12px">${c.pwh?`<b>Own password set</b>`:`PIN: <b class="mono">${esc(c.pin||"not set")}</b>`} <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin||c.pwh?"New PIN":"Make PIN"}</button></span><br><span style="font-size:12px"><button class="btn ghost sm" type="button" data-dpset="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.dp?"Change photo":"Add photo"}</button>${c.dp?` <button class="btn ghost sm" type="button" data-dprm="${esc(c.code)}" style="padding:2px 8px;font-size:11px">Remove</button>`:""}</span></div></div></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button><div class="inline-actions" style="margin-top:6px;gap:6px"><button class="btn ghost sm" type="button" data-acedit="${esc(c.code)}">Edit</button>${acDelAsk===c.code?`<button class="btn sm" type="button" data-acdelyes="${esc(c.code)}">Yes, delete</button><button class="btn ghost sm" type="button" data-acdelno="1">No</button>`:`<button class="btn ghost sm" type="button" data-acdel="${esc(c.code)}">Delete</button>`}</div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">${tot?"No account matches your search.":"No company accounts yet."}</td></tr>`;
+  $("#acctRows").innerHTML=acList.length?acList.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td><div style="display:flex;gap:10px;align-items:flex-start">${dpHTML(c,true)}<div>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span><br><span style="font-size:12px">${c.pwh?`<b>Own password set</b>`:`PIN: <b class="mono">${esc(c.pin||"not set")}</b>`} <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin||c.pwh?"New PIN":"Make PIN"}</button></span><br><span style="font-size:12px"><button class="btn ghost sm" type="button" data-dpset="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.dp?"Change photo":"Add photo"}</button>${c.dp?` <button class="btn ghost sm" type="button" data-dprm="${esc(c.code)}" style="padding:2px 8px;font-size:11px">Remove</button>`:""}</span></div></div></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button><div class="inline-actions" style="margin-top:6px;gap:6px"><button class="btn ghost sm" type="button" data-acedit="${esc(c.code)}">Edit</button><button class="btn ghost sm" type="button" data-acdel="${esc(c.code)}">Delete</button></div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">${tot?"No account matches your search.":"No company accounts yet."}</td></tr>`;
 }
 function pAcct(){
   acRowsRender();
@@ -3691,16 +3734,12 @@ function acctClick(e){
     }
     c.name=nm;c.phone=ph;let moved="";if(nc&&nc!==c.code){const old=c.code;if(renameAcct(old,nc))moved=` Code changed from ${old} to ${nc}.`}
     save();acEditCode="";pAcct();toast("Account saved."+moved);return}
-  const dl=e.target.closest("[data-acdel]");if(dl){acDelAsk=dl.dataset.acdel;pAcct();return}
-  if(e.target.closest("[data-acdelno]")){acDelAsk="";pAcct();return}
-  const dy=e.target.closest("[data-acdelyes]");if(dy){
-    const code=dy.dataset.acdelyes,c=clientOf(code);if(!c)return;
+  const dl=e.target.closest("[data-acdel]");if(dl){
+    const code=dl.dataset.acdel,c=clientOf(code);if(!c)return;
     const nl=(db.lent||[]).filter(x=>x.acct===code).length,ni=(db.invoices||[]).filter(x=>x.acct===code).length;
-    db.clients=db.clients.filter(x=>x.code!==code);
-    db.lent=(db.lent||[]).filter(x=>x.acct!==code);db.invoices=(db.invoices||[]).filter(x=>x.acct!==code);
-    db.bilties.forEach(b=>{if(b.acct===code)b.acct=""});
-    if(ledgerCode===code)ledgerCode="";if(acEditCode===code)acEditCode="";acDelAsk="";
-    save();pAcct();toast(`Account ${code} deleted (${nl} ledger entries and ${ni} invoices removed). Its bilties stay in tracking.`)}
+    askConfirm({title:"Are you sure you want to delete this account?",body:`<p class="cfn"><b>${esc(c.name)}</b><br><span>Account ${esc(c.code)}</span></p><p>This will permanently remove <b>${nl} ledger entr${nl===1?"y":"ies"}</b> and <b>${ni} invoice${ni===1?"":"s"}</b> of this customer. Its bilties stay in tracking.</p><p class="cfw">This cannot be undone.</p>`,yes:"Yes, delete account",onYes:()=>delAccount(code)});return}
+  if(e.target.closest("[data-acdelno]")){acDelAsk="";pAcct();return}
+  const dy=e.target.closest("[data-acdelyes]");if(dy){delAccount(dy.dataset.acdelyes)}
 }
 $("#ledgerBox").addEventListener("click",e=>{
   const dl=e.target.closest("[data-dellent]");if(dl){lentAsk=dl.dataset.dellent;pAcct();return}
