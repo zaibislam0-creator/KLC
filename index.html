@@ -1705,6 +1705,40 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
   #panelBody .panel{padding:14px}
 }
 </style>
+<style id="panel-highlight">
+/* sidebar: highlighted card, like a software menu */
+@media (min-width:861px){
+#panelBody .kp-menu{background:#fff;border:1px solid var(--line);border-top:4px solid #c9242b;border-radius:14px;padding:14px 12px 10px;gap:0;box-shadow:0 8px 24px rgba(125,26,31,.09)}
+#panelBody .kp-group{padding:12px 0;border-top:1px solid var(--line);gap:2px}
+#panelBody .kp-group:first-child{border-top:0;padding-top:2px}
+#panelBody .kp-gl{color:#7d1a1f;font:700 11px var(--body);letter-spacing:.13em;text-transform:uppercase;padding:0 10px 8px}
+#panelBody .kp-menu .chipbtn{padding:10px 12px;font:600 14px var(--body);color:#2b2926}
+#panelBody .kp-menu .chipbtn:hover{background:color-mix(in srgb,#c9242b 8%,#fff);color:#7d1a1f}
+#panelBody .kp-menu .chipbtn[aria-pressed="true"]{background:#7d1a1f;color:#fff;box-shadow:0 4px 12px rgba(125,26,31,.28)}
+#panelBody .kp-menu .chipbtn[aria-pressed="true"] b{font-weight:700}
+#panelBody .kp-menu .chipbtn[aria-pressed="true"] .ti{opacity:1}
+#panelBody .kp-menu .chipbtn[aria-pressed="true"] .kp-badge{background:#fff;color:#7d1a1f}
+}
+/* clickable Payments outstanding tile */
+#panelBody .kp-stats button.stat{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+#panelBody .kp-stats button.stat:hover{background:color-mix(in srgb,#c9242b 7%,transparent)}
+#panelBody .kp-stats .stat .stgo{color:#c9242b;font-weight:700;font-size:12px;margin-top:4px}
+/* outstanding customers list */
+.olbg{position:fixed;inset:0;z-index:50;background:rgba(20,16,14,.5);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}
+.ol{background:#fff;border-radius:14px;width:min(860px,100%);box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+.olh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);border-top:4px solid #c9242b}
+.olh h2{margin:0;font-size:20px;color:#7d1a1f}
+.olh p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.olh p b{color:var(--ink)}
+.olb{display:grid;max-height:70vh;overflow:auto}
+.olr{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.2fr) auto;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
+.olr:last-child{border-bottom:0}
+.olc b{display:block;font:700 14.5px var(--body)}
+.olc small,.olv small{display:block;color:var(--muted);font-size:12px}
+.olv span{display:block;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}
+.olv b{font:700 15px var(--body);font-variant-numeric:tabular-nums}
+@media (max-width:640px){.olr{grid-template-columns:1fr 1fr}.olc{grid-column:1/-1}.olr .btn{grid-column:1/-1}}
+</style>
 <style id="home-tweaks">
 .khero-exp{display:block;margin:-4px 0 24px;padding:12px 20px 12px 18px;border-left:4px solid #c9242b;border-radius:0 12px 12px 0;background:#fff;box-shadow:0 1px 0 #e6d6cc,0 8px 22px -14px rgba(125,26,31,.45);max-width:max-content}
 .khero-exp small{display:block;font:700 11.5px var(--body,inherit);letter-spacing:.12em;text-transform:uppercase;color:#c9242b}
@@ -3179,6 +3213,32 @@ function myInvHTML(code){
 
 /* ---------- monthly outstanding (SmartCargo "Customer Outstanding Detail") ---------- */
 let osData=null;
+/* Payments outstanding tile: list of customers who owe money */
+function closeOutList(){const m=document.getElementById("olBg");if(m)m.remove()}
+function openOutList(){
+  if(!can("acct"))return;closeOutList();
+  const rows=db.clients.map(c=>{const bal=Math.max(0,ledger(c.code).bal),o=osOf(c.code),s=o?osState(o):null,st=s&&!s.done?s.rem:0;return{c,bal,o,s,st}}).filter(r=>r.bal>0||r.st>0).sort((a,b)=>b.bal-a.bal||b.st-a.st);
+  const walk=db.bilties.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0),tot=rows.reduce((s,r)=>s+r.bal,0)+walk;
+  const html=`<div class="olbg" id="olBg" role="dialog" aria-modal="true" aria-label="Payments outstanding"><div class="ol">
+    <div class="olh"><div><h2>Payments outstanding</h2><p>${rows.length} customer${rows.length===1?"":"s"} · total <b>${rs(tot)}</b></p></div><button type="button" class="btn ghost sm" data-olclose="1">Close</button></div>
+    <div class="olb">${rows.map(r=>`<div class="olr"><div class="olc"><b>${esc(r.c.name)}</b><small>Account ${esc(r.c.code)}${r.c.phone?" · "+esc(fmtPhone(r.c.phone)):""}</small></div>
+      <div class="olv"><span>Ledger balance</span><b>${rs(r.bal)}</b></div>
+      <div class="olv"><span>Monthly outstanding</span><b>${r.st?rs(r.st):"—"}</b>${r.o&&r.st?`<small>${esc(fmtDay(r.o.from))} to ${esc(fmtDay(r.o.to))} · ${r.s.days?r.s.days+" day"+(r.s.days>1?"s":"")+" old":"today"}</small>`:""}</div>
+      <button class="btn sm" type="button" data-olopen="${esc(r.c.code)}">Open</button></div>`).join("")||'<p class="empty">No customer has an outstanding balance.</p>'}
+      ${walk>0?`<div class="olr"><div class="olc"><b>Bilties without an account</b><small>Unpaid bilties not linked to a company account</small></div><div class="olv"><span>Due</span><b>${rs(walk)}</b></div></div>`:""}
+    </div></div></div>`;
+  document.body.insertAdjacentHTML("beforeend",html);
+}
+document.addEventListener("click",e=>{
+  const t=e.target;if(!t.closest)return;
+  if(t.closest("[data-outlist]")){openOutList();return}
+  if(t.id==="olBg"||t.closest("[data-olclose]")){closeOutList();return}
+  const o=t.closest("[data-olopen]");
+  if(o){const code=o.dataset.olopen,r=osOf(code),s=r?osState(r):null;closeOutList();
+    sub="acct";acView="list";ledgerCode=code;acSec=s&&!s.done?"outstanding":"ledger";acOsAsk="";renderPanel();
+    setTimeout(()=>{const b=document.getElementById("ledgerBox");if(b)b.scrollIntoView({behavior:"smooth",block:"start"})},50)}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeOutList()});
 function osOf(code){return (db.outstanding||[]).filter(o=>o.acct===code).sort((a,b)=>String(b.upAt).localeCompare(String(a.upAt)))[0]||null}
 function osState(o){
   if(!o)return null;let paid=0;
@@ -3527,7 +3587,7 @@ function renderPanel(){
   $$("#subtabs .chipbtn").forEach(b=>{b.hidden=!canSub(b.dataset.s);b.setAttribute("aria-pressed",b.dataset.s===sub)});
   const pend=db.bilties.filter(b=>b.status<4).length;
   const dsum=db.bilties.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0)+db.clients.reduce((s,c)=>s+Math.max(0,ledger(c.code).bal),0);
-  $("#stats").innerHTML=[[db.bilties.length,"Bilties in tracking"],[pend,"In transit / pending"],[(db.challans||[]).length,"Challans imported"],...(can("acct")?[[rs(dsum),"Payments outstanding"]]:[])].map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
+  $("#stats").innerHTML=[[db.bilties.length,"Bilties in tracking"],[pend,"In transit / pending"],[(db.challans||[]).length,"Challans imported"],...(can("acct")?[[rs(dsum),"Payments outstanding"]]:[])].map(([n,l])=>l==="Payments outstanding"?`<button type="button" class="stat" data-outlist="1" title="See which customers owe money"><b>${n}</b><span>${l}</span><span class="stgo">View customer details ›</span></button>`:`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
   if(can("admin")){$("#stats").insertAdjacentHTML("beforeend",'<div class="stat"><b id="visTile">'+(visitCache?visitSums(visitCache).t.v:"…")+'</b><span>Visitors today</span></div>');loadVisits().then(r=>{const t=$("#visTile");if(r&&t)t.textContent=visitSums(r).t.v})}
   SUBS.forEach(x=>$("#p-"+x).hidden=x!==sub);
   {const t=document.querySelector(`#subtabs [data-s="${sub}"]`);$("#kpSecI").textContent=t?.querySelector(".ti")?.textContent||"";$("#kpSecT").textContent=t?.querySelector("b")?.textContent||"";$("#kpSecD").textContent=t?.querySelector("small")?.textContent||""}
