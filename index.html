@@ -2422,6 +2422,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
         <label>Headline <small style="font-weight:400">optional if poster added</small><input id="nwTitle" placeholder="e.g. Transporters' strike: no movement from Karachi ports today"></label>
         <label>Details <small style="font-weight:400">optional if poster added</small><textarea id="nwBody" placeholder="What happened, who it affects, and what shippers should do"></textarea></label>
         <label style="display:flex;gap:8px;align-items:center;font-weight:600;color:var(--ink)"><input type="checkbox" id="nwTop" style="width:auto"> Show as a red alert at the top of the page for 3 days</label>
+        <label>Auto-delete after<select id="nwExp"><option value="0">Never (I will delete it myself)</option><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="7">7 days</option><option value="15">15 days</option><option value="30">30 days</option></select></label>
         <button class="btn" type="submit">Publish</button>
       </form>
       <div class="panel">
@@ -3634,14 +3635,14 @@ const dshort=d=>d?new Date(d+"T00:00:00").toLocaleDateString("en-PK",{day:"numer
 function renderRates(){
   const tier=rateAcct?"corp":"cust";
   // alert bar
-  const alerts=db.news.filter(n=>n.top&&Date.now()-new Date(n.date)<3*864e5).sort((a,b)=>b.date.localeCompare(a.date));
+  const alerts=db.news.filter(n=>(!n.exp||n.exp>Date.now())&&n.top&&Date.now()-new Date(n.date)<3*864e5).sort((a,b)=>b.date.localeCompare(a.date));
   $("#alertBar").innerHTML=alerts.map(n=>`<div class="alertbar" role="alert"><b>⚠️ ${esc(n.title||"KLC notice")}</b>${n.body?`<span>${esc(n.body)}</span>`:""}${n.img&&/^data:image\//.test(n.img)?`<img src="${n.img}" alt="Poster" data-nwzoom="1">`:""}<span class="when">${fmt(n.date)}</span></div>`).join("");
   // ports
   const P=db.ports||[];
   $("#portUpd").textContent=db.portsUpdated?"Updated: "+fmt(db.portsUpdated):"";
   $("#portList").innerHTML=P.length?P.map(p=>{const st=PORT_ST[p.st]||PORT_ST.normal;return `<div class="port"><div class="card-head" style="align-items:center"><b>${esc(p.name)}</b><span class="pill ${st.c}">${st.i} ${st.t}</span></div>${p.note?`<span class="hint" style="margin:0">${esc(p.note)}</span>`:""}</div>`}).join(""):`<p class="empty">Port status will appear here.</p>`;
   // news
-  const list=db.news.filter(n=>(newsF==="all"||n.tag===newsF)&&(!city||!n.city||n.city===city)).sort((a,b)=>b.date.localeCompare(a.date));
+  const list=db.news.filter(n=>(!n.exp||n.exp>Date.now())&&(newsF==="all"||n.tag===newsF)&&(!city||!n.city||n.city===city)).sort((a,b)=>b.date.localeCompare(a.date));
   $("#newsList").innerHTML=list.length?list.map(n=>newsItem(n)).join(""):`<p class="empty">No news in this category yet.</p>`;
   // vessels
   const cut=new Date(Date.now()-2*864e5).toISOString().slice(0,10);
@@ -3652,7 +3653,7 @@ function renderRates(){
     <div class="vdates"><div><span>Cut-off</span><b>${dshort(v.cut)}</b></div><div><span>ETA</span><b>${dshort(v.eta)}</b></div><div><span>ETD</span><b>${dshort(v.etd)}</b></div></div></article>`).join(""):`<p class="empty">No upcoming vessels listed.</p>`;
 }
 const TAGC={promo:"port",alert:"alert",line:"line",port:"port",vessel:"vessel",local:"local"};
-const newsItem=(n,del)=>`<article${n.tag==="alert"?' class="is-alert"':""}><div class="inline-actions" style="align-items:center"><span class="tag ${TAGC[n.tag]||""}">${esc(TAGN[n.tag]||n.tag)}</span>${n.city?`<span class="tag">${esc(n.city)}</span>`:""}<span class="when">${fmt(n.date)}</span>${del?`<button class="btn ghost sm" data-delnews="${n.id}" style="margin-left:auto">Remove</button>`:""}</div>${n.title?`<h3>${esc(n.title)}</h3>`:""}${n.body?`<p>${esc(n.body)}</p>`:""}${n.img&&/^data:image\//.test(n.img)?`<img class="nwimg" src="${n.img}" alt="${esc(n.title||"KLC poster")}" data-nwzoom="1">`:""}</article>`;
+const newsItem=(n,del)=>`<article${n.tag==="alert"?' class="is-alert"':""}><div class="inline-actions" style="align-items:center"><span class="tag ${TAGC[n.tag]||""}">${esc(TAGN[n.tag]||n.tag)}</span>${n.city?`<span class="tag">${esc(n.city)}</span>`:""}<span class="when">${fmt(n.date)}</span>${del&&n.exp?`<span class="when">Auto-deletes ${fmt(new Date(n.exp).toISOString())}</span>`:""}${del?`<button class="btn ghost sm" data-delnews="${n.id}" style="margin-left:auto">Remove</button>`:""}</div>${n.title?`<h3>${esc(n.title)}</h3>`:""}${n.body?`<p>${esc(n.body)}</p>`:""}${n.img&&/^data:image\//.test(n.img)?`<img class="nwimg" src="${n.img}" alt="${esc(n.title||"KLC poster")}" data-nwzoom="1">`:""}</article>`;
 $$("#newsFilter .chipbtn").forEach(b=>b.addEventListener("click",()=>{newsF=b.dataset.f;pressGroup("#newsFilter",b);renderRates()}));
 /* ---------- KLC panel ---------- */
 const SUBS=["inbox","imp","bilty","news","dir","partners","rates","acct","admin"];
@@ -3840,6 +3841,7 @@ $("#acctForm").addEventListener("submit",e=>{
   save();e.target.reset();acView="list";pAcct();toast(`Account ${code} created. PIN: ${pin}. Send the code and PIN to the customer on WhatsApp.`);
 });
 function pNews(){
+  if(db.news.some(n=>n.exp&&n.exp<=Date.now())){db.news=db.news.filter(n=>!n.exp||n.exp>Date.now());save()}
   const l=db.news.slice().sort((a,b)=>b.date.localeCompare(a.date));
   $("#edNews").innerHTML=l.length?l.map(n=>newsItem(n,true)).join(""):`<p class="empty">No posts yet.</p>`;
   db.ports=db.ports||[];
@@ -3854,7 +3856,7 @@ $("#nwImg").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return
   const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const M=1000,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);let u=c.toDataURL("image/webp",.82);if(!/^data:image\/webp/.test(u))u=c.toDataURL("image/jpeg",.82);nwPrevSet(u)};im.onerror=()=>toast("Could not read this image");im.src=fr.result};fr.readAsDataURL(f)});
 $("#nwImgRm").addEventListener("click",()=>{nwPrevSet("");$("#nwImg").value=""});
 $("#newsForm").addEventListener("submit",e=>{e.preventDefault();const t=$("#nwTitle").value.trim(),b=$("#nwBody").value.trim();if(!t&&!nwImgData){toast("Add a headline or a poster");return}
-  const o={id:Date.now(),tag:$("#nwTag").value,city:$("#nwCity").value,top:$("#nwTop").checked,date:new Date().toISOString(),title:t,body:b};if(nwImgData)o.img=nwImgData;db.news.push(o);save();e.target.reset();nwPrevSet("");pNews();toast("Post published")});
+  const o={id:Date.now(),tag:$("#nwTag").value,city:$("#nwCity").value,top:$("#nwTop").checked,date:new Date().toISOString(),title:t,body:b};if(nwImgData)o.img=nwImgData;const dd=+$("#nwExp").value;if(dd)o.exp=Date.now()+dd*864e5;db.news.push(o);save();e.target.reset();nwPrevSet("");pNews();toast("Post published")});
 document.addEventListener("click",e=>{const z=e.target.closest&&e.target.closest("[data-nwzoom]");if(!z)return;document.body.insertAdjacentHTML("beforeend",`<div class="olbg" id="nwZ" style="display:grid;place-items:center;padding:12px;cursor:zoom-out"><img src="${z.src}" alt="" style="max-width:100%;max-height:92vh;border-radius:10px;background:#fff"></div>`);$("#nwZ").addEventListener("click",()=>$("#nwZ").remove())});
 $("#savePorts").addEventListener("click",()=>{$$("#edPorts [data-pst]").forEach(x=>db.ports[x.dataset.pst].st=x.value);$$("#edPorts [data-pnote]").forEach(x=>db.ports[x.dataset.pnote].note=x.value.trim());db.portsUpdated=new Date().toISOString();save();toast("Port status saved")});
 $("#addPort").addEventListener("submit",e=>{e.preventDefault();const n=$("#apName").value.trim();if(db.ports.some(p=>p.name.toLowerCase()===n.toLowerCase())){toast("This port is already in the list");return}db.ports.push({name:n,st:"normal",note:""});save();e.target.reset();pNews()});
