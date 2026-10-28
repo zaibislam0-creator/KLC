@@ -134,6 +134,9 @@ td input{max-width:120px;text-align:right}
 .tag.port{background:var(--chip);color:var(--ink);border:1px solid var(--line)}
 .tag.sample{background:transparent;border:1px dashed var(--muted)}
 .news{display:grid;gap:0}
+.nwimg{display:block;width:100%;max-width:560px;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;margin-top:4px}
+.nwprev{display:none;gap:8px}.nwprev.on{display:grid}.nwprev img{max-width:260px;border-radius:8px;border:1px solid var(--line)}
+.alertbar img{max-width:320px;width:100%;border-radius:8px;margin-top:4px;cursor:zoom-in}
 .news article{padding:14px 0;border-bottom:1px solid var(--line);display:grid;gap:6px}
 .news article:last-child{border-bottom:0}
 .news .when{font:500 12px var(--mono);color:var(--muted)}
@@ -2411,10 +2414,13 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
         <label>Category<select id="nwTag">
           <option value="alert">Strike / Alert</option>
           <option value="local">News</option>
+          <option value="promo">Publicity poster</option>
         </select></label>
         <label>City<select id="nwCity"></select></label>
-        <label>Headline<input id="nwTitle" required placeholder="e.g. Transporters' strike: no movement from Karachi ports today"></label>
-        <label>Details<textarea id="nwBody" required placeholder="What happened, who it affects, and what shippers should do"></textarea></label>
+        <label>Poster image (PNG / JPG) <small style="font-weight:400">optional</small><input id="nwImg" type="file" accept="image/png,image/jpeg,image/webp"></label>
+        <div class="nwprev" id="nwPrev"><img id="nwPrevImg" alt="Poster preview"><button type="button" class="btn ghost sm" id="nwImgRm" style="justify-self:start">Remove poster</button></div>
+        <label>Headline <small style="font-weight:400">optional if poster added</small><input id="nwTitle" placeholder="e.g. Transporters' strike: no movement from Karachi ports today"></label>
+        <label>Details <small style="font-weight:400">optional if poster added</small><textarea id="nwBody" placeholder="What happened, who it affects, and what shippers should do"></textarea></label>
         <label style="display:flex;gap:8px;align-items:center;font-weight:600;color:var(--ink)"><input type="checkbox" id="nwTop" style="width:auto"> Show as a red alert at the top of the page for 3 days</label>
         <button class="btn" type="submit">Publish</button>
       </form>
@@ -2618,7 +2624,7 @@ const VEHICLES=[
   {id:"c40",name:"40ft Container",cap:"Trailer",k:"c40",f:1},
   {id:"flat",name:"Flatbed 22-wheeler",cap:"Machinery / steel",k:"c40",f:1.1}
 ];
-const TAGN={alert:"Strike / Alert",line:"Shipping line",port:"Port",vessel:"Vessel",local:"Domestic"};
+const TAGN={promo:"Publicity",alert:"Strike / Alert",line:"Shipping line",port:"Port",vessel:"Vessel",local:"Domestic"};
 const BOOK_CITIES=["Sialkot","Gujranwala","Lahore","Karachi"];
 const CITIES=["Sialkot","Gujranwala","Lahore","Karachi"];const LEGACY_CITIES=["Multan","Rawalpindi","Hyderabad","Sahiwal","Faisalabad","Islamabad","Peshawar"];
 const TIER_HINT={
@@ -3629,7 +3635,7 @@ function renderRates(){
   const tier=rateAcct?"corp":"cust";
   // alert bar
   const alerts=db.news.filter(n=>n.top&&Date.now()-new Date(n.date)<3*864e5).sort((a,b)=>b.date.localeCompare(a.date));
-  $("#alertBar").innerHTML=alerts.map(n=>`<div class="alertbar" role="alert"><b>⚠️ ${esc(n.title)}</b><span>${esc(n.body)}</span><span class="when">${fmt(n.date)}</span></div>`).join("");
+  $("#alertBar").innerHTML=alerts.map(n=>`<div class="alertbar" role="alert"><b>⚠️ ${esc(n.title||"KLC notice")}</b>${n.body?`<span>${esc(n.body)}</span>`:""}${n.img&&/^data:image\//.test(n.img)?`<img src="${n.img}" alt="Poster" data-nwzoom="1">`:""}<span class="when">${fmt(n.date)}</span></div>`).join("");
   // ports
   const P=db.ports||[];
   $("#portUpd").textContent=db.portsUpdated?"Updated: "+fmt(db.portsUpdated):"";
@@ -3645,8 +3651,8 @@ function renderRates(){
     ${v.route?`<div style="font-size:13px">${esc(v.route)}</div>`:""}
     <div class="vdates"><div><span>Cut-off</span><b>${dshort(v.cut)}</b></div><div><span>ETA</span><b>${dshort(v.eta)}</b></div><div><span>ETD</span><b>${dshort(v.etd)}</b></div></div></article>`).join(""):`<p class="empty">No upcoming vessels listed.</p>`;
 }
-const TAGC={alert:"alert",line:"line",port:"port",vessel:"vessel",local:"local"};
-const newsItem=(n,del)=>`<article${n.tag==="alert"?' class="is-alert"':""}><div class="inline-actions" style="align-items:center"><span class="tag ${TAGC[n.tag]||""}">${esc(TAGN[n.tag]||n.tag)}</span>${n.city?`<span class="tag">${esc(n.city)}</span>`:""}<span class="when">${fmt(n.date)}</span>${del?`<button class="btn ghost sm" data-delnews="${n.id}" style="margin-left:auto">Remove</button>`:""}</div><h3>${esc(n.title)}</h3><p>${esc(n.body)}</p></article>`;
+const TAGC={promo:"port",alert:"alert",line:"line",port:"port",vessel:"vessel",local:"local"};
+const newsItem=(n,del)=>`<article${n.tag==="alert"?' class="is-alert"':""}><div class="inline-actions" style="align-items:center"><span class="tag ${TAGC[n.tag]||""}">${esc(TAGN[n.tag]||n.tag)}</span>${n.city?`<span class="tag">${esc(n.city)}</span>`:""}<span class="when">${fmt(n.date)}</span>${del?`<button class="btn ghost sm" data-delnews="${n.id}" style="margin-left:auto">Remove</button>`:""}</div>${n.title?`<h3>${esc(n.title)}</h3>`:""}${n.body?`<p>${esc(n.body)}</p>`:""}${n.img&&/^data:image\//.test(n.img)?`<img class="nwimg" src="${n.img}" alt="${esc(n.title||"KLC poster")}" data-nwzoom="1">`:""}</article>`;
 $$("#newsFilter .chipbtn").forEach(b=>b.addEventListener("click",()=>{newsF=b.dataset.f;pressGroup("#newsFilter",b);renderRates()}));
 /* ---------- KLC panel ---------- */
 const SUBS=["inbox","imp","bilty","news","dir","partners","rates","acct","admin"];
@@ -3842,7 +3848,14 @@ function pNews(){
   db.vessels=db.vessels||[];
   $("#edVsl").innerHTML=db.vessels.length?db.vessels.slice().sort((a,b)=>a.eta.localeCompare(b.eta)).map(v=>`<tr><td><b>${esc(v.name)}</b> <span class="mono" style="font-size:12px">${esc(v.voy||"")}</span></td><td>${esc(v.line)}</td><td>${esc(v.term)}</td><td><input type="date" data-vd="${v.id}|cut" value="${esc(v.cut||"")}" aria-label="Cut-off"></td><td><input type="date" data-vd="${v.id}|eta" value="${esc(v.eta||"")}" aria-label="ETA"></td><td><input type="date" data-vd="${v.id}|etd" value="${esc(v.etd||"")}" aria-label="ETD"></td><td><select data-vd="${v.id}|st" aria-label="Status" style="width:auto;padding:6px 8px;font-size:13px">${Object.keys(VSL_C).map(o=>`<option ${o===v.st?"selected":""}>${o}</option>`).join("")}</select></td><td><button class="btn ghost sm" type="button" data-delvsl="${v.id}" aria-label="Remove vessel">✕</button></td></tr>`).join(""):`<tr><td colspan="8" class="empty">No vessels yet.</td></tr>`;
 }
-$("#newsForm").addEventListener("submit",e=>{e.preventDefault();db.news.push({id:Date.now(),tag:$("#nwTag").value,city:$("#nwCity").value,top:$("#nwTop").checked,date:new Date().toISOString(),title:$("#nwTitle").value.trim(),body:$("#nwBody").value.trim()});save();e.target.reset();pNews();toast("Post published")});
+let nwImgData="";
+function nwPrevSet(u){nwImgData=u||"";$("#nwPrevImg").src=u||"";$("#nwPrev").classList.toggle("on",!!u)}
+$("#nwImg").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;if(!/^image\//.test(f.type)){toast("Please choose an image file");e.target.value="";return}
+  const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const M=1000,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);let u=c.toDataURL("image/webp",.82);if(!/^data:image\/webp/.test(u))u=c.toDataURL("image/jpeg",.82);nwPrevSet(u)};im.onerror=()=>toast("Could not read this image");im.src=fr.result};fr.readAsDataURL(f)});
+$("#nwImgRm").addEventListener("click",()=>{nwPrevSet("");$("#nwImg").value=""});
+$("#newsForm").addEventListener("submit",e=>{e.preventDefault();const t=$("#nwTitle").value.trim(),b=$("#nwBody").value.trim();if(!t&&!nwImgData){toast("Add a headline or a poster");return}
+  const o={id:Date.now(),tag:$("#nwTag").value,city:$("#nwCity").value,top:$("#nwTop").checked,date:new Date().toISOString(),title:t,body:b};if(nwImgData)o.img=nwImgData;db.news.push(o);save();e.target.reset();nwPrevSet("");pNews();toast("Post published")});
+document.addEventListener("click",e=>{const z=e.target.closest&&e.target.closest("[data-nwzoom]");if(!z)return;document.body.insertAdjacentHTML("beforeend",`<div class="olbg" id="nwZ" style="display:grid;place-items:center;padding:12px;cursor:zoom-out"><img src="${z.src}" alt="" style="max-width:100%;max-height:92vh;border-radius:10px;background:#fff"></div>`);$("#nwZ").addEventListener("click",()=>$("#nwZ").remove())});
 $("#savePorts").addEventListener("click",()=>{$$("#edPorts [data-pst]").forEach(x=>db.ports[x.dataset.pst].st=x.value);$$("#edPorts [data-pnote]").forEach(x=>db.ports[x.dataset.pnote].note=x.value.trim());db.portsUpdated=new Date().toISOString();save();toast("Port status saved")});
 $("#addPort").addEventListener("submit",e=>{e.preventDefault();const n=$("#apName").value.trim();if(db.ports.some(p=>p.name.toLowerCase()===n.toLowerCase())){toast("This port is already in the list");return}db.ports.push({name:n,st:"normal",note:""});save();e.target.reset();pNews()});
 $("#vslForm").addEventListener("submit",e=>{e.preventDefault();const eta=$("#vsEta").value,etd=$("#vsEtd").value,cut=$("#vsCut").value;
@@ -5291,7 +5304,7 @@ document.addEventListener("click",e=>{
   else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","outstanding","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";wipeDevice();location.reload();return}
   else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
   else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
-  else if(d.delnews){db.news=db.news.filter(n=>n.id!=d.delnews);save();pNews()}
+  else if(d.delnews){const n0=db.news.find(n=>n.id==d.delnews);askConfirm({title:"Are you sure you want to delete this post?",body:`<p class="cfn"><b>${esc((n0&&n0.title)||"Poster")}</b></p><p>It will be removed from the News & Updates page.</p>`,onYes:()=>{db.news=db.news.filter(n=>n.id!=d.delnews);save();pNews();toast("Post deleted")}})}
   else if(d.deldir){db.dir=db.dir.filter(n=>n.id!=d.deldir);save();pDir()}
   else if(d.editdir)sdEdit(d.editdir);
   else if(d.ok){const p=db.pending.find(x=>x.id==d.ok);db.pending=db.pending.filter(x=>x.id!=d.ok);db.dir.push({...p,mobile:p.mobile||normPhone(p.phone||""),addr:p.addr||p.area||"",wa:true});save();renderPanel();toast("Listing approved")}
