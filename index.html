@@ -3765,7 +3765,7 @@ $$("#newsFilter .chipbtn").forEach(b=>b.addEventListener("click",()=>{newsF=b.da
 const SUBS=["inbox","imp","bilty","news","dir","partners","rates","acct","xchk","admin"];
 const PERM_OF={imp:"bilty",inbox:"bilty",xchk:"acct"};const canSub=x=>can(PERM_OF[x]||x);
 let sub="inbox",rTier="cust";
-$$("#subtabs .chipbtn").forEach(b=>b.addEventListener("click",()=>{sub=b.dataset.s;pressGroup("#subtabs",b);renderPanel();if(window.innerWidth<=860)$(".kp-sec").scrollIntoView({behavior:"smooth",block:"start"})}));
+$$("#subtabs .chipbtn").forEach(b=>b.addEventListener("click",()=>{sub=b.dataset.s;if(sub==="acct"){ledgerCode="";acEditCode="";acDelAsk="";acView="list";acSec="ledger";acOsAsk=""}pressGroup("#subtabs",b);renderPanel();if(window.innerWidth<=860)$(".kp-sec").scrollIntoView({behavior:"smooth",block:"start"})}));
 function renderPanel(){
   staffOK=!!me();
   $("#staffTab").hidden=!staffOK&&curView!=="panel";
