@@ -5041,7 +5041,7 @@ $("#impPreview").addEventListener("click",e=>{
 let delData=null;
 function parseDelivery(lines){
   const all=lines.map(l=>l.text).join("\n");
-  const per=all.match(/Period From:\s*(\d{2}-\d{2}-\d{4})\s*To:\s*(\d{2}-\d{2}-\d{4})/i);
+  const per=all.match(/Period From:\s*(\d{1,2}-\d{1,2}-\d{4})\s*To:\s*(\d{1,2}-\d{1,2}-\d{4})/i);
   const hdr=lines.find(l=>/Receiver/i.test(l.text)&&/Invoice/i.test(l.text));
   const hx=hdr?hdr.items.filter(i=>/^Receiver$/i.test(i.t)).map(i=>i.x).sort((a,b)=>a-b):[];
   const wh=hdr?lines.filter(l=>l.page===hdr.page&&Math.abs(l.y-hdr.y)<=14).flatMap(l=>l.items).find(i=>/^Weight$/i.test(i.t)):null;
@@ -5053,16 +5053,16 @@ function parseDelivery(lines){
     const mains=[];
     L.forEach(l=>{
       const c=l.text.match(/Delivery City\s*:\s*\d*\s*(.+)$/i);if(c){city=titleCase(c[1]);return}
-      if(/^\d{3,}\s+\d{2}-\d{2}-\d{4}\b/.test(l.text)){
-        const it=l.items,d=l.text.match(/^(\d+)\s+(\d{2})-(\d{2})-(\d{4})/);
+      if(/^\d{3,}\s+\d{1,2}-\d{1,2}-\d{4}\b/.test(l.text)){
+        const it=l.items,d=l.text.match(/^(\d+)\s+(\d{1,2})-(\d{1,2})-(\d{4})/);
         const bn=it.find(i=>i.x>=155&&i.x<190&&/^\d{4,}$/.test(i.t));
         if(!bn)return;
         const wt=it.filter(i=>i.x>=wtLo&&/^[\d,.]+$/.test(i.t)).pop();
-        mains.push({y:l.y,billNo:d[1],date:`${d[4]}-${d[3]}-${d[2]}`,city:city,book:titleCase(it.filter(i=>i.x>=100&&i.x<155&&!/^[\d,]+$/.test(i.t)).map(i=>i.t).join(" ")),no:bn.t,kg:wt?+wt.t.replace(/,/g,""):0,cells:{n:[],p:[],i:[]}});
+        mains.push({y:l.y,billNo:d[1],date:`${d[4]}-${d[3].padStart(2,"0")}-${d[2].padStart(2,"0")}`,city:city,book:titleCase(it.filter(i=>i.x>=100&&i.x<155&&!/^[\d,]+$/.test(i.t)).map(i=>i.t).join(" ")),no:bn.t,kg:wt?+wt.t.replace(/,/g,""):0,cells:{n:[],p:[],i:[]}});
       }
     });
     L.forEach(l=>{
-      if(/^\d{3,}\s+\d{2}-\d{2}-\d{4}\b/.test(l.text)&&mains.some(m=>m.y===l.y)){}
+      if(/^\d{3,}\s+\d{1,2}-\d{1,2}-\d{4}\b/.test(l.text)&&mains.some(m=>m.y===l.y)){}
       l.items.filter(i=>i.x>=nameLo&&i.x<wtLo+0.1).forEach(i=>{
         if(l.text.match(/^(Bill|No\.|Delivery City|Date)/)||/Receiver|Credit/i.test(i.t)&&i.x>=nameLo&&!mains.length)return;
         if(!mains.length)return;
