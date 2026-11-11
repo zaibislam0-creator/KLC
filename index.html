@@ -2242,12 +2242,18 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       <button class="chipbtn" aria-pressed="false" data-s="inbox"><span class="ti">📩</span><b>Inbox &amp; chat</b><small>Booking requests and messages from customers, and team chat</small><i class="kp-badge"></i></button>
     </div>
     <div class="kp-group"><div class="kp-gl">Data Entry</div>
-      <button class="chipbtn" aria-pressed="false" data-s="imp"><span class="ti">⬆️</span><b>Upload challan</b><small>Add bilties from a SmartCargo PDF</small><i class="kp-badge"></i></button>
+      <button class="chipbtn" aria-pressed="false" data-s="imp"><span class="ti">⬆️</span><b>SmartCargo Import</b><small>Challan, delivery, bilty and outstanding PDFs</small><i class="kp-badge"></i></button>
       <button class="chipbtn" aria-pressed="true" data-s="bilty"><span class="ti">📦</span><b>Bilties</b><small>Upload bilties and update their status</small><i class="kp-badge"></i></button>
     </div>
     <div class="kp-group"><div class="kp-gl">Finance</div>
       <button class="chipbtn" aria-pressed="false" data-s="acct"><span class="ti">📒</span><b>Company accounts</b><small>Business clients, ledgers and payments</small><i class="kp-badge"></i></button>
       <button class="chipbtn" aria-pressed="false" data-s="xchk"><span class="ti">🔍</span><b>Cross-check ledger</b><small>Compare the SmartCargo outstanding report with customer accounts here</small><i class="kp-badge"></i></button>
+    </div>
+    <div class="kp-group"><div class="kp-gl">Kashaf Fleet Management</div>
+      <button class="chipbtn" aria-pressed="false" data-s="fleetdash"><span class="ti">🚚</span><b>Fleet Dashboard</b><small>Vehicles, drivers and document alerts</small><i class="kp-badge"></i></button>
+      <button class="chipbtn" aria-pressed="false" data-s="fleetveh"><span class="ti">🚛</span><b>Vehicle Management</b><small>Company-owned and rented vehicles</small><i class="kp-badge"></i></button>
+      <button class="chipbtn" aria-pressed="false" data-s="fleetdrv"><span class="ti">🧑</span><b>Drivers Management</b><small>Drivers, licences and vehicle assignments</small><i class="kp-badge"></i></button>
+      <button class="chipbtn" aria-pressed="false" data-s="fleetdoc"><span class="ti">📄</span><b>Legal Documents</b><small>Vehicle and driver documents with expiry tracking</small><i class="kp-badge"></i></button>
     </div>
     <div class="kp-group"><div class="kp-gl">Systems</div>
       <button class="chipbtn" aria-pressed="false" data-s="rates"><span class="ti">💲</span><b>Rates &amp; charges</b><small>Bilty rates, sea freight, pickup and delivery charges</small><i class="kp-badge"></i></button>
@@ -2290,6 +2296,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       <p class="hint" id="impMsg" style="margin:0"></p>
     </div>
     <div id="impPreview"></div>
+    <div class="panel" id="impHistBox"></div>
     <details class="panel stbox" id="stBox">
       <summary><span>📍 Delivery stations</span><small id="stCount"></small></summary>
       <p class="hint" style="margin-top:10px;margin-bottom:0">Save each station once with its contact. At Arrived, press the station button and everything fills in. Customers see place, name and number.</p>
@@ -2458,6 +2465,80 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       </table></div>
     </div>
   </div>
+
+<style id="fleet-css">
+#panelBody .kp-menu .chipbtn[data-s="fleetdash"] .ti{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='3.5' width='7' height='7' rx='1.5'/%3E%3Crect x='13.5' y='3.5' width='7' height='7' rx='1.5'/%3E%3Crect x='3.5' y='13.5' width='7' height='7' rx='1.5'/%3E%3Crect x='13.5' y='13.5' width='7' height='7' rx='1.5'/%3E%3C/svg%3E")}
+#panelBody .kp-menu .chipbtn[data-s="fleetveh"] .ti{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h11v10H3zM14 9h4l3 3v4h-7'/%3E%3Ccircle cx='7' cy='18.5' r='1.5'/%3E%3Ccircle cx='17' cy='18.5' r='1.5'/%3E%3C/svg%3E")}
+#panelBody .kp-menu .chipbtn[data-s="fleetdrv"] .ti{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0116 0'/%3E%3C/svg%3E")}
+#panelBody .kp-menu .chipbtn[data-s="fleetdoc"] .ti{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6'/%3E%3C/svg%3E")}
+.fl-ph{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.fl-ph h2{font-size:21px;margin:0}
+.fl-k{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+.fl-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.fl-card b{display:block;font:800 26px var(--display);font-variant-numeric:tabular-nums}
+.fl-card span{color:var(--muted);font-size:13px}
+.fl-card.e b{color:#c0392b}.fl-card.w b{color:#b7791f}
+.fl-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:860px){.fl-two{grid-template-columns:1fr}}
+.fl-two h3,.fl-form h3{margin:0 0 6px}
+.fl-hb{display:grid;grid-template-columns:130px minmax(0,1fr) 28px;gap:10px;align-items:center;margin:9px 0;font-size:13px}
+.fl-hb b{text-align:right;font-variant-numeric:tabular-nums}
+.fl-tr{height:12px;background:#eee6dc;border-radius:99px;overflow:hidden}
+.fl-tr i{display:block;height:100%;background:#c9242b;border-radius:99px}
+.fl-al{display:grid;gap:8px}
+.fl-al>div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.fl-al small{display:block;color:var(--muted)}
+.fl-bg{font:600 11.5px var(--body);border-radius:99px;padding:3px 10px;white-space:nowrap;display:inline-block}
+.fl-bg.ok{background:#e6f4ec;color:#1f8a4c}.fl-bg.w{background:#fdf3dc;color:#8a5a0c}.fl-bg.e{background:#fbe9e7;color:#c0392b}.fl-bg.n{background:#eee6dc;color:#6b625b}.fl-bg.i{background:#e1eefb;color:#235a94}
+.fl-tb{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.fl-tb input[type=text],.fl-tb input:not([type]){flex:1;min-width:180px}
+.fl-tb select{width:auto;min-width:150px}
+.fl-act{display:flex;gap:6px;align-items:center;flex-wrap:wrap;white-space:nowrap}
+.fl-act .hint{margin:0}
+.fl-chips{display:flex;gap:8px;flex-wrap:wrap}
+.fl-chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;font:600 13px var(--body);cursor:pointer;color:var(--ink)}
+.fl-chip[aria-pressed="true"]{background:#c9242b;border-color:#c9242b;color:#fff}
+.fl-chip b{margin-left:4px}
+.fl-form{display:grid;gap:14px}
+.fl-fm{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.fl-fm h3{grid-column:1/-1;font:700 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:#7d1a1f;border-bottom:1px solid var(--line);padding-bottom:5px;margin:6px 0 0}
+.fl-own{display:contents}
+.fl-btns{display:flex;gap:8px;flex-wrap:wrap}
+.fl-assign{display:grid;gap:10px}
+.fl-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.fl-row label{min-width:160px;flex:1}
+.fl-empty{text-align:center;padding:30px}
+.fl-old{opacity:.6}
+.fl-ck{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.fl-ck input{width:auto}
+</style>
+  <style id="klc-look">
+@media (min-width:861px){
+#panelBody .kp-menu{background:linear-gradient(180deg,#7D1A1F 0%,#5c1217 60%,#4e0f13 100%);border:0;border-radius:16px;padding:16px 10px 18px;box-shadow:0 10px 28px rgba(78,15,19,.28)}
+#panelBody .kp-group{border-top:1px solid rgba(255,255,255,.14)}
+#panelBody .kp-group:first-child{border-top:0}
+#panelBody .kp-gl{color:#e8b9bc}
+#panelBody .kp-menu .chipbtn{color:#fbeaea}
+#panelBody .kp-menu .chipbtn:hover{background:rgba(255,255,255,.1);color:#fff}
+#panelBody .kp-menu .chipbtn[aria-pressed="true"]{background:#C9242B;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.28)}
+#panelBody .kp-menu .chipbtn .ti{opacity:.9}
+#panelBody .kp-menu .kp-badge,#panelBody .kp-menu .chipbtn[aria-pressed="true"] .kp-badge{background:#fff;color:#7d1a1f}
+}
+#panelBody .uptabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:760px){#panelBody .uptabs{grid-template-columns:1fr 1fr}}
+#panelBody .uptab{display:grid;justify-items:start;gap:6px;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;font:700 14.5px var(--body);color:var(--ink);cursor:pointer}
+#panelBody .uptab span{font-size:22px;line-height:1}
+#panelBody .uptab[aria-pressed="true"]{background:#fff;color:var(--ink);border:2px solid #c9242b;padding:13px;box-shadow:0 6px 18px rgba(201,36,43,.12)}
+#panelBody .uptab:focus-visible{outline:2px solid #c9242b;outline-offset:2px}
+.ih-tb{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.ih-tb input{flex:1;min-width:180px}.ih-tb select{width:auto;min-width:150px}
+.ih-ty{font:600 11.5px var(--body);border-radius:99px;padding:3px 10px;white-space:nowrap}
+.ih-ty.challan{background:#fbe3e1;color:#a8231b}.ih-ty.delivery{background:#e1eefb;color:#235a94}.ih-ty.bilty{background:#ece4f8;color:#5b3f9c}.ih-ty.outstanding{background:#fdf0cf;color:#8a6212}.ih-ty.ledger{background:#e6f4ec;color:#1f8a4c}
+</style>
+<div id="p-fleetdash" hidden style="display:grid;gap:18px"></div>
+  <div id="p-fleetveh" hidden style="display:grid;gap:18px"></div>
+  <div id="p-fleetdrv" hidden style="display:grid;gap:18px"></div>
+  <div id="p-fleetdoc" hidden style="display:grid;gap:18px"></div>
 
   <div id="p-admin" hidden style="display:grid;gap:18px">
     <div class="filters adtabs" role="group" aria-label="Admin sections">
@@ -2741,12 +2822,13 @@ const PERMS=[
   {k:"acct",label:"Company accounts and ledgers"},
   {k:"pay",label:"Receive payments and change cheque status"},
   {k:"news",label:"News Update: port status, news posts and vessel schedule"},
+  {k:"fleet",label:"Fleet: vehicles, drivers and legal documents"},
   {k:"admin",label:"Admin: create staff accounts and roles"}
 ];
 let staffUser="";try{staffUser=sessionStorage.getItem("klc-staff-user")||""}catch(e){}
 const me=()=>staffUser?db.staff?.find(u=>u.user===staffUser&&u.active):null;
 const roleOf=u=>db.roles?.find(r=>r.id===u?.role);
-const can=k=>!!roleOf(me())?.perms.includes(k);
+const can=k=>{const r=roleOf(me());return !!r&&(r.perms.includes(k)||(k==="fleet"&&r.id==="admin"))};
 let staffOK=!!me();
 let staffName=me()?.name||"";
 const total=b=>(+b.freight||0)+(+b.labour||0);
@@ -3435,7 +3517,7 @@ $("#impPreview").addEventListener("click",e=>{
     db.outstanding=db.outstanding.filter(x=>x.acct!==ac);
     db.outstanding.push({id:"OS-"+Date.now().toString(36)+i,acct:ac,code:b.code,name:b.name,from:D.from,to:D.to,upAt:now,by:staffName,rows:b.rows,total:b.total,billed:b.billed,disc:b.disc,rcv:b.rcv});n++});
   if(!n){toast("Choose an account first");return}
-  save();osData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  implogAdd("outstanding",D.blocks.length,n,0,D.blocks.length-n);save();osData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
   $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${n} outstanding statement${n>1?"s":""} saved. Customers now see it highlighted in My Account.`;renderPanel();toast("Outstanding saved")});
 document.addEventListener("click",e=>{
   const c=e.target.closest("[data-oscl]"),d=e.target.closest("[data-osdel]");
@@ -3762,8 +3844,8 @@ const TAGC={promo:"port",alert:"alert",line:"line",port:"port",vessel:"vessel",l
 const newsItem=(n,del)=>`<article${n.tag==="alert"?' class="is-alert"':""}><div class="inline-actions" style="align-items:center"><span class="tag ${TAGC[n.tag]||""}">${esc(TAGN[n.tag]||n.tag)}</span>${n.city?`<span class="tag">${esc(n.city)}</span>`:""}<span class="when">${fmt(n.date)}</span>${del&&n.exp?`<span class="when">Auto-deletes ${fmt(new Date(n.exp).toISOString())}</span>`:""}${del?`<button class="btn ghost sm" data-delnews="${n.id}" style="margin-left:auto">Remove</button>`:""}</div>${n.title?`<h3>${esc(n.title)}</h3>`:""}${n.body?`<p>${esc(n.body)}</p>`:""}${n.img&&/^data:image\//.test(n.img)?`<img class="nwimg" src="${n.img}" alt="${esc(n.title||"KLC poster")}" data-nwzoom="1">`:""}</article>`;
 $$("#newsFilter .chipbtn").forEach(b=>b.addEventListener("click",()=>{newsF=b.dataset.f;pressGroup("#newsFilter",b);renderRates()}));
 /* ---------- KLC panel ---------- */
-const SUBS=["inbox","imp","bilty","news","dir","partners","rates","acct","xchk","admin"];
-const PERM_OF={imp:"bilty",inbox:"bilty",xchk:"acct"};const canSub=x=>can(PERM_OF[x]||x);
+const SUBS=["inbox","imp","bilty","news","dir","partners","rates","acct","xchk","fleetdash","fleetveh","fleetdrv","fleetdoc","admin"];
+const PERM_OF={imp:"bilty",inbox:"bilty",xchk:"acct",fleetdash:"fleet",fleetveh:"fleet",fleetdrv:"fleet",fleetdoc:"fleet"};const canSub=x=>can(PERM_OF[x]||x);
 let sub="inbox",rTier="cust";
 $$("#subtabs .chipbtn").forEach(b=>b.addEventListener("click",()=>{sub=b.dataset.s;if(sub==="acct"){ledgerCode="";acEditCode="";acDelAsk="";acView="list";acSec="ledger";acOsAsk=""}pressGroup("#subtabs",b);renderPanel();if(window.innerWidth<=860)$(".kp-sec").scrollIntoView({behavior:"smooth",block:"start"})}));
 function renderPanel(){
@@ -3784,6 +3866,7 @@ function renderPanel(){
   const kpB={inbox:kUnread(),dir:(db.pending||[]).length,partners:(db.ppend||[]).length+(db.preqs||[]).filter(r=>r.status==="New").length};
   $$("#subtabs .chipbtn").forEach(b=>{const n=kpB[b.dataset.s]||0,i=b.querySelector(".kp-badge");if(i){i.textContent=n||"";i.hidden=!n;i.title=n?n+" waiting":""}});
   $("#v-panel").classList.toggle("nocost",!can("cost"));
+  {const sx=$("#stats");if(sx)sx.hidden=sub.startsWith("fleet")}
   const allowed=SUBS.filter(canSub);
   if(!allowed.includes(sub))sub=allowed[0]||"";
   $$("#subtabs .chipbtn").forEach(b=>{b.hidden=!canSub(b.dataset.s);b.setAttribute("aria-pressed",b.dataset.s===sub)});
@@ -3795,8 +3878,229 @@ function renderPanel(){
   }catch(err){console.error("panel stats",err);const sx=$("#stats");if(sx)sx.innerHTML=""}
   if(!sub){toast("Your role has no sections switched on. Ask the admin.");return}
   if(rTier==="cost"&&!can("cost"))rTier="cust";
-  try{({imp:pImp,bilty:pBilty,rates:pRates,acct:pAcct,xchk:pXchk,news:pNews,dir:pDir,partners:pPartners,inbox:pInbox,admin:pAdmin})[sub]()}catch(err){console.error("section "+sub,err);toast("This section could not load fully. Please refresh and try again.")}
+  try{({imp:pImp,bilty:pBilty,rates:pRates,acct:pAcct,xchk:pXchk,news:pNews,dir:pDir,partners:pPartners,inbox:pInbox,fleetdash:pFleetDash,fleetveh:pFleetVeh,fleetdrv:pFleetDrv,fleetdoc:pFleetDoc,admin:pAdmin})[sub]()}catch(err){console.error("section "+sub,err);toast("This section could not load fully. Please refresh and try again.")}
 }
+/* ---------- Kashaf Fleet Management, phase 1 (vehicles, drivers, legal documents) ---------- */
+const FL={veh:[],drv:[],vd:[],docs:[],loaded:false,loading:false,tried:false,err:"",mode:{veh:"list",drv:"list",doc:"list"},edit:null,q:{veh:"",drv:"",doc:""},st:"all",sd:"all",bk:"all",ask:"",old:false,busy:false};
+const FL_VST={available:"Available",on_trip:"On trip",maintenance:"Under maintenance",out_of_service:"Out of service",inactive:"Inactive"};
+const FL_VCAT=["Truck","Trailer","Pickup","Container carrier","Other"];
+const FL_VDOC=["Vehicle registration certificate","Registration book / card","Route permit","Fitness certificate","Token tax","Third-party insurance","Comprehensive insurance","Ownership documents","Purchase invoice","Inter-provincial permit","Goods transport permission","Axle load / weight record","Vehicle photograph","Other"];
+const FL_DDOC=["CNIC","Driving licence","Medical fitness","Employment document","Other"];
+const flToday=()=>new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Karachi"});
+const flDays=d=>d?Math.round((new Date(d+"T00:00:00Z")-new Date(flToday()+"T00:00:00Z"))/864e5):null;
+function flBucket(d){const n=flDays(d);if(n===null)return{k:"none",t:"No expiry",c:"n",n};if(n<0)return{k:"expired",t:"Expired",c:"e",n};if(n<=7)return{k:"7",t:"7 days",c:"e",n};if(n<=15)return{k:"15",t:"15 days",c:"w",n};if(n<=30)return{k:"30",t:"30 days",c:"w",n};if(n<=60)return{k:"60",t:"60 days",c:"i",n};return{k:"valid",t:"Valid",c:"ok",n}}
+const flFmtD=d=>d?fmtDay(d):"-";
+const flMask=c=>{c=String(c||"");return can("admin")||c.length<13?c:c.slice(0,5)+"-*******-"+c.slice(-1)};
+const flVeh=id=>FL.veh.find(v=>v.id===id),flDrv=id=>FL.drv.find(d=>d.id===id);
+const flVLabel=id=>{const v=flVeh(id);return v?v.reg_no:id};
+const flDLabel=id=>{const d=flDrv(id);return d?d.full_name:id};
+const flNext=(arr,p)=>p+String(Math.max(0,...arr.map(x=>parseInt(String(x.id).split("-")[1],10)||0))+1).padStart(3,"0");
+const flNum=v=>{v=String(v??"").trim();if(v==="")return null;const n=+v;return isNaN(n)?null:n};
+const flStr=v=>{v=String(v??"").trim();return v===""?null:v};
+async function flReq(path,o={}){const tok=await sbToken();if(!tok)throw new Error("Your session ended. Please sign in again.");
+  const r=await fetch(SB_URL+"/rest/v1/"+path,{method:o.method||"GET",headers:{...sbH(tok),...(o.prefer?{Prefer:o.prefer}:{})},body:o.body!==undefined?JSON.stringify(o.body):undefined});
+  if(!r.ok){let m="";try{m=(await r.json()).message||""}catch(e){}if(/duplicate key/i.test(m))m="This registration number or ID already exists.";throw new Error(m||("Could not save (error "+r.status+")"))}
+  if(r.status===204)return null;try{return await r.json()}catch(e){return null}}
+function flLog(action,entity,id,detail){flReq("fleet_audit_logs",{method:"POST",body:{by_user:me()?.user||null,action,entity,entity_id:id||null,detail:detail||null}}).catch(()=>{})}
+async function flLoad(force){
+  if(FL.loading||(FL.tried&&!force))return;FL.loading=true;FL.tried=true;FL.err="";
+  try{const [v,d,a,x]=await Promise.all([flReq("fleet_vehicles?select=*&order=created_at.asc"),flReq("fleet_drivers?select=*&order=created_at.asc"),flReq("fleet_vehicle_drivers?select=*&order=created_at.asc"),flReq("fleet_documents?select=*&order=created_at.asc")]);
+    FL.veh=v||[];FL.drv=d||[];FL.vd=a||[];FL.docs=x||[];FL.loaded=true}
+  catch(e){FL.err=e.message||"Could not load Fleet data."}
+  FL.loading=false;if(sub.startsWith("fleet"))renderPanel()}
+function flGate(el){
+  if(FL.loaded)return true;
+  if(!FL.tried)flLoad();
+  el.innerHTML=FL.err?`<div class="panel fl-empty"><b>Fleet data could not load</b><p class="hint">${esc(FL.err)}</p><button type="button" class="btn sm" data-fl="reload">Try again</button></div>`:`<div class="panel fl-empty"><b>Loading fleet data…</b></div>`;
+  return false}
+function flItems(){/* every dated item that can expire: current documents plus driver licence and CNIC dates */
+  const out=[];const cur=FL.docs.filter(d=>d.status==="current");
+  cur.forEach(d=>{const own=d.owner_type==="vehicle"?flVeh(d.vehicle_id):flDrv(d.driver_id);if(!own||own.archived)return;out.push({type:d.doc_type,who:d.owner_type==="vehicle"?flVLabel(d.vehicle_id):flDLabel(d.driver_id),exp:d.expiry_date,src:"doc"})});
+  FL.drv.filter(d=>!d.archived).forEach(d=>{[["Driving licence",d.licence_expiry],["CNIC",d.cnic_expiry]].forEach(([t,e])=>{if(!e)return;if(cur.some(x=>x.driver_id===d.id&&x.doc_type===t&&x.expiry_date))return;out.push({type:t,who:d.full_name,exp:e,src:"driver"})})});
+  FL.veh.filter(v=>v.ownership==="rented"&&v.agreement_end&&!v.archived).forEach(v=>out.push({type:"Rental agreement",who:v.reg_no,exp:v.agreement_end,src:"vehicle"}));
+  return out.filter(i=>i.exp)}
+const flBadge=(c,t)=>`<span class="fl-bg ${c}">${esc(t)}</span>`;
+function flVStatusBadge(s){return flBadge({available:"ok",on_trip:"i",maintenance:"w",out_of_service:"e",inactive:"n"}[s]||"n",FL_VST[s]||s)}
+function flHead(t,d,btn){if(!t)return btn?`<div class="fl-ph" style="justify-content:flex-end">${btn}</div>`:"";return `<div class="fl-ph"><div><h2>${t}</h2><p class="hint" style="margin:2px 0 0">${d}</p></div>${btn||""}</div>`}
+function flSel(name,opts,val,blank){return `<select name="${name}">${blank?`<option value="">${blank}</option>`:""}${opts.map(o=>{const [v,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}"${String(val??"")===String(v)?" selected":""}>${esc(l)}</option>`}).join("")}</select>`}
+function flIn(name,label,val,type,extra){return `<label>${label}<input name="${name}" type="${type||"text"}" value="${esc(val??"")}" ${extra||""}></label>`}
+
+/* ----- dashboard ----- */
+function pFleetDash(){
+  const el=$("#p-fleetdash");if(!flGate(el))return;
+  const V=FL.veh.filter(v=>!v.archived),D=FL.drv.filter(d=>!d.archived);
+  const cnt=s=>V.filter(v=>v.status===s).length;
+  const items=flItems().map(i=>({...i,b:flBucket(i.exp)})).filter(i=>i.b.k!=="valid").sort((a,b)=>a.b.n-b.b.n);
+  const tiles=[[V.length,"Total vehicles"],[V.filter(v=>v.status!=="inactive"&&v.status!=="out_of_service").length,"Active vehicles"],[cnt("available"),"Available"],[cnt("maintenance"),"Under maintenance"],[D.filter(d=>d.employment_status==="active").length,"Active drivers"],[items.length,"Document alerts"]];
+  const bars=Object.entries(FL_VST).map(([k,l])=>{const n=cnt(k);return `<div class="fl-hb"><span>${l}</span><div class="fl-tr"><i style="width:${V.length?Math.round(n/V.length*100):0}%"></i></div><b>${n}</b></div>`}).join("");
+  el.innerHTML=flHead("","")+
+  `<div class="fl-k">${tiles.map(([n,l],i)=>`<div class="fl-card${i===5&&n?" e":""}${i===3&&n?" w":""}"><b>${n}</b><span>${l}</span></div>`).join("")}</div>
+  <div class="fl-two"><div class="panel"><h3>Vehicle status</h3>${V.length?bars:'<p class="hint">No vehicles yet. Add your first vehicle in Vehicle Management.</p>'}</div>
+  <div class="panel"><h3>Upcoming alerts</h3>${items.length?`<div class="fl-al">${items.slice(0,8).map(i=>`<div><span><b>${esc(i.type)}</b><small>${esc(i.who)} · ${i.b.n<0?Math.abs(i.b.n)+" days ago":"in "+i.b.n+" days"} (${flFmtD(i.exp)})</small></span>${flBadge(i.b.c,i.b.t)}</div>`).join("")}</div>`:'<p class="hint">No document is expired or due within 60 days.</p>'}</div></div>`}
+
+/* ----- vehicles ----- */
+function pFleetVeh(){
+  const el=$("#p-fleetveh");if(!flGate(el))return;
+  if(FL.mode.veh==="form"){el.innerHTML=flVehForm();flRentToggle();return}
+  const q=FL.q.veh.toLowerCase();
+  const rows=FL.veh.filter(v=>(FL.st==="all"?!v.archived:FL.st==="archived"?v.archived:!v.archived&&v.status===FL.st)&&(!q||[v.id,v.reg_no,v.name,v.make,v.model].join(" ").toLowerCase().includes(q)));
+  el.innerHTML=flHead("","",`<button type="button" class="btn sm" data-fl="veh-new">+ Add vehicle</button>`)+
+  `<div class="panel"><div class="fl-tb"><input id="flQ" data-flq="veh" placeholder="Search registration, name or ID" value="${esc(FL.q.veh)}" aria-label="Search vehicles">${flSelF("flSt",[["all","All active"],...Object.entries(FL_VST),["archived","Archived"]],FL.st)}</div>
+  <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Registration</th><th>Vehicle</th><th>Ownership</th><th class="num">Odometer</th><th>Drivers</th><th>Documents</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(v=>{
+    const dr=FL.vd.filter(a=>a.vehicle_id===v.id&&!a.to_date).map(a=>flDLabel(a.driver_id));
+    const ds=FL.docs.filter(d=>d.vehicle_id===v.id&&d.status==="current"&&d.expiry_date).map(d=>flBucket(d.expiry_date));
+    const worst=ds.length?ds.sort((a,b)=>a.n-b.n)[0]:null;
+    return `<tr><td>${esc(v.id)}</td><td><b>${esc(v.reg_no)}</b></td><td>${esc([v.name,v.category].filter(Boolean).join(" · "))}</td><td>${v.ownership==="rented"?"Rented":"Company"}</td><td class="num">${v.odometer!=null?Number(v.odometer).toLocaleString("en-PK")+" km":"-"}</td><td>${dr.length?esc(dr.join(", ")):"-"}</td><td>${worst?flBadge(worst.c,worst.t):"-"}</td><td>${flVStatusBadge(v.status)}</td>
+    <td class="fl-act">${FL.ask==="v:"+v.id?`<span class="hint">${v.archived?"Restore":"Archive"} ${esc(v.reg_no)}?</span><button type="button" class="btn sm" data-fl="veh-arch-yes" data-id="${esc(v.id)}">Yes</button><button type="button" class="btn ghost sm" data-fl="ask-no">No</button>`:`<button type="button" class="btn ghost sm" data-fl="veh-edit" data-id="${esc(v.id)}">Edit</button><button type="button" class="btn ghost sm" data-fl="veh-arch" data-id="${esc(v.id)}">${v.archived?"Restore":"Archive"}</button>`}</td></tr>`}).join("")||`<tr><td colspan="9" class="hint">${FL.veh.length?"No vehicle matches.":"No vehicles yet. Press Add vehicle."}</td></tr>`}</tbody></table></div></div>`}
+function flSelF(id,opts,val){return `<select id="${id}" aria-label="Filter">${opts.map(([v,l])=>`<option value="${esc(v)}"${val===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`}
+function flVehForm(){
+  const v=FL.edit||{ownership:"company",status:"available",fuel_type:"Diesel",odometer:0};const nw=!FL.edit;
+  return flHead(nw?"Add vehicle":"Edit vehicle "+esc(v.reg_no),"Fields marked * are required")+
+  `<form class="panel fl-form" data-flform="veh" autocomplete="off"><div class="fl-fm">
+  <h3>Basic information</h3>${flIn("reg_no","Registration number *",v.reg_no,"text","required")}${flIn("name","Vehicle name",v.name)}<label>Category${flSel("category",FL_VCAT,v.category,"Choose")}</label>
+  ${flIn("make","Make",v.make)}${flIn("model","Model",v.model)}${flIn("year","Manufacturing year",v.year,"number",'min="1980" max="2100"')}${flIn("colour","Colour",v.colour)}
+  ${flIn("chassis_no","Chassis number",v.chassis_no)}${flIn("engine_no","Engine number",v.engine_no)}${flIn("engine_cc","Engine capacity",v.engine_cc)}
+  <label>Fuel type${flSel("fuel_type",["Diesel","Petrol","CNG","Other"],v.fuel_type)}</label>${flIn("axle","Axle configuration",v.axle)}${flIn("load_tons","Load capacity (tons)",v.load_tons,"number",'step="any" min="0"')}
+  ${flIn("odometer","Current odometer (km)",v.odometer,"number",'step="any" min="0"')}${flIn("reg_date","Registration date",v.reg_date,"date")}<label>Status${flSel("status",Object.entries(FL_VST),v.status)}</label>
+  <h3>Ownership</h3><label>Ownership type${flSel("ownership",[["company","Company-owned"],["rented","Rented / leased"]],v.ownership)}</label>
+  <div class="fl-own" data-own="company">${flIn("purchase_date","Purchase date",v.purchase_date,"date")}${flIn("purchase_price","Purchase price (Rs)",v.purchase_price,"number",'step="any" min="0"')}${flIn("seller","Seller",v.seller)}${flIn("est_value","Current estimated value (Rs)",v.est_value,"number",'step="any" min="0"')}</div>
+  <div class="fl-own" data-own="rented">${flIn("owner_name","Owner name",v.owner_name)}${flIn("owner_cnic","Owner CNIC",v.owner_cnic)}${flIn("owner_phone","Owner contact number",v.owner_phone)}<label>Rent basis${flSel("rent_basis",["Monthly","Per trip"],v.rent_basis,"Choose")}</label>${flIn("rent_amount","Rent amount (Rs)",v.rent_amount,"number",'step="any" min="0"')}${flIn("agreement_start","Agreement start",v.agreement_start,"date")}${flIn("agreement_end","Agreement end",v.agreement_end,"date")}${flIn("deposit","Security deposit (Rs)",v.deposit,"number",'step="any" min="0"')}</div>
+  </div><p class="hint">Registration card, ownership papers, invoice and photos are added in Legal Documents.</p>
+  <div class="fl-btns"><button type="submit" class="btn"${FL.busy?" disabled":""}>${FL.busy?"Saving…":"Save vehicle"}</button><button type="button" class="btn ghost" data-fl="cancel">Cancel</button></div></form>`}
+function flRentToggle(){const f=document.querySelector('[data-flform="veh"]');if(!f)return;const upd=()=>{f.querySelectorAll(".fl-own").forEach(d=>d.hidden=d.dataset.own!==f.elements.ownership.value)};f.elements.ownership.addEventListener("change",upd);upd()}
+
+/* ----- drivers ----- */
+function pFleetDrv(){
+  const el=$("#p-fleetdrv");if(!flGate(el))return;
+  if(FL.mode.drv==="form"){el.innerHTML=flDrvForm();return}
+  const q=FL.q.drv.toLowerCase();
+  const rows=FL.drv.filter(d=>(FL.sd==="archived"?d.archived:!d.archived)&&(!q||[d.id,d.full_name,d.cnic,d.mobile].join(" ").toLowerCase().includes(q)));
+  el.innerHTML=flHead("","",`<button type="button" class="btn sm" data-fl="drv-new">+ Add driver</button>`)+
+  `<div class="panel"><div class="fl-tb"><input id="flQ" data-flq="drv" placeholder="Search name, CNIC or ID" value="${esc(FL.q.drv)}" aria-label="Search drivers">${flSelF("flSt",[["all","All active"],["archived","Archived"]],FL.sd)}</div>
+  <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>CNIC</th><th>Mobile</th><th>Licence expiry</th><th>Vehicles</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(d=>{
+    const vs=FL.vd.filter(a=>a.driver_id===d.id&&!a.to_date).map(a=>flVLabel(a.vehicle_id)+" ("+a.role+")");const b=flBucket(d.licence_expiry);
+    return `<tr><td>${esc(d.id)}</td><td><b>${esc(d.full_name)}</b></td><td>${esc(flMask(d.cnic))}</td><td>${esc(d.mobile||"-")}</td><td>${d.licence_expiry?flBadge(b.c,flFmtD(d.licence_expiry)):"-"}</td><td>${vs.length?esc(vs.join(", ")):"-"}</td><td>${flBadge({active:"ok",on_leave:"w",left:"n"}[d.employment_status]||"n",{active:"Active",on_leave:"On leave",left:"Left"}[d.employment_status]||d.employment_status)}</td>
+    <td class="fl-act">${FL.ask==="d:"+d.id?`<span class="hint">${d.archived?"Restore":"Archive"} ${esc(d.full_name)}?</span><button type="button" class="btn sm" data-fl="drv-arch-yes" data-id="${esc(d.id)}">Yes</button><button type="button" class="btn ghost sm" data-fl="ask-no">No</button>`:`<button type="button" class="btn ghost sm" data-fl="drv-edit" data-id="${esc(d.id)}">Edit</button><button type="button" class="btn ghost sm" data-fl="drv-arch" data-id="${esc(d.id)}">${d.archived?"Restore":"Archive"}</button>`}</td></tr>`}).join("")||`<tr><td colspan="8" class="hint">${FL.drv.length?"No driver matches.":"No drivers yet. Press Add driver."}</td></tr>`}</tbody></table></div>
+  <p class="hint">CNIC is shown in full only to Admin. Past vehicle assignments are kept.</p></div>`}
+function flDrvForm(){
+  const d=FL.edit||{employment_status:"active"};const nw=!FL.edit;
+  const cur=nw?[]:FL.vd.filter(a=>a.driver_id===d.id);
+  return flHead(nw?"Add driver":"Edit driver "+esc(d.full_name),"Fields marked * are required")+
+  `<form class="panel fl-form" data-flform="drv" autocomplete="off"><div class="fl-fm">
+  <h3>Personal information</h3>${flIn("full_name","Full name *",d.full_name,"text","required")}${flIn("father_name","Father name",d.father_name)}${flIn("cnic","CNIC number",d.cnic,"text",'placeholder="34603-1234567-1"')}${flIn("cnic_issue","CNIC issue date",d.cnic_issue,"date")}${flIn("cnic_expiry","CNIC expiry date",d.cnic_expiry,"date")}${flIn("mobile","Mobile number",d.mobile,"tel")}${flIn("address","Permanent address",d.address)}${flIn("emergency_contact","Emergency contact",d.emergency_contact)}
+  <h3>Driving licence</h3>${flIn("licence_no","Licence number",d.licence_no)}${flIn("licence_authority","Issuing authority",d.licence_authority)}${flIn("licence_category","Licence category",d.licence_category)}${flIn("licence_classes","Permitted vehicle classes",d.licence_classes)}${flIn("licence_issue","Issue date",d.licence_issue,"date")}${flIn("licence_expiry","Expiry date",d.licence_expiry,"date")}
+  <h3>Employment</h3>${flIn("joined_on","Joining date",d.joined_on,"date")}<label>Employment status${flSel("employment_status",[["active","Active"],["on_leave","On leave"],["left","Left"]],d.employment_status)}</label>${flIn("monthly_salary","Monthly salary (Rs)",d.monthly_salary,"number",'step="any" min="0"')}${flIn("daily_allowance","Daily allowance (Rs)",d.daily_allowance,"number",'step="any" min="0"')}${flIn("trip_allowance","Trip allowance (Rs)",d.trip_allowance,"number",'step="any" min="0"')}
+  </div>
+  ${nw?'<p class="hint">Save the driver first, then assign vehicles by pressing Edit.</p>':`<div class="fl-assign"><h3>Vehicle assignments</h3>${cur.length?`<table><thead><tr><th>Vehicle</th><th>Role</th><th>From</th><th>To</th><th></th></tr></thead><tbody>${cur.map(a=>`<tr><td>${esc(flVLabel(a.vehicle_id))}</td><td>${esc(a.role)}</td><td>${flFmtD(a.from_date)}</td><td>${a.to_date?flFmtD(a.to_date):"Current"}</td><td>${a.to_date?"":`<button type="button" class="btn ghost sm" data-fl="asg-end" data-id="${esc(a.id)}">End</button>`}</td></tr>`).join("")}</tbody></table>`:'<p class="hint">Not assigned to any vehicle.</p>'}
+  <div class="fl-row"><label>Vehicle<select id="flAsgV"><option value="">Choose vehicle</option>${FL.veh.filter(v=>!v.archived).map(v=>`<option value="${esc(v.id)}">${esc(v.reg_no)}</option>`).join("")}</select></label><label>Role<select id="flAsgR"><option value="primary">Primary</option><option value="secondary">Secondary</option><option value="other">Other</option></select></label><button type="button" class="btn ghost sm" data-fl="asg-add">Assign</button></div></div>`}
+  <div class="fl-btns"><button type="submit" class="btn"${FL.busy?" disabled":""}>${FL.busy?"Saving…":"Save driver"}</button><button type="button" class="btn ghost" data-fl="cancel">Cancel</button></div></form>`}
+
+/* ----- legal documents ----- */
+function pFleetDoc(){
+  const el=$("#p-fleetdoc");if(!flGate(el))return;
+  if(FL.mode.doc==="form"){el.innerHTML=flDocForm();flDocOwnerToggle();return}
+  const q=FL.q.doc.toLowerCase();
+  const all=FL.docs.filter(d=>FL.old?true:d.status==="current").map(d=>({d,b:flBucket(d.expiry_date),who:d.owner_type==="vehicle"?flVLabel(d.vehicle_id):flDLabel(d.driver_id)}));
+  const cn={};all.filter(x=>x.d.status==="current").forEach(x=>{cn[x.b.k]=(cn[x.b.k]||0)+1});
+  const rows=all.filter(x=>(FL.bk==="all"||x.b.k===FL.bk)&&(!q||[x.d.doc_type,x.d.doc_no,x.who].join(" ").toLowerCase().includes(q))).sort((a,b)=>(a.b.n??9999)-(b.b.n??9999));
+  const chips=[["all","All"],["expired","Expired"],["7","7 days"],["15","15 days"],["30","30 days"],["60","60 days"],["valid","Valid"]];
+  el.innerHTML=flHead("","",`<button type="button" class="btn sm" data-fl="doc-new">+ Add document</button>`)+
+  `<div class="fl-chips">${chips.map(([k,l])=>`<button type="button" class="fl-chip" data-fl="bk" data-k="${k}" aria-pressed="${FL.bk===k}">${l}${k==="all"?"":` <b>${cn[k]||0}</b>`}</button>`).join("")}</div>
+  <div class="panel"><div class="fl-tb"><input id="flQ" data-flq="doc" placeholder="Search document, number, vehicle or driver" value="${esc(FL.q.doc)}" aria-label="Search documents"><label class="fl-ck"><input type="checkbox" id="flOld"${FL.old?" checked":""}> Show old versions</label></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Document</th><th>For</th><th>Number</th><th>Expiry</th><th>Days left</th><th>Status</th><th>Checked</th><th></th></tr></thead><tbody>${rows.map(({d,b,who})=>`<tr${d.status==="superseded"?' class="fl-old"':""}><td><b>${esc(d.doc_type)}</b>${d.status==="superseded"?' <span class="fl-bg n">Old version</span>':""}</td><td>${esc(who)}</td><td>${esc(d.doc_no||"-")}</td><td>${flFmtD(d.expiry_date)}</td><td class="num">${b.n===null?"-":b.n}</td><td>${d.status==="superseded"?"-":flBadge(b.c,b.t)}</td><td>${esc({pending:"Pending",verified:"Verified",rejected:"Rejected"}[d.verification]||"")}</td>
+  <td class="fl-act">${d.file_path?`<button type="button" class="btn ghost sm" data-fl="doc-file" data-id="${esc(d.id)}">View file</button>`:""}${d.status==="current"?`<button type="button" class="btn ghost sm" data-fl="doc-edit" data-id="${esc(d.id)}">Edit</button><button type="button" class="btn ghost sm" data-fl="doc-renew" data-id="${esc(d.id)}">Renew</button>`:""}</td></tr>`).join("")||`<tr><td colspan="8" class="hint">${FL.docs.length?"No document matches.":"No documents yet. Press Add document."}</td></tr>`}</tbody></table></div>
+  <p class="hint">Renewing keeps the old version. Expiry alerts: expired, 7, 15, 30 and 60 days.</p></div>`}
+function flDocForm(){
+  const e=FL.edit||{},nw=!e.id||e.renew;const d=e.renew?{owner_type:e.owner_type,vehicle_id:e.vehicle_id,driver_id:e.driver_id,doc_type:e.doc_type,authority:e.authority}:e;
+  const ot=d.owner_type||"vehicle";
+  return flHead(e.renew?"Renew document":nw?"Add document":"Edit document","Upload the scanned copy so the file is kept with the record")+
+  `<form class="panel fl-form" data-flform="doc" autocomplete="off"><div class="fl-fm">
+  <label>Belongs to${flSel("owner_type",[["vehicle","Vehicle"],["driver","Driver"]],ot)}</label>
+  <label data-ow="vehicle">Vehicle${flSel("vehicle_id",FL.veh.filter(v=>!v.archived).map(v=>[v.id,v.reg_no]),d.vehicle_id,"Choose vehicle")}</label>
+  <label data-ow="driver">Driver${flSel("driver_id",FL.drv.filter(x=>!x.archived).map(x=>[x.id,x.full_name]),d.driver_id,"Choose driver")}</label>
+  <label data-ow="vehicle">Document type *${flSel("doc_type_v",FL_VDOC,ot==="vehicle"?d.doc_type:"","Choose")}</label>
+  <label data-ow="driver">Document type *${flSel("doc_type_d",FL_DDOC,ot==="driver"?d.doc_type:"","Choose")}</label>
+  ${flIn("doc_no","Document number",e.renew?"":d.doc_no)}${flIn("authority","Issuing authority",d.authority)}${flIn("issue_date","Issue date",e.renew?"":d.issue_date,"date")}${flIn("expiry_date","Expiry date",e.renew?"":d.expiry_date,"date")}
+  <label>Checked${flSel("verification",[["pending","Pending"],["verified","Verified"],["rejected","Rejected"]],e.renew?"pending":d.verification||"pending")}</label>
+  <label>Scanned file (PDF or photo)<input type="file" name="file" accept="application/pdf,image/*"></label>${flIn("remarks","Remarks",e.renew?"":d.remarks)}
+  </div>${e.id&&!e.renew&&e.file_path?'<p class="hint">A file is already saved. Choose a new file only to replace it.</p>':""}
+  <div class="fl-btns"><button type="submit" class="btn"${FL.busy?" disabled":""}>${FL.busy?"Saving…":e.renew?"Save renewed document":"Save document"}</button><button type="button" class="btn ghost" data-fl="cancel">Cancel</button></div></form>`}
+function flDocOwnerToggle(){const f=document.querySelector('[data-flform="doc"]');if(!f)return;const upd=()=>{f.querySelectorAll("[data-ow]").forEach(l=>l.hidden=l.dataset.ow!==f.elements.owner_type.value)};f.elements.owner_type.addEventListener("change",upd);upd()}
+async function flUpload(docId,file){
+  const tok=await sbToken();if(!tok)throw new Error("Your session ended. Please sign in again.");
+  if(file.size>10*1024*1024)throw new Error("File is too large. Keep it under 10 MB.");
+  const safe=file.name.replace(/[^A-Za-z0-9._-]/g,"_").slice(-80);const path="docs/"+docId+"/"+Date.now()+"-"+safe;
+  const r=await fetch(SB_URL+"/storage/v1/object/fleet-files/"+path,{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+tok,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},body:file});
+  if(!r.ok)throw new Error("The file could not be uploaded (error "+r.status+").");return path}
+async function flOpenFile(id){
+  const d=FL.docs.find(x=>x.id===id);if(!d||!d.file_path)return;
+  try{const tok=await sbToken();if(!tok)throw new Error("Please sign in again.");
+    const r=await fetch(SB_URL+"/storage/v1/object/sign/fleet-files/"+d.file_path,{method:"POST",headers:sbH(tok),body:JSON.stringify({expiresIn:300})});
+    if(!r.ok)throw new Error("Could not open the file.");const j=await r.json();window.open(SB_URL+"/storage/v1"+j.signedURL,"_blank","noopener")}catch(e){toast(e.message||"Could not open the file.")}}
+
+/* ----- saving ----- */
+const flRows=(f,names,nums,dates)=>{const o={};names.forEach(n=>{const el=f.elements[n];if(!el)return;o[n]=nums.includes(n)?flNum(el.value):flStr(el.value)});return o};
+async function flSaveVeh(f){
+  const o=flRows(f,["reg_no","name","category","make","model","year","colour","chassis_no","engine_no","engine_cc","fuel_type","axle","load_tons","odometer","reg_date","ownership","status","purchase_date","purchase_price","seller","est_value","owner_name","owner_cnic","owner_phone","rent_basis","rent_amount","agreement_start","agreement_end","deposit"],["year","load_tons","odometer","purchase_price","est_value","rent_amount","deposit"]);
+  if(!o.reg_no)throw new Error("Enter the registration number.");o.reg_no=o.reg_no.toUpperCase();o.ownership=o.ownership||"company";o.status=o.status||"available";o.updated_by=me()?.user||null;
+  if(o.ownership==="company"){["owner_name","owner_cnic","owner_phone","rent_basis","rent_amount","agreement_start","agreement_end","deposit"].forEach(k=>o[k]=null)}else{["purchase_date","purchase_price","seller","est_value"].forEach(k=>o[k]=null)}
+  if(FL.edit){await flReq("fleet_vehicles?id=eq."+encodeURIComponent(FL.edit.id),{method:"PATCH",body:o});flLog("update","vehicle",FL.edit.id,{reg_no:o.reg_no})}
+  else{o.id=flNext(FL.veh,"V-");o.created_by=me()?.user||null;await flReq("fleet_vehicles",{method:"POST",body:o});flLog("create","vehicle",o.id,{reg_no:o.reg_no})}}
+async function flSaveDrv(f){
+  const o=flRows(f,["full_name","father_name","cnic","cnic_issue","cnic_expiry","mobile","address","emergency_contact","licence_no","licence_authority","licence_category","licence_classes","licence_issue","licence_expiry","joined_on","employment_status","monthly_salary","daily_allowance","trip_allowance"],["monthly_salary","daily_allowance","trip_allowance"]);
+  if(!o.full_name)throw new Error("Enter the driver's full name.");o.employment_status=o.employment_status||"active";o.updated_by=me()?.user||null;
+  if(FL.edit){await flReq("fleet_drivers?id=eq."+encodeURIComponent(FL.edit.id),{method:"PATCH",body:o});flLog("update","driver",FL.edit.id,null)}
+  else{o.id=flNext(FL.drv,"D-");o.created_by=me()?.user||null;await flReq("fleet_drivers",{method:"POST",body:o});flLog("create","driver",o.id,null)}}
+async function flSaveDoc(f){
+  const e=FL.edit||{},renew=!!e.renew;const ot=f.elements.owner_type.value;
+  const o={owner_type:ot,vehicle_id:ot==="vehicle"?flStr(f.elements.vehicle_id.value):null,driver_id:ot==="driver"?flStr(f.elements.driver_id.value):null,doc_type:flStr(ot==="vehicle"?f.elements.doc_type_v.value:f.elements.doc_type_d.value),doc_no:flStr(f.elements.doc_no.value),authority:flStr(f.elements.authority.value),issue_date:flStr(f.elements.issue_date.value),expiry_date:flStr(f.elements.expiry_date.value),verification:f.elements.verification.value||"pending",remarks:flStr(f.elements.remarks.value),updated_by:me()?.user||null};
+  if(!(ot==="vehicle"?o.vehicle_id:o.driver_id))throw new Error("Choose the "+ot+" this document belongs to.");if(!o.doc_type)throw new Error("Choose the document type.");
+  if(o.issue_date&&o.expiry_date&&o.expiry_date<o.issue_date)throw new Error("Expiry date is before the issue date.");
+  const file=f.elements.file.files[0];
+  if(e.id&&!renew){await flReq("fleet_documents?id=eq."+encodeURIComponent(e.id),{method:"PATCH",body:o});if(file){const p=await flUpload(e.id,file);await flReq("fleet_documents?id=eq."+encodeURIComponent(e.id),{method:"PATCH",body:{file_path:p}})}flLog("update","document",e.id,{type:o.doc_type});return}
+  o.id=flNext(FL.docs,"DOC-");o.created_by=me()?.user||null;o.status="current";if(renew)o.replaces=e.id;
+  await flReq("fleet_documents",{method:"POST",body:o});
+  if(file){try{const p=await flUpload(o.id,file);await flReq("fleet_documents?id=eq."+encodeURIComponent(o.id),{method:"PATCH",body:{file_path:p}})}catch(er){FL.pendingMsg="Document saved, but the file was not uploaded: "+er.message}}
+  if(renew)await flReq("fleet_documents?id=eq."+encodeURIComponent(e.id),{method:"PATCH",body:{status:"superseded",updated_by:me()?.user||null}});
+  flLog(renew?"renew":"create","document",o.id,{type:o.doc_type,replaces:e.id||null})}
+
+/* ----- events ----- */
+function flBack(){FL.mode={veh:"list",drv:"list",doc:"list"};FL.edit=null;FL.ask="";FL.busy=false}
+document.addEventListener("click",async ev=>{
+  const b=ev.target.closest("[data-fl]");if(!b)return;const a=b.dataset.fl,id=b.dataset.id;
+  try{
+  if(a==="reload"){FL.tried=false;FL.loaded=false;flLoad(true);renderPanel();return}
+  if(a==="cancel"){flBack();renderPanel();return}
+  if(a==="ask-no"){FL.ask="";renderPanel();return}
+  if(a==="bk"){FL.bk=b.dataset.k;renderPanel();return}
+  if(a==="veh-new"){FL.edit=null;FL.mode.veh="form";renderPanel();return}
+  if(a==="veh-edit"){FL.edit=flVeh(id);FL.mode.veh="form";renderPanel();return}
+  if(a==="veh-arch"){FL.ask="v:"+id;renderPanel();return}
+  if(a==="veh-arch-yes"){const v=flVeh(id);await flReq("fleet_vehicles?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!v.archived,updated_by:me()?.user||null}});flLog(v.archived?"restore":"archive","vehicle",id,null);FL.ask="";await flRefresh();toast(v.archived?"Vehicle restored":"Vehicle archived");return}
+  if(a==="drv-new"){FL.edit=null;FL.mode.drv="form";renderPanel();return}
+  if(a==="drv-edit"){FL.edit=flDrv(id);FL.mode.drv="form";renderPanel();return}
+  if(a==="drv-arch"){FL.ask="d:"+id;renderPanel();return}
+  if(a==="drv-arch-yes"){const d=flDrv(id);await flReq("fleet_drivers?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!d.archived,updated_by:me()?.user||null}});flLog(d.archived?"restore":"archive","driver",id,null);FL.ask="";await flRefresh();toast(d.archived?"Driver restored":"Driver archived");return}
+  if(a==="asg-add"){const vid=$("#flAsgV").value;if(!vid){toast("Choose a vehicle first");return}
+    if(FL.vd.some(x=>x.driver_id===FL.edit.id&&x.vehicle_id===vid&&!x.to_date)){toast("Already assigned to this vehicle");return}
+    await flReq("fleet_vehicle_drivers",{method:"POST",body:{vehicle_id:vid,driver_id:FL.edit.id,role:$("#flAsgR").value,created_by:me()?.user||null}});flLog("assign","driver",FL.edit.id,{vehicle:vid});await flRefresh();toast("Vehicle assigned");return}
+  if(a==="asg-end"){await flReq("fleet_vehicle_drivers?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{to_date:flToday()}});flLog("unassign","driver",FL.edit.id,{assignment:id});await flRefresh();toast("Assignment ended");return}
+  if(a==="doc-new"){FL.edit=null;FL.mode.doc="form";renderPanel();return}
+  if(a==="doc-edit"){FL.edit=FL.docs.find(x=>x.id===id);FL.mode.doc="form";renderPanel();return}
+  if(a==="doc-renew"){FL.edit={...FL.docs.find(x=>x.id===id),renew:true};FL.mode.doc="form";renderPanel();return}
+  if(a==="doc-file"){flOpenFile(id);return}
+  }catch(er){toast(er.message||"Something went wrong. Please try again.")}});
+async function flRefresh(){FL.tried=false;FL.loaded=false;FL.loading=false;await flLoad(true)}
+document.addEventListener("submit",async ev=>{
+  const f=ev.target.closest("[data-flform]");if(!f)return;ev.preventDefault();if(FL.busy)return;
+  FL.busy=true;const btn=f.querySelector('[type="submit"]');if(btn){btn.disabled=true;btn.textContent="Saving…"}
+  try{const k=f.dataset.flform;if(k==="veh")await flSaveVeh(f);else if(k==="drv")await flSaveDrv(f);else await flSaveDoc(f);
+    const msg=FL.pendingMsg;FL.pendingMsg="";flBack();await flRefresh();toast(msg||"Saved")}
+  catch(er){FL.busy=false;if(btn){btn.disabled=false;btn.textContent="Save"}toast(er.message||"Could not save. Please try again.")}});
+document.addEventListener("input",ev=>{const q=ev.target.closest("[data-flq]");if(!q)return;FL.q[q.dataset.flq]=q.value;const pos=q.selectionStart;renderPanel();const n=document.getElementById("flQ");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}});
+document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="flSt"){if(sub==="fleetdrv")FL.sd=t.value;else FL.st=t.value;renderPanel()}if(t.id==="flOld"){FL.old=t.checked;renderPanel()}});
+const flRenderHook=()=>{if(sub==="fleetdoc")flDocOwnerToggle()};
+
 let coCap=100;
 function pBilty(){
   const sel=$("#bpAcct"),cur=sel.value;
@@ -5031,7 +5335,7 @@ $("#impPreview").addEventListener("click",e=>{
     a.rows.forEach((r,k)=>{if((db.lvoid||[]).includes(`${c.code}|${r.ref||""}|${r.cr}|${r.dr}|${r.iso}`))return;db.lent.push({id:"L-"+a.code+"-"+(k+1),acct:c.code,d:r.iso,type:r.type,desc:r.desc,ref:r.ref,mode:r.mode,dr:r.dr,cr:r.cr,src:"SC",lto:dmyIso0(D.period.to||"01/01/2026")})});
     n+=a.rows.length;
   });
-  save();ledData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  implogAdd("ledger",n,n,0,0);save();ledData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
   $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${n} ledger entries imported for ${D.accounts.length} account(s).`+(linked.length?` Linked to existing account: ${linked.map(c=>`<b>${esc(c.name)}</b> (code now <b class="mono">${esc(c.code)}</b>)`).join(", ")}. The customer logs in with this new code.`:"")+(made.length?` New accounts: ${made.map(c=>`<b class="mono">${esc(c.code)}</b> PIN <b class="mono">${esc(c.pin)}</b>`).join(", ")}. Send the code and PIN to the customer on WhatsApp.`:"");
   toast(`Ledger imported: ${n} entries`);
 });
@@ -5117,7 +5421,7 @@ $("#impPreview").addEventListener("click",e=>{
     const rec={id:b.id,bill:r.billNo,name:r.raw,cons:r.cons,phone:r.phone,nic:r.nic,kg:r.kg,city:r.city,date:dIso,at:now,by:staffName};
     const k=db.delrec.findIndex(x=>x.id===b.id);k>=0?db.delrec[k]=rec:db.delrec.push(rec);
   });
-  save();delData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  implogAdd("delivery",D.rows.length,added,upd,skipped);save();delData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
   $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${upd} bilties updated, ${added} added${skipped?`, ${skipped} skipped`:""}. All are now "Delivered" with the receiver's name.`;
   renderPanel();toast(`${upd+added} bilties marked Delivered`);
 });
@@ -5185,17 +5489,32 @@ $("#impPreview").addEventListener("click",async e=>{
   const nowIso=new Date().toISOString();let unch=0;
   invData.rows.forEach(r=>{const o={...r};o.pg=o.page;delete o.page;if(pdfName)o.pdf=pdfName;else{const pv=db.invoices.find(x=>x.id===o.id);if(pv&&pv.pdf){o.pdf=pv.pdf;o.pg=pv.pg}else delete o.pg}if(forcedAcct())o.acct=forcedAcct();else if(!clientOf(o.acct)&&lk[o.acct])o.acct=lk[o.acct];
     {const old=db.invoices.find(x=>x.id===o.id);if(!old){o.rev=1;o.upAt=nowIso}else if(invSame(old,o)){o.rev=old.rev||1;o.upAt=old.upAt||nowIso;o.__same=1}else{o.rev=(old.rev||1)+1;o.upAt=nowIso}}const i=db.invoices.findIndex(x=>x.id===o.id);const same=o.__same;delete o.__same;if(i>=0){db.invoices[i]=o;if(same)unch++;else upd++}else{db.invoices.push(o);add++}});
-  const n=invData.rows.length;save();invData=null;invFile=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  const n=invData.rows.length;implogAdd("bilty",n,add,upd,unch);save();invData=null;invFile=null;$("#impPreview").innerHTML="";$("#impFile").value="";
   $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${add} new bilties added, ${upd} updated (replaced), ${unch} unchanged.${pdfName?" Original PDF saved with each bilty.":""} Ledger and the customer's Previous bilties folder are updated.`;upTarget="";toast(`${n} bilt${n===1?"y":"ies"} imported`);
 });
 const dmyToIso=d=>{const [dd,mm,yy]=d.split("/");return new Date(`${yy}-${mm}-${dd}T09:00:00`).toISOString()};
+/* ---------- import history (shown under the upload boxes in the KLC panel) ---------- */
+let lastImpName="",ihType="all",ihQ="";
+const IH_KIND={challan:"Challan",delivery:"Delivery",bilty:"Bilty",outstanding:"Outstanding",ledger:"Ledger"};
+function implogAdd(kind,total,add,upd,skip){
+  try{db.implog=db.implog||[];db.implog.unshift({id:"IL-"+Date.now().toString(36),kind,file:lastImpName||"-",total:total||0,add:add||0,upd:upd||0,skip:skip||0,by:staffName||"",at:new Date().toISOString()});db.implog=db.implog.slice(0,300)}catch(e){console.error("implog",e)}}
+function renderImpHist(){
+  const box=$("#impHistBox");if(!box)return;
+  const q=ihQ.toLowerCase();
+  const rows=(db.implog||[]).filter(r=>(ihType==="all"||r.kind===ihType)&&(!q||String(r.file).toLowerCase().includes(q))).slice(0,50);
+  box.innerHTML=`<h2 style="margin-bottom:4px">Recent import history</h2><p class="hint" style="margin:0 0 6px">Every upload saved from this page, newest first.</p>
+  <div class="ih-tb"><input id="ihQ" placeholder="Search file name" value="${esc(ihQ)}" aria-label="Search imports"><select id="ihT" aria-label="Import type"><option value="all">All types</option>${Object.entries(IH_KIND).map(([k,l])=>`<option value="${k}"${ihType===k?" selected":""}>${l}</option>`).join("")}</select></div>
+  <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Type</th><th class="num">Total</th><th class="num">New</th><th class="num">Updated</th><th class="num">Skipped</th><th>By</th><th>Date and time</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.file)}</td><td><span class="ih-ty ${esc(r.kind)}">${esc(IH_KIND[r.kind]||r.kind)}</span></td><td class="num">${r.total}</td><td class="num">${r.add}</td><td class="num">${r.upd}</td><td class="num">${r.skip}</td><td>${esc(r.by)}</td><td>${fmt(r.at)}</td></tr>`).join("")||`<tr><td colspan="8" class="hint">${(db.implog||[]).length?"No import matches.":"No imports recorded yet. New uploads will appear here."}</td></tr>`}</tbody></table></div>`}
+document.addEventListener("input",e=>{const q=e.target.closest("#ihQ");if(!q)return;ihQ=q.value;const p=q.selectionStart;renderImpHist();const n=$("#ihQ");if(n){n.focus();try{n.setSelectionRange(p,p)}catch(x){}}});
+document.addEventListener("change",e=>{if(e.target.id==="ihT"){ihType=e.target.value;renderImpHist()}});
+
 let impKind="challan";
 const IMPK={challan:{t:"📄 Choose challan PDF",h:"Booking Challan from SmartCargo, saved as PDF. The bilties in it are added to tracking."},delivery:{t:"📄 Choose delivery report PDF",h:"Daily Delivery Report PDF. It marks those bilties Delivered and shows who received them."},outstanding:{t:"📄 Choose outstanding PDF",h:"Customer Outstanding Detail report from SmartCargo (one customer or all customers). Customers see it in My Account and it stays highlighted in red until it is paid."},bilty:{t:"📄 Choose bilty PDF",h:"Bilty (customer copy) PDF. Pick the company account first: the bilties go into that account's ledger, with their details read from the file."}};
 function fillImpAcct(){const el=$("#impAcct");if(!el)return;const cur=el.value;el.innerHTML=`<option value="">Match from the bilty file (account code printed on it)</option>`+(db.clients||[]).map(c=>`<option value="${esc(c.code)}">${esc(c.name)} (${esc(c.code)})</option>`).join("");if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur}
 function setImpKind(k){impKind=k;$$("[data-impkind]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.impkind===k)));const m=IMPK[k];if($("#impDropT"))$("#impDropT").textContent=m.t;if($("#impHint"))$("#impHint").textContent=m.h;if($("#impAcctWrap"))$("#impAcctWrap").hidden=k!=="bilty";if(k==="bilty")fillImpAcct()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-impkind]");if(!b)return;setImpKind(b.dataset.impkind);impData=null;delData=null;invData=null;ledData=null;osData=null;$("#impPreview").innerHTML="";$("#impMsg").textContent="";$("#impFile").value=""});
 async function handleImportFile(f){
-  if(!f)return;
+  if(!f)return;lastImpName=f.name||"";
   if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){$("#impMsg").textContent="Please choose a PDF file.";return}ledData=null;
   $("#impMsg").textContent="Reading the PDF…";$("#impPreview").innerHTML="";
   try{
@@ -5329,12 +5648,12 @@ function applyImport(e){
   const rec={no:h.no,date:h.date,from:h.from,to:h.to,vehicle:h.vehicle,count:rows.length,status:STATUSES[st],at:now,by:staffName};
   if(autoHrs>0){rec.auto={at:new Date(Date.now()+autoHrs*3600000).toISOString(),to:3,hrs:autoHrs};const ts=(db.stations||[]).find(x=>x.id===impTStation);if(ts)rec.auto.arrival={place:ts.place||ts.name,contact:ts.contact||"",phone:ts.phone||""}}
   prev>=0?db.challans[prev]=rec:db.challans.push(rec);
-  save();impData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
+  implogAdd("challan",rows.length,added,updated,0);save();impData=null;$("#impPreview").innerHTML="";$("#impFile").value="";
   $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${added} new and ${updated} updated bilties from challan ${esc(h.no)} are now in tracking as "${STATUSES[st]}".${autoHrs>0?` They will be marked Arrived automatically in ${autoHrs} hours.`:""}`;
   pImp();toast(`Challan ${h.no}: tracking updated`);
 }
 function pImp(){
-  pStations();setImpKind(impKind);pOs();
+  pStations();setImpKind(impKind);pOs();try{renderImpHist()}catch(err){console.error("import history",err)}
   const list=(db.challans||[]).slice().reverse();
   $("#impRows").innerHTML=list.length?list.map(c=>`<tr><td class="mono"><b>${esc(c.no)}</b></td><td>${esc(c.date)}</td><td>${esc(c.from)} → ${esc(c.to)}</td><td class="mono">${esc(c.vehicle)}</td><td class="num">${c.count}</td><td><select data-chno="${esc(c.no)}" data-chfrom="${esc(c.from)}" aria-label="Status of challan ${esc(c.no)}">${STATUSES.map((x,i)=>`<option value="${i}" ${x===c.status?"selected":""}>${x}</option>`).join("")}</select></td><td>${c.status===STATUSES[2]?`${c.auto?`<div class="mono" style="font-size:12px;margin-bottom:4px"><b data-countdown="${esc(c.auto.at)}">${esc(fmtLeft(c.auto.at))}</b> left${c.auto.arrival&&c.auto.arrival.place?` · ${esc(c.auto.arrival.place)}`:""}</div>`:""}<select data-chauto="${esc(c.no)}" data-chfrom2="${esc(c.from)}" aria-label="Auto-arrive timer for challan ${esc(c.no)}"><option value="">${c.auto?"Change timer…":"Set timer…"}</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="26">26 hours</option><option value="28">28 hours</option><option value="30">30 hours</option><option value="36">36 hours</option><option value="48">48 hours</option><option value="72">72 hours</option><option value="custom">Other hours…</option>${c.auto?'<option value="off">Cancel timer</option>':""}</select>`:'<span style="color:var(--muted)">-</span>'}</td><td style="font-size:12px;color:var(--muted)">${esc(fmt(c.at))}${c.by?` · ${esc(c.by)}`:""}</td></tr>`).join(""):`<tr><td colspan="8" class="empty">No challans imported yet.</td></tr>`;
   $$("#impRows select[data-chauto]").forEach(sel=>sel.addEventListener("change",()=>{
