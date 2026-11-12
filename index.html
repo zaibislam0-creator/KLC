@@ -4030,13 +4030,42 @@ function tvRead(){
   return {date:f.querySelector('[name="tv_date"]').value,from:f.querySelector('[name="tv_from"]').value.trim(),to:f.querySelector('[name="tv_to"]').value.trim(),challan:f.querySelector('[name="tv_challan"]').value.trim(),driver:f.querySelector('[name="tv_driver"]').value,note:f.querySelector('[name="tv_note"]').value.trim(),inc:rd("tvInc"),exp:rd("tvExp"),maint:f.querySelector("[data-tvm]").value}}
 function tvTotals(){const t=tvRead(),el=$("#tvTot");if(!t||!el)return;const i=tvSum(t.inc),x=tvSum(t.exp),m=tvN(t.maint);el.innerHTML=`<span>Total income: ${tvM(i)}</span><span>Total expenses (excl. maintenance): ${tvM(x)}</span><span style="color:var(--teal)">Net balance (before maintenance): ${tvM(i-x)}</span>${m?`<span>Net after maintenance: ${tvM(i-x-m)}</span>`:""}`}
 function tvPrint(t){
-  const v=flVeh(t.veh)||{},i=tvSum(t.inc),x=tvSum(t.exp),m=tvN(t.maint),mon=t.date?new Date(t.date).toLocaleString("en-GB",{month:"long",year:"numeric"}):"";
-  const tr=(l,a)=>`<tr><td>${esc(l)}</td><td class="r">${tvN(a).toLocaleString("en-PK")}</td></tr>`;
-  const h=`<!doctype html><meta charset="utf-8"><title>Trip voucher ${esc(v.reg_no||"")}</title><style>body{font:13px Arial,sans-serif;margin:0;padding:24px;color:#111}.w{max-width:560px;margin:auto;border:1px solid #1b2f55}.hd{background:#1b3563;color:#fff;padding:12px 16px}.hd b{font-size:20px;display:block}.hd small{opacity:.85}.sub{padding:8px 16px;font-size:12px;border-bottom:1px solid #ddd}table{width:100%;border-collapse:collapse}th{text-align:left;padding:6px 16px;font-size:11px;color:#fff}th.r,td.r{text-align:right}td{padding:5px 16px;border-bottom:1px solid #eee}.g th{background:#1f6b46}.e th{background:#24406e}.t td{font-weight:700;background:#e4efe9}.te td{font-weight:700;background:#e9edf4}.n{background:#1b3563;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;font-weight:700}.n span:last-child{font-size:20px;color:#9be3b0}.m td{background:#fff8e6;font-weight:700}@media print{body{padding:0}}</style><div class="w"><div class="hd"><b>TRANSPORT &amp; TRIP LEDGER</b><small>Kashaf Lasani Cargo Services (KLC) · Month: ${esc(mon)} · Currency: PKR (Rs.)</small></div>
-<div class="sub">Vehicle <b>${esc(v.reg_no||"-")}</b> · ${esc(t.from||"")} → ${esc(t.to||"")} · Date ${esc(t.date||"-")}${t.challan?" · Challan "+esc(t.challan):""}${t.driver?" · Driver "+esc(t.driver):""}</div>
-<table class="g"><tr><th>FREIGHT / INCOME</th><th class="r">AMOUNT (PKR)</th></tr>${t.inc.map(r=>tr(r.l,r.a)).join("")}<tr class="t"><td>Total Freight / Income</td><td class="r">Rs. ${i.toLocaleString("en-PK")}</td></tr></table>
-<table class="e"><tr><th>EXPENSE DETAILS (TAFSEEL KHARCH)</th><th class="r">AMOUNT (PKR)</th></tr>${t.exp.map(r=>tr(r.l,r.a)).join("")}<tr class="m"><td>Vehicle Maintenance</td><td class="r">${m?m.toLocaleString("en-PK"):""}</td></tr><tr class="te"><td>Total Expenses (Excl. Maintenance)</td><td class="r">Rs. ${x.toLocaleString("en-PK")}</td></tr></table>
-<div class="n"><span>NET BALANCE (Before Maintenance)</span><span>Rs. ${(i-x).toLocaleString("en-PK")}</span></div>${m?`<div class="n" style="background:#444"><span>NET AFTER MAINTENANCE</span><span>Rs. ${(i-x-m).toLocaleString("en-PK")}</span></div>`:""}${t.note?`<div class="sub">Note: ${esc(t.note)}</div>`:""}</div><script>setTimeout(function(){window.print()},300)<\/script>`;
+  const v=flVeh(t.veh)||{},i=tvSum(t.inc),x=tvSum(t.exp),m=tvN(t.maint),net=i-x,mon=t.date?new Date(t.date).toLocaleString("en-GB",{month:"long",year:"numeric"}):"";
+  const logo=(document.querySelector(".brand img")||{}).src||"";
+  const nf=n=>Math.round(n).toLocaleString("en-PK");
+  const tr=(l,a)=>tvN(a)?`<tr><td>${esc(l)}</td><td class="r">${nf(tvN(a))}</td></tr>`:"";
+  const fd=t.date?new Date(t.date).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):"-";
+  const chip=(k,val)=>val?`<div class="ch"><small>${k}</small><b>${esc(val)}</b></div>`:"";
+  const h=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trip voucher ${esc(v.reg_no||"")}</title><style>
+*{box-sizing:border-box}body{margin:0;padding:24px;background:#efe9df;font:13.5px/1.45 "Segoe UI",Arial,sans-serif;color:#1d1517;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.w{max-width:600px;margin:auto;background:#fbf7f0;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(60,20,25,.18)}
+.hd{background:linear-gradient(135deg,#5e1217,#7d1a1f 60%,#9a2229);color:#fff;padding:18px 22px;display:flex;align-items:center;gap:14px;border-bottom:5px solid #c9242b}
+.hd img{width:54px;height:54px;border-radius:10px;background:#fff;object-fit:contain;padding:3px}
+.hd h1{margin:0;font:700 21px Georgia,"Playfair Display",serif;letter-spacing:.04em}.hd p{margin:2px 0 0;font-size:11.5px;opacity:.85}
+.hd .mo{margin-left:auto;text-align:right;font-size:11px;opacity:.9}.hd .mo b{display:block;font-size:14px}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;padding:14px 22px;background:#f3ebdd;border-bottom:1px solid #e4d9c6}
+.ch small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7a6a62}.ch b{font-size:14px}
+.rt{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 22px;font:700 17px Georgia,serif;color:#7d1a1f}.rt i{color:#c9242b;font-style:normal}
+.sec{margin:0 22px 14px;border:1px solid #e4d9c6;border-radius:10px;overflow:hidden;background:#fff}
+.sec h2{margin:0;padding:8px 14px;font:700 11px "Segoe UI",Arial,sans-serif;letter-spacing:.1em;color:#fff;display:flex;justify-content:space-between}
+.inc h2{background:#0f7f74}.exp h2{background:#7d1a1f}
+table{width:100%;border-collapse:collapse}td{padding:7px 14px;border-bottom:1px solid #f0e8da}tr:nth-child(even) td{background:#fcfaf6}td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.tot td{font-weight:800;border-bottom:0}.inc .tot td{background:#dff1ee;color:#0b5f56}.exp .tot td{background:#f6e3e4;color:#7d1a1f}.mt td{background:#fff6dc!important;color:#8a5a00;font-weight:700}
+.net{margin:0 22px 14px;border-radius:12px;padding:14px 18px;color:#fff;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#5e1217,#7d1a1f)}
+.net span{font-weight:700;letter-spacing:.04em;font-size:12.5px}.net b{font:700 26px Georgia,serif;color:${net>=0?"#8ff0c0":"#ffb4b4"}}
+.net.s{background:#3a3032;padding:10px 18px}.net.s b{font-size:18px}
+.note{margin:0 22px 14px;padding:10px 14px;background:#fff;border-left:4px solid #c9242b;border-radius:6px;font-size:12.5px}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:30px;padding:26px 22px 10px}.sg div{border-top:1.5px solid #7d1a1f;padding-top:5px;text-align:center;font-size:11px;color:#6b5b55}
+.ft{padding:10px 22px 16px;text-align:center;font-size:10.5px;color:#8a7a72}
+@media print{body{background:#fff;padding:0}.w{box-shadow:none;border-radius:0;max-width:none}}</style>
+<div class="w"><div class="hd">${logo?`<img src="${esc(logo)}" alt="KLC">`:""}<div><h1>TRANSPORT &amp; TRIP LEDGER</h1><p>Kashaf Lasani Cargo Services (KLC)</p></div><div class="mo">Month<b>${esc(mon||"-")}</b>PKR (Rs.)</div></div>
+<div class="chips">${chip("Vehicle",v.reg_no)}${chip("Trip date",fd)}${chip("Challan",t.challan)}${chip("Driver",t.driver)}</div>
+<div class="rt">${esc(t.from||"")} <i>➜</i> ${esc(t.to||"")}</div>
+<div class="sec inc"><h2><span>FREIGHT / INCOME</span><span>AMOUNT (PKR)</span></h2><table>${t.inc.map(r=>tr(r.l,r.a)).join("")}<tr class="tot"><td>Total Freight / Income</td><td class="r">Rs. ${nf(i)}</td></tr></table></div>
+<div class="sec exp"><h2><span>EXPENSE DETAILS (TAFSEEL KHARCH)</span><span>AMOUNT (PKR)</span></h2><table>${t.exp.map(r=>tr(r.l,r.a)).join("")}<tr class="tot"><td>Total Expenses (Excl. Maintenance)</td><td class="r">Rs. ${nf(x)}</td></tr>${m?`<tr class="mt"><td>Vehicle Maintenance</td><td class="r">${nf(m)}</td></tr>`:""}</table></div>
+<div class="net"><span>NET BALANCE<br><small style="font-weight:500;opacity:.8">Before maintenance</small></span><b>Rs. ${nf(net)}</b></div>${m?`<div class="net s"><span>NET AFTER MAINTENANCE</span><b>Rs. ${nf(net-m)}</b></div>`:""}
+${t.note?`<div class="note"><b>Note:</b> ${esc(t.note)}</div>`:""}
+<div class="sg"><div>Driver signature</div><div>Accountant / Manager</div></div><div class="ft">Kashaf Lasani Cargo Services · Sialkot · 0300-6166561 · kashaflasanicargo.com</div></div><script>setTimeout(function(){window.print()},500)<\/script>`;
   const w=window.open("","_blank");if(!w){toast("Please allow pop-ups to print");return}w.document.write(h);w.document.close()}
 document.addEventListener("click",ev=>{
   const b=ev.target.closest("[data-tv]");if(!b)return;const a=b.dataset.tv,id=b.dataset.id;db.tripv=db.tripv||[];
