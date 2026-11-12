@@ -2254,6 +2254,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       <button class="chipbtn" aria-pressed="false" data-s="fleetveh"><span class="ti">🚛</span><b>Vehicle Management</b><small>Company-owned and rented vehicles</small><i class="kp-badge"></i></button>
       <button class="chipbtn" aria-pressed="false" data-s="fleetdrv"><span class="ti">🧑</span><b>Drivers Management</b><small>Drivers, licences and vehicle assignments</small><i class="kp-badge"></i></button>
       <button class="chipbtn" aria-pressed="false" data-s="fleetdoc"><span class="ti">📄</span><b>Legal Documents</b><small>Vehicle and driver documents with expiry tracking</small><i class="kp-badge"></i></button>
+      <a class="kp-openfleet" href="?app=fleet" target="klcfleet" rel="noopener">↗ Open Fleet in its own window</a>
     </div>
     <div class="kp-group"><div class="kp-gl">Systems</div>
       <button class="chipbtn" aria-pressed="false" data-s="rates"><span class="ti">💲</span><b>Rates &amp; charges</b><small>Bilty rates, sea freight, pickup and delivery charges</small><i class="kp-badge"></i></button>
@@ -3846,6 +3847,8 @@ $$("#newsFilter .chipbtn").forEach(b=>b.addEventListener("click",()=>{newsF=b.da
 /* ---------- KLC panel ---------- */
 const SUBS=["inbox","imp","bilty","news","dir","partners","rates","acct","xchk","fleetdash","fleetveh","fleetdrv","fleetdoc","admin"];
 const PERM_OF={imp:"bilty",inbox:"bilty",xchk:"acct",fleetdash:"fleet",fleetveh:"fleet",fleetdrv:"fleet",fleetdoc:"fleet"};const canSub=x=>can(PERM_OF[x]||x);
+const FLEET_APP=/[?&]app=fleet\b/.test(location.search);if(FLEET_APP){document.documentElement.classList.add("fleet-app");try{document.title="KLC Fleet"}catch(e){}}
+const isFleetSub=x=>/^fleet/.test(x);
 let sub="inbox",rTier="cust";
 $$("#subtabs .chipbtn").forEach(b=>b.addEventListener("click",()=>{sub=b.dataset.s;if(sub==="acct"){ledgerCode="";acEditCode="";acDelAsk="";acView="list";acSec="ledger";acOsAsk=""}pressGroup("#subtabs",b);renderPanel();if(window.innerWidth<=860)$(".kp-sec").scrollIntoView({behavior:"smooth",block:"start"});else window.scrollTo({top:0,behavior:"auto"})}));
 function renderPanel(){
@@ -3854,8 +3857,8 @@ function renderPanel(){
   $("#lockForm").hidden=staffOK;$("#panelBody").hidden=!staffOK;$("#kpLoginHead").hidden=staffOK;
   if(!staffOK)return;
   /* v164: choose and show the section first, so a slow or failing step below can never leave the old section on screen */
-  {const al=SUBS.filter(canSub);if(!al.includes(sub))sub=al[0]||"";
-   $$("#subtabs .chipbtn").forEach(b=>{b.hidden=!canSub(b.dataset.s);b.setAttribute("aria-pressed",b.dataset.s===sub)});
+  {const al=SUBS.filter(canSub).filter(x=>!FLEET_APP||isFleetSub(x));if(!al.includes(sub))sub=al[0]||"";
+   $$("#subtabs .chipbtn").forEach(b=>{b.hidden=!canSub(b.dataset.s)||(FLEET_APP&&!isFleetSub(b.dataset.s));b.setAttribute("aria-pressed",b.dataset.s===sub)});
    SUBS.forEach(x=>{const e=$("#p-"+x);if(e)e.hidden=x!==sub});
    const t=document.querySelector(`#subtabs [data-s="${sub}"]`);$("#kpSecI").textContent=t?.querySelector(".ti")?.textContent||"";$("#kpSecT").textContent=t?.querySelector("b")?.textContent||"";$("#kpSecD").textContent=t?.querySelector("small")?.textContent||""}
   staffName=me().name;try{runDueTimers()}catch(err){console.error("timers",err)}
@@ -3869,7 +3872,7 @@ function renderPanel(){
   {const sx=$("#stats");if(sx)sx.hidden=sub.startsWith("fleet")}
   const allowed=SUBS.filter(canSub);
   if(!allowed.includes(sub))sub=allowed[0]||"";
-  $$("#subtabs .chipbtn").forEach(b=>{b.hidden=!canSub(b.dataset.s);b.setAttribute("aria-pressed",b.dataset.s===sub)});
+  $$("#subtabs .chipbtn").forEach(b=>{b.hidden=!canSub(b.dataset.s)||(FLEET_APP&&!isFleetSub(b.dataset.s));b.setAttribute("aria-pressed",b.dataset.s===sub)});
   try{
   const pend=db.bilties.filter(b=>b.status<3).length;
   const dsum=db.bilties.filter(b=>!b.acct).reduce((s,b)=>s+due(b),0)+db.clients.reduce((s,c)=>s+Math.max(0,ledger(c.code).bal),0);
@@ -6304,6 +6307,7 @@ $("#lockForm").addEventListener("submit",async e=>{e.preventDefault();
 $("#staffForgot").addEventListener("click",async()=>{const em=$("#staffUser").value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("Type your email above first");return}
   await sbRecover(em);toast("If this email has a login, a reset link has been sent.")});
 $("#pwBtn").addEventListener("click",()=>pwModal(false));
+if(FLEET_APP){setTimeout(()=>show("panel"),300);try{const h=document.querySelector("#kpLoginHead h1");if(h)h.textContent="KLC Fleet";const e=document.querySelector("#kpLoginHead .eyebrow");if(e)e.textContent="Kashaf Lasani Cargo Services · fleet management";const t=document.querySelector(".kp-title");if(t)t.textContent="KLC Fleet"}catch(e){}}
 try{if(sessionStorage.getItem("klc-go-panel")){sessionStorage.removeItem("klc-go-panel");setTimeout(()=>show("panel"),400)}}catch(e){}
 /* public News & Updates: staff data is private, so customers read it through the public_news function */
 (async function pubNews(){try{if(sbGet())return;const r=await fetch(SB_URL+"/rest/v1/rpc/public_news",{method:"POST",headers:sbH(),body:"{}"});if(!r.ok)return;const j=await r.json();if(!j||!Array.isArray(j.news))return;db.news=j.news;db.ports=Array.isArray(j.ports)?j.ports:[];db.portsUpdated=j.portsUpdated||"";db.vessels=Array.isArray(j.vessels)?j.vessels:[];db.vesselsUpdated=j.vesselsUpdated||"";renderRates()}catch(e){}})();
@@ -6445,5 +6449,23 @@ details.faq,.faq details,details{border-radius:0}
 .kp-menu::-webkit-scrollbar-thumb{background:rgba(255,255,255,.55);border-radius:6px}
 .kp-menu::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.85)}
 }
+</style>
+<style id="klc-fleet-app">
+.kp-openfleet{display:block;margin:6px 4px 2px;padding:8px 10px;border:1px dashed rgba(255,255,255,.45);border-radius:8px;color:inherit;font-size:13px;text-decoration:none;text-align:center;opacity:.9}
+.kp-openfleet:hover{opacity:1;background:rgba(255,255,255,.1)}
+/* ===== Fleet-only window: ?app=fleet ===== */
+html.fleet-app header.top .tabs,html.fleet-app header.top .citysel,html.fleet-app .bottomnav,html.fleet-app .footer,html.fleet-app .fab,html.fleet-app .chatfab,html.fleet-app #staffTab,html.fleet-app .kp-openfleet,html.fleet-app #kpChatBtn,html.fleet-app .kp-gl,html.fleet-app .kp-group:not(:has([data-s^="fleet"])),html.fleet-app #subtabs .chipbtn:not([data-s^="fleet"]),html.fleet-app .kp-stats{display:none!important}
+html.fleet-app header.top .bar{justify-content:center}
+html.fleet-app .kp-layout{display:block!important;max-width:1180px;margin:0 auto}
+html.fleet-app .kp-menu{position:sticky!important;top:0;z-index:7;display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:8px!important;background:var(--ivory,#FBF9F5)!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;padding:10px 0!important;margin:0 0 16px!important;box-shadow:none!important;overflow:visible!important;max-height:none!important}
+html.fleet-app .kp-group{display:contents!important}
+html.fleet-app #subtabs .chipbtn{display:flex!important;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:#fff!important;color:var(--ink)!important;box-shadow:none!important;text-align:center}
+html.fleet-app #subtabs .chipbtn small{display:none!important}
+html.fleet-app #subtabs .kp-badge:empty{display:none!important}
+html.fleet-app #subtabs .chipbtn b{font:600 15px var(--body)!important;color:inherit!important}
+html.fleet-app #subtabs .chipbtn .ti{font-size:18px;color:inherit}
+html.fleet-app #subtabs .chipbtn[aria-pressed="true"]{background:var(--burgundy,#7D1A1F)!important;border-color:var(--burgundy,#7D1A1F)!important;color:#fff!important}
+html.fleet-app #subtabs .chipbtn[aria-pressed="true"] b,html.fleet-app #subtabs .chipbtn[aria-pressed="true"] .ti{color:#fff!important}
+@media (max-width:640px){html.fleet-app .kp-menu{grid-template-columns:1fr 1fr!important}html.fleet-app #subtabs .chipbtn b{font-size:14px}}
 </style>
 </body></html>
