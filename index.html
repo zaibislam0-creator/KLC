@@ -3847,7 +3847,7 @@ $$("#newsFilter .chipbtn").forEach(b=>b.addEventListener("click",()=>{newsF=b.da
 const SUBS=["inbox","imp","bilty","news","dir","partners","rates","acct","xchk","fleetdash","fleetveh","fleetdrv","fleetdoc","admin"];
 const PERM_OF={imp:"bilty",inbox:"bilty",xchk:"acct",fleetdash:"fleet",fleetveh:"fleet",fleetdrv:"fleet",fleetdoc:"fleet"};const canSub=x=>can(PERM_OF[x]||x);
 let sub="inbox",rTier="cust";
-$$("#subtabs .chipbtn").forEach(b=>b.addEventListener("click",()=>{sub=b.dataset.s;if(sub==="acct"){ledgerCode="";acEditCode="";acDelAsk="";acView="list";acSec="ledger";acOsAsk=""}pressGroup("#subtabs",b);renderPanel();if(window.innerWidth<=860)$(".kp-sec").scrollIntoView({behavior:"smooth",block:"start"})}));
+$$("#subtabs .chipbtn").forEach(b=>b.addEventListener("click",()=>{sub=b.dataset.s;if(sub==="acct"){ledgerCode="";acEditCode="";acDelAsk="";acView="list";acSec="ledger";acOsAsk=""}pressGroup("#subtabs",b);renderPanel();if(window.innerWidth<=860)$(".kp-sec").scrollIntoView({behavior:"smooth",block:"start"});else window.scrollTo({top:0,behavior:"auto"})}));
 function renderPanel(){
   staffOK=!!me();
   $("#staffTab").hidden=!staffOK&&curView!=="panel";
@@ -3941,6 +3941,7 @@ function pFleetDash(){
 /* ----- vehicles ----- */
 function pFleetVeh(){
   const el=$("#p-fleetveh");if(!flGate(el))return;
+  if(FL.mode.veh==="folder"&&flVeh(FL.folder)){el.innerHTML=flVehFolder();return}
   if(FL.mode.veh==="form"){el.innerHTML=flVehForm();flRentToggle();return}
   const q=FL.q.veh.toLowerCase();
   const rows=FL.veh.filter(v=>(FL.st==="all"?!v.archived:FL.st==="archived"?v.archived:!v.archived&&v.status===FL.st)&&(!q||[v.id,v.reg_no,v.name,v.make,v.model].join(" ").toLowerCase().includes(q)));
@@ -3951,11 +3952,39 @@ function pFleetVeh(){
     const ds=FL.docs.filter(d=>d.vehicle_id===v.id&&d.status==="current"&&d.expiry_date).map(d=>flBucket(d.expiry_date));
     const worst=ds.length?ds.sort((a,b)=>a.n-b.n)[0]:null;
     return `<tr><td>${esc(v.id)}</td><td><b>${esc(v.reg_no)}</b></td><td>${esc([v.name,v.category].filter(Boolean).join(" · "))}</td><td>${v.ownership==="rented"?"Rented":"Company"}</td><td class="num">${v.odometer!=null?Number(v.odometer).toLocaleString("en-PK")+" km":"-"}</td><td>${dr.length?esc(dr.join(", ")):"-"}</td><td>${worst?flBadge(worst.c,worst.t):"-"}</td><td>${flVStatusBadge(v.status)}</td>
-    <td class="fl-act">${FL.ask==="v:"+v.id?`<span class="hint">${v.archived?"Restore":"Archive"} ${esc(v.reg_no)}?</span><button type="button" class="btn sm" data-fl="veh-arch-yes" data-id="${esc(v.id)}">Yes</button><button type="button" class="btn ghost sm" data-fl="ask-no">No</button>`:`<button type="button" class="btn ghost sm" data-fl="veh-edit" data-id="${esc(v.id)}">Edit</button><button type="button" class="btn ghost sm" data-fl="veh-arch" data-id="${esc(v.id)}">${v.archived?"Restore":"Archive"}</button>`}</td></tr>`}).join("")||`<tr><td colspan="9" class="hint">${FL.veh.length?"No vehicle matches.":"No vehicles yet. Press Add vehicle."}</td></tr>`}</tbody></table></div></div>`}
+    <td class="fl-act">${FL.ask==="v:"+v.id?`<span class="hint">${v.archived?"Restore":"Archive"} ${esc(v.reg_no)}?</span><button type="button" class="btn sm" data-fl="veh-arch-yes" data-id="${esc(v.id)}">Yes</button><button type="button" class="btn ghost sm" data-fl="ask-no">No</button>`:`<button type="button" class="btn sm" data-fl="veh-folder" data-id="${esc(v.id)}">📁 Folder</button><button type="button" class="btn ghost sm" data-fl="veh-edit" data-id="${esc(v.id)}">Edit</button><button type="button" class="btn ghost sm" data-fl="veh-arch" data-id="${esc(v.id)}">${v.archived?"Restore":"Archive"}</button>`}</td></tr>`}).join("")||`<tr><td colspan="9" class="hint">${FL.veh.length?"No vehicle matches.":"No vehicles yet. Press Add vehicle."}</td></tr>`}</tbody></table></div></div>`}
+/* ----- one vehicle's document folder ----- */
+function flVehFolder(){
+  const v=flVeh(FL.folder),e=FL.edit&&FL.edit.renew?FL.edit:null;
+  const docs=FL.docs.filter(d=>d.owner_type==="vehicle"&&d.vehicle_id===v.id).sort((a,b)=>(a.status===b.status?0:a.status==="current"?-1:1)||String(a.doc_type).localeCompare(String(b.doc_type)));
+  const nCur=docs.filter(d=>d.status==="current").length;
+  return flHead("📁 "+esc(v.reg_no),esc([v.name,v.make,v.model,v.year].filter(Boolean).join(" · "))||"Vehicle documents",`<button type="button" class="btn ghost sm" data-fl="cancel">← All vehicles</button>`)+
+  `<div class="panel"><div class="ph"><h3>1. Vehicle details</h3><button type="button" class="btn ghost sm" data-fl="veh-edit" data-id="${esc(v.id)}">Edit details</button></div>
+  <div class="fl-kv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 18px">${[["Registration",v.reg_no],["Name",v.name],["Category",v.category],["Make",v.make],["Model",v.model],["Year",v.year],["Colour",v.colour],["Chassis no.",v.chassis_no],["Engine no.",v.engine_no],["Engine capacity",v.engine_cc],["Fuel",v.fuel_type],["Load (tons)",v.load_tons],["Odometer",v.odometer!=null?Number(v.odometer).toLocaleString("en-PK")+" km":""],["Registered on",v.reg_date?flFmtD(v.reg_date):""],["Ownership",v.ownership==="rented"?"Rented / leased":"Company-owned"],["Status",FL_VST[v.status]||v.status],...(v.ownership==="rented"?[["Owner",v.owner_name],["Owner phone",v.owner_phone],["Rent",v.rent_amount?"Rs "+Number(v.rent_amount).toLocaleString("en-PK")+(v.rent_basis?" / "+v.rent_basis.toLowerCase():""):""]]:[["Purchased",v.purchase_date?flFmtD(v.purchase_date):""],["Purchase price",v.purchase_price?"Rs "+Number(v.purchase_price).toLocaleString("en-PK"):""]])].map(([k,x])=>`<div><small class="hint" style="display:block">${k}</small><b>${esc(x!=null&&x!==""?x:"-")}</b></div>`).join("")}</div></div>`+
+  (()=>{const as=FL.vd.filter(x=>x.vehicle_id===v.id).sort((a,b)=>(!a.to_date===!b.to_date?String(b.from_date||"").localeCompare(String(a.from_date||"")):a.to_date?1:-1)),nowN=as.filter(x=>!x.to_date).length;
+  const dur=(f,t)=>{if(!f)return"-";const a=new Date(f),b=t?new Date(t):new Date();let d=Math.round((b-a)/864e5);if(isNaN(d)||d<0)return"-";if(d<1)return"Less than a day";const y=Math.floor(d/365),m=Math.floor(d%365/30),dd=d%365%30;return [y?y+" yr":"",m?m+" mo":"",!y&&!m||dd&&!y?dd+" day"+(dd===1?"":"s"):""].filter(Boolean).join(" ")};
+  return `<div class="panel"><div class="ph"><h3>2. Driver details &amp; history (${nowN} now, ${as.length-nowN} past)</h3><span class="hint">Assign or end a driver from the Drivers page.</span></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Role</th><th>On vehicle from</th><th>Left on</th><th>Time on this vehicle</th><th>Mobile</th><th>Licence</th><th>Driver documents</th></tr></thead><tbody>${as.map(x=>{const d=flDrv(x.driver_id);if(!d)return"";const b=flBucket(d.licence_expiry),dd=FL.docs.filter(q=>q.owner_type==="driver"&&q.driver_id===d.id&&q.status==="current");
+    return `<tr${x.to_date?' class="fl-old"':""}><td><b>${esc(d.full_name)}</b><br><small class="hint">CNIC ${esc(flMask(d.cnic)||"-")}</small></td><td>${esc(x.role||"-")}</td><td>${flFmtD(x.from_date)}${as.some(o=>o.id!==x.id&&o.driver_id===x.driver_id&&o.to_date&&String(o.to_date)<=String(x.from_date||""))?'<br><span class="fl-bg w">Rejoined</span>':""}</td><td>${x.to_date?flFmtD(x.to_date):'<span class="fl-bg ok">Still on this vehicle</span>'}</td><td><b>${esc(dur(x.from_date,x.to_date))}</b></td><td>${esc(d.mobile||"-")}</td><td>${esc(d.licence_no||"-")}${d.licence_expiry?"<br>"+flBadge(b.c,flFmtD(d.licence_expiry)):""}</td><td class="fl-act">${dd.map(q=>q.file_path?`<button type="button" class="btn ghost sm" data-fl="doc-file" data-id="${esc(q.id)}">${esc(q.doc_type)}</button>`:`<span class="hint">${esc(q.doc_type)} (no file)</span>`).join("")||'<span class="hint">None</span>'}</td></tr>`}).join("")||'<tr><td colspan="8" class="hint">No driver has been assigned to this vehicle yet.</td></tr>'}</tbody></table></div></div>`})()+
+  (()=>{const di=d=>{try{return dmyToIso(d)}catch(e){return""}},nz=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,""),rn=nz(v.reg_no),T={};
+  if(rn)(db.bilties||[]).forEach(bl=>{const c=bl.challan;if(!c||!c.vehicle)return;const cv=nz(c.vehicle);if(!cv||!(cv===rn||cv.startsWith(rn)||rn.startsWith(cv)))return;const t=T[c.no]||(T[c.no]={no:c.no,date:c.date,from:bl.from,to:bl.to,n:0});t.n++});
+  const tr=Object.values(T).sort((a,b)=>String(di(b.date)||"").localeCompare(String(di(a.date)||"")));
+  const mo=new Date().toISOString().slice(0,7),thisM=tr.filter(t=>String(di(t.date)||"").slice(0,7)===mo).length;
+  return `<div class="panel"><div class="ph"><h3>3. Trips (${tr.length})</h3><span class="hint">Counted from imported Booking Challans where this registration number is the vehicle. This month: <b>${thisM}</b></span></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Challan</th><th>Date</th><th>Route</th><th class="num">Bilties</th></tr></thead><tbody>${tr.slice(0,25).map(t=>`<tr><td><b>${esc(t.no)}</b></td><td>${esc(t.date||"-")}</td><td>${esc(t.from||"-")} → ${esc(t.to||"-")}</td><td class="num">${t.n}</td></tr>`).join("")||'<tr><td colspan="4" class="hint">No trips found for this registration number yet.</td></tr>'}</tbody></table></div>${tr.length>25?`<p class="hint">Showing the latest 25 of ${tr.length}.</p>`:""}</div>`})()+
+  `<div class="panel"><div class="ph"><h3>4. Documents (${nCur})</h3><span class="hint">Everything for this vehicle is kept here. Old versions stay after renewal.</span></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Number</th><th>Expiry</th><th>Days left</th><th>Status</th><th>File</th><th></th></tr></thead><tbody>${docs.map(d=>{const b=flBucket(d.expiry_date),old=d.status==="superseded";
+    return `<tr${old?' class="fl-old"':""}><td><b>${esc(d.doc_type)}</b>${old?' <span class="fl-bg n">Old version</span>':""}</td><td>${esc(d.doc_no||"-")}</td><td>${flFmtD(d.expiry_date)}</td><td class="num">${b.n===null?"-":b.n}</td><td>${old?"-":flBadge(b.c,b.t)}</td><td>${d.file_path?`<button type="button" class="btn ghost sm" data-fl="doc-file" data-id="${esc(d.id)}">View file</button>`:"-"}</td><td class="fl-act">${old?"":`<button type="button" class="btn ghost sm" data-fl="folder-renew" data-id="${esc(d.id)}">Renew</button>`}</td></tr>`}).join("")||`<tr><td colspan="7" class="hint">No documents yet. Upload the first one below.</td></tr>`}</tbody></table></div></div>
+  <form class="panel fl-form" data-flform="doc" data-folder="${esc(v.id)}" autocomplete="off"><h3 style="margin:0 0 8px">${e?"Renew "+esc(e.doc_type):"Upload a document"}</h3>
+  <input type="hidden" name="owner_type" value="vehicle"><input type="hidden" name="vehicle_id" value="${esc(v.id)}"><input type="hidden" name="doc_type_d" value=""><input type="hidden" name="verification" value="pending">
+  <div class="fl-fm"><label>Document type *${flSel("doc_type_v",FL_VDOC,e?e.doc_type:"","Choose")}</label>${flIn("doc_no","Document number","")}${flIn("authority","Issuing authority",e?e.authority:"")}${flIn("issue_date","Issue date","","date")}${flIn("expiry_date","Expiry date","","date")}
+  <label>PDF file<input type="file" name="file" accept="application/pdf,image/*"></label>${flIn("remarks","Remarks","")}</div>
+  <div class="fl-btns"><button type="submit" class="btn"${FL.busy?" disabled":""}>${e?"Save renewed document":"Upload document"}</button>${e?`<button type="button" class="btn ghost" data-fl="folder-back">Cancel renewal</button>`:""}</div></form>`}
 function flSelF(id,opts,val){return `<select id="${id}" aria-label="Filter">${opts.map(([v,l])=>`<option value="${esc(v)}"${val===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`}
 function flVehForm(){
   const v=FL.edit||{ownership:"company",status:"available",fuel_type:"Diesel",odometer:0};const nw=!FL.edit;
   return flHead(nw?"Add vehicle":"Edit vehicle "+esc(v.reg_no),"Fields marked * are required")+
+  `<div class="panel" style="display:grid;gap:8px"><h3 style="margin:0">📄 Fill from PDF</h3><p class="hint" style="margin:0">Choose the vehicle's registration card or detail PDF. The form below fills itself; check every field and correct it before saving.</p><div><input type="file" id="flPdfVeh" accept="application/pdf,.pdf" aria-label="Vehicle PDF"></div><div id="flPdfMsg" class="hint" role="status" aria-live="polite"></div></div>`+
   `<form class="panel fl-form" data-flform="veh" autocomplete="off"><div class="fl-fm">
   <h3>Basic information</h3>${flIn("reg_no","Registration number *",v.reg_no,"text","required")}${flIn("name","Vehicle name",v.name)}<label>Category${flSel("category",FL_VCAT,v.category,"Choose")}</label>
   ${flIn("make","Make",v.make)}${flIn("model","Model",v.model)}${flIn("year","Manufacturing year",v.year,"number",'min="1980" max="2100"')}${flIn("colour","Colour",v.colour)}
@@ -3968,6 +3997,92 @@ function flVehForm(){
   </div><p class="hint">Registration card, ownership papers, invoice and photos are added in Legal Documents.</p>
   <div class="fl-btns"><button type="submit" class="btn"${FL.busy?" disabled":""}>${FL.busy?"Saving…":"Save vehicle"}</button><button type="button" class="btn ghost" data-fl="cancel">Cancel</button></div></form>`}
 function flRentToggle(){const f=document.querySelector('[data-flform="veh"]');if(!f)return;const upd=()=>{f.querySelectorAll(".fl-own").forEach(d=>d.hidden=d.dataset.own!==f.elements.ownership.value)};f.elements.ownership.addEventListener("change",upd);upd()}
+
+const FL_DPDF=[
+ ["full_name","Full name",/\b(?:full\s*)?name\b(?!\s*of\s*father)/i],
+ ["father_name","Father name",/(?:father|husband)(?:'s)?\s*(?:name)?/i],
+ ["cnic","CNIC number",/(?:cnic|identity\s*(?:card)?)\s*(?:no\.?|number|#)?/i],
+ ["licence_no","Licence number",/(?:licen[cs]e|dl)\s*(?:no\.?|number|#)/i],
+ ["licence_issue","Licence issue date",/(?:issue|issued)\s*date|date\s*of\s*issue/i],
+ ["licence_expiry","Licence expiry date",/(?:expiry|expires?|valid\s*(?:up\s*)?(?:to|till|upto))(?:\s*date)?/i],
+ ["licence_category","Licence category",/(?:licen[cs]e\s*)?(?:category|type)/i],
+ ["address","Address",/\baddress\b/i],
+ ["mobile","Mobile number",/(?:mobile|cell|phone|contact)\s*(?:no\.?|number)?/i]
+];
+function flParseDrvPdf(lines){
+  const L=lines.map(l=>l.text).filter(Boolean),all=L.join("\n"),out={};
+  FL_DPDF.forEach(([k,,re])=>{for(let i=0;i<L.length;i++){const m=L[i].match(re);if(!m)continue;
+    let v=L[i].slice(m.index+m[0].length).replace(/^[\s:.\-–—|]+/,"").trim();if(!v&&L[i+1])v=L[i+1].trim();
+    if(!v||v.length>90)continue;out[k]=v;break}});
+  const c=all.match(/\b\d{5}[- ]?\d{7}[- ]?\d\b/);if(c){const d=c[0].replace(/\D/g,"");out.cnic=d.slice(0,5)+"-"+d.slice(5,12)+"-"+d.slice(12)}else delete out.cnic;
+  const mb=all.match(/\b(?:\+?92|0)3\d{2}[- ]?\d{7}\b/);if(mb)out.mobile=mb[0].replace(/\s/g,"");else delete out.mobile;
+  ["licence_issue","licence_expiry"].forEach(k=>{if(out[k]){out[k]=flPdfDate(out[k]);}});
+  if(out.licence_no)out.licence_no=out.licence_no.split(/\s{2,}/)[0];
+  if(out.full_name&&/\d/.test(out.full_name))delete out.full_name;
+  Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});return out}
+document.addEventListener("change",async e=>{
+  const inp=e.target.closest("#flPdfDrv");if(!inp)return;
+  const f=inp.files&&inp.files[0],msg=$("#flPdfMsgD"),form=document.querySelector('[data-flform="drv"]');if(!f||!form)return;
+  if(!/\.pdf$/i.test(f.name)&&!/pdf$/i.test(f.type)){msg.textContent="Please choose a PDF file.";return}
+  msg.textContent="Reading the PDF…";
+  try{const lines=await pdfLines(await f.arrayBuffer());
+    if(!lines.length){msg.textContent="This PDF has no readable text (it is probably a scan or photo). Please type the details.";return}
+    const got=flParseDrvPdf(lines),done=[],miss=[];
+    FL_DPDF.forEach(([k,lab])=>{const el=form.elements[k];if(el&&got[k]){el.value=got[k];done.push(lab)}else miss.push(lab)});
+    msg.innerHTML=done.length?`Filled: <b>${esc(done.join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc(miss.join(", "))}.`:"")+` Please check everything before saving.`:"No driver details could be found in this PDF. Please type them in."
+  }catch(err){msg.textContent="The PDF could not be read. Please try another file or type the details."}
+});
+
+/* ----- fill vehicle form from a PDF ----- */
+const FL_PDFMAP=[
+ ["reg_no","Registration number",/(?:registration|reg\.?|vehicle|plate|number\s*plate)\s*(?:no\.?|number|#)/i],
+ ["make","Make",/\b(?:make|maker|manufacturer)\b(?!\s*\/?\s*model\s*year)/i],
+ ["model","Model",/\bmodel\b(?!\s*year)/i],
+ ["year","Manufacturing year",/(?:model\s*year|manufactur\w*\s*year|year\s*of\s*manufactur\w*|mfg\.?\s*year)/i],
+ ["colour","Colour",/\bcolou?r\b/i],
+ ["chassis_no","Chassis number",/chassis\s*(?:no\.?|number|#)?/i],
+ ["engine_no","Engine number",/engine\s*(?:no\.?|number|#)/i],
+ ["engine_cc","Engine capacity",/(?:engine\s*(?:capacity|cc|power)|horse\s*power|\bcc\b)/i],
+ ["reg_date","Registration date",/(?:registration\s*date|date\s*of\s*registration|reg\.?\s*date)/i],
+ ["fuel_type","Fuel type",/\bfuel\b/i],
+ ["category","Category",/(?:body\s*type|vehicle\s*(?:type|class)|\bclass\b)/i]
+];
+function flPdfDate(t){const m=String(t||"").match(/(\d{1,2})[\/.\-\s](\d{1,2}|[A-Za-z]{3})[\/.\-\s](\d{4})/);if(!m)return"";const mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};const mm=isNaN(m[2])?mo[m[2].toLowerCase()]:+m[2];if(!mm||mm>12||+m[1]>31)return"";return m[3]+"-"+String(mm).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0")}
+function flParseVehPdf(lines){
+  const L=lines.map(l=>l.text).filter(Boolean),out={};
+  FL_PDFMAP.forEach(([k,,re])=>{
+    for(let i=0;i<L.length;i++){
+      const m=L[i].match(re);if(!m)continue;
+      let v=L[i].slice(m.index+m[0].length).replace(/^[\s:.\-–—|]+/,"").trim();
+      if(!v&&L[i+1])v=L[i+1].trim();
+      v=v.split(/\s{2,}|\s+(?:chassis|engine|colou?r|model|make|fuel|owner|registration|date)\b/i)[0].trim();
+      if(!v||v.length>60)continue;
+      out[k]=v;break}
+  });
+  if(!out.reg_no){const m=L.join("\n").match(/\b([A-Z]{2,4})[\s-]?(\d{2})?[\s-]?(\d{1,4})\b/);if(m&&/\d/.test(m[0]))out.reg_no=m[0].replace(/\s+/g,"-")}
+  if(out.reg_date)out.reg_date=flPdfDate(out.reg_date);
+  if(out.year){const y=String(out.year).match(/(19[89]\d|20\d{2})/);out.year=y?y[1]:""}
+  if(out.model&&!out.year){const y=out.model.match(/(19[89]\d|20\d{2})/);if(y)out.year=y[1]}
+  if(out.engine_cc)out.engine_cc=out.engine_cc.replace(/\s+/g," ");
+  if(out.fuel_type){const f=out.fuel_type.toLowerCase();out.fuel_type=/diesel/.test(f)?"Diesel":/cng/.test(f)?"CNG":/petrol|gasoline/.test(f)?"Petrol":""}
+  if(out.category){const c=FL_VCAT.find(x=>out.category.toLowerCase().includes(x.toLowerCase().split(" ")[0]));out.category=c||""}
+  if(out.reg_no)out.reg_no=out.reg_no.toUpperCase();
+  Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});
+  return out}
+document.addEventListener("change",async e=>{
+  const inp=e.target.closest("#flPdfVeh");if(!inp)return;
+  const f=inp.files&&inp.files[0],msg=$("#flPdfMsg"),form=document.querySelector('[data-flform="veh"]');if(!f||!form)return;
+  if(!/\.pdf$/i.test(f.name)&&!/pdf$/i.test(f.type)){msg.textContent="Please choose a PDF file.";return}
+  msg.textContent="Reading the PDF…";
+  try{
+    const lines=await pdfLines(await f.arrayBuffer());
+    if(!lines.length){msg.textContent="This PDF has no readable text (it is probably a scan or photo). Please type the details, or use a PDF that was saved from a computer.";return}
+    const got=flParseVehPdf(lines),done=[],miss=[];
+    FL_PDFMAP.forEach(([k,lab])=>{const el=form.elements[k];if(el&&got[k]){el.value=got[k];if(el.value!==got[k]&&el.tagName==="SELECT")el.value="";else{done.push(lab);return}}miss.push(lab)});
+    msg.innerHTML=done.length?`Filled: <b>${esc(done.join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc(miss.join(", "))}.`:"")+` Please check everything before saving.`:"No vehicle details could be found in this PDF. Please type them in.";
+    if(done.includes("Ownership"))flRentToggle();
+  }catch(err){msg.textContent="The PDF could not be read. Please try another file or type the details."}
+});
 
 /* ----- drivers ----- */
 function pFleetDrv(){
@@ -3986,6 +4101,7 @@ function flDrvForm(){
   const d=FL.edit||{employment_status:"active"};const nw=!FL.edit;
   const cur=nw?[]:FL.vd.filter(a=>a.driver_id===d.id);
   return flHead(nw?"Add driver":"Edit driver "+esc(d.full_name),"Fields marked * are required")+
+  `<div class="panel" style="display:grid;gap:8px"><h3 style="margin:0">📄 Fill from PDF</h3><p class="hint" style="margin:0">Choose the driver's licence or CNIC PDF. The form below fills itself; check every field and correct it before saving.</p><div><input type="file" id="flPdfDrv" accept="application/pdf,.pdf" aria-label="Driver PDF"></div><div id="flPdfMsgD" class="hint" role="status" aria-live="polite"></div></div>`+
   `<form class="panel fl-form" data-flform="drv" autocomplete="off"><div class="fl-fm">
   <h3>Personal information</h3>${flIn("full_name","Full name *",d.full_name,"text","required")}${flIn("father_name","Father name",d.father_name)}${flIn("cnic","CNIC number",d.cnic,"text",'placeholder="34603-1234567-1"')}${flIn("cnic_issue","CNIC issue date",d.cnic_issue,"date")}${flIn("cnic_expiry","CNIC expiry date",d.cnic_expiry,"date")}${flIn("mobile","Mobile number",d.mobile,"tel")}${flIn("address","Permanent address",d.address)}${flIn("emergency_contact","Emergency contact",d.emergency_contact)}
   <h3>Driving licence</h3>${flIn("licence_no","Licence number",d.licence_no)}${flIn("licence_authority","Issuing authority",d.licence_authority)}${flIn("licence_category","Licence category",d.licence_category)}${flIn("licence_classes","Permitted vehicle classes",d.licence_classes)}${flIn("licence_issue","Issue date",d.licence_issue,"date")}${flIn("licence_expiry","Expiry date",d.licence_expiry,"date")}
@@ -4075,6 +4191,9 @@ document.addEventListener("click",async ev=>{
   if(a==="bk"){FL.bk=b.dataset.k;renderPanel();return}
   if(a==="veh-new"){FL.edit=null;FL.mode.veh="form";renderPanel();return}
   if(a==="veh-edit"){FL.edit=flVeh(id);FL.mode.veh="form";renderPanel();return}
+  if(a==="veh-folder"){FL.edit=null;FL.folder=id;FL.mode.veh="folder";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
+  if(a==="folder-renew"){FL.edit={...FL.docs.find(x=>x.id===id),renew:true};renderPanel();return}
+  if(a==="folder-back"){FL.edit=null;renderPanel();return}
   if(a==="veh-arch"){FL.ask="v:"+id;renderPanel();return}
   if(a==="veh-arch-yes"){const v=flVeh(id);await flReq("fleet_vehicles?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!v.archived,updated_by:me()?.user||null}});flLog(v.archived?"restore":"archive","vehicle",id,null);FL.ask="";await flRefresh();toast(v.archived?"Vehicle restored":"Vehicle archived");return}
   if(a==="drv-new"){FL.edit=null;FL.mode.drv="form";renderPanel();return}
@@ -4095,7 +4214,7 @@ document.addEventListener("submit",async ev=>{
   const f=ev.target.closest("[data-flform]");if(!f)return;ev.preventDefault();if(FL.busy)return;
   FL.busy=true;const btn=f.querySelector('[type="submit"]');if(btn){btn.disabled=true;btn.textContent="Saving…"}
   try{const k=f.dataset.flform;if(k==="veh")await flSaveVeh(f);else if(k==="drv")await flSaveDrv(f);else await flSaveDoc(f);
-    const msg=FL.pendingMsg;FL.pendingMsg="";flBack();await flRefresh();toast(msg||"Saved")}
+    const msg=FL.pendingMsg;FL.pendingMsg="";flBack();if(f.dataset.folder){FL.folder=f.dataset.folder;FL.mode.veh="folder"}await flRefresh();toast(msg||"Saved")}
   catch(er){FL.busy=false;if(btn){btn.disabled=false;btn.textContent="Save"}toast(er.message||"Could not save. Please try again.")}});
 document.addEventListener("input",ev=>{const q=ev.target.closest("[data-flq]");if(!q)return;FL.q[q.dataset.flq]=q.value;const pos=q.selectionStart;renderPanel();const n=document.getElementById("flQ");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}});
 document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="flSt"){if(sub==="fleetdrv")FL.sd=t.value;else FL.st=t.value;renderPanel()}if(t.id==="flOld"){FL.old=t.checked;renderPanel()}});
