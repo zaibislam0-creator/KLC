@@ -6334,6 +6334,9 @@ go(0);tick();})();
  function home(){try{show("track");var v=document.getElementById("v-track");v.classList.remove("focus","hasres");window.scrollTo(0,0)}catch(e){}}
  home();addEventListener("load",function(){window.scrollTo(0,0)});
  addEventListener("pageshow",function(e){if(e.persisted)home()});})();
+
+/* after saving or changing a fleet view, start from the top of the page */
+(function(){const rp=renderPanel;let last="";renderPanel=function(){let k="";try{k=JSON.stringify([FL.mode,FL.folder,FL.tvMode,!!FL.edit])}catch(e){}const ch=k!==last;last=k;const r=rp.apply(this,arguments);if(ch)window.scrollTo({top:0,behavior:"auto"});return r}})();
 </script>
 
 <style id="klc-classic">
