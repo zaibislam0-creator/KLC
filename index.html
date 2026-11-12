@@ -3932,15 +3932,43 @@ function flAlertGroups(items){
   return `<p class="hint" style="margin:0 0 8px">Press a name to see what is expiring.</p><div style="display:grid;gap:6px">${gs.map(g=>`<details style="border:1px solid var(--line);border-radius:8px;padding:0"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;list-style:none"><b>${esc(g.w)}</b><span style="display:flex;gap:8px;align-items:center"><small class="hint">${g.a.length} alert${g.a.length>1?"s":""}</small>${flBadge(g.a[0].b.c,g.a[0].b.t)}</span></summary><div class="fl-al" style="padding:0 12px 10px">${g.a.map(i=>`<div><span><b>${esc(i.type)}</b><small>${i.b.n<0?Math.abs(i.b.n)+" days ago":"in "+i.b.n+" days"} (${flFmtD(i.exp)})</small></span>${flBadge(i.b.c,i.b.t)}</div>`).join("")}</div></details>`).join("")}</div>`}
 function pFleetDash(){
   const el=$("#p-fleetdash");if(!flGate(el))return;
-  const V=FL.veh.filter(v=>!v.archived),D=FL.drv.filter(d=>!d.archived);
-  const cnt=s=>V.filter(v=>v.status===s).length;
+  db.tripv=db.tripv||[];
+  const V=FL.veh.filter(v=>!v.archived),D=FL.drv.filter(d=>!d.archived),cnt=s=>V.filter(v=>v.status===s).length;
   const items=flItems().map(i=>({...i,b:flBucket(i.exp)})).filter(i=>i.b.k!=="valid").sort((a,b)=>a.b.n-b.b.n);
-  const tiles=[[V.length,"Total vehicles"],[V.filter(v=>v.status!=="inactive"&&v.status!=="out_of_service").length,"Active vehicles"],[cnt("available"),"Available"],[cnt("maintenance"),"Under maintenance"],[D.filter(d=>d.employment_status==="active").length,"Active drivers"],[items.length,"Document alerts"]];
+  const vids=new Set(V.map(v=>v.id)),T=db.tripv.filter(t=>vids.has(t.veh));
+  const mk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),now=new Date(),cm=mk(now),pm=mk(new Date(now.getFullYear(),now.getMonth()-1,1));
+  const agg=L=>({n:L.length,i:L.reduce((x,t)=>x+tvSum(t.inc),0),e:L.reduce((x,t)=>x+tvSum(t.exp),0),m:L.reduce((x,t)=>x+tvMaint(t),0),km:L.reduce((x,t)=>x+tvTripKm(t),0)});
+  const A=agg(T.filter(t=>String(t.date||"").slice(0,7)===cm)),P=agg(T.filter(t=>String(t.date||"").slice(0,7)===pm));
+  const net=x=>x.i-x.e-x.m,dl=(c,p)=>p?`<small style="color:${c>=p?"var(--teal)":"var(--accent)"}">${c>=p?"▲":"▼"} ${Math.abs(Math.round((c-p)/Math.abs(p)*100))}% vs last month</small>`:`<small class="hint">${P.n?"":"No data last month"}</small>`;
+  const kpi=(l,v,sub,c)=>`<div class="fl-card${c?" "+c:""}"><b>${v}</b><span>${l}</span>${sub?`<small style="display:block;margin-top:2px">${sub}</small>`:""}</div>`;
+  const withDrv=new Set(FL.vd.filter(x=>!x.to_date).map(x=>x.vehicle_id)),onVeh=new Set(FL.vd.filter(x=>!x.to_date).map(x=>x.driver_id));
+  const noDrv=V.filter(v=>v.status!=="inactive"&&!withDrv.has(v.id)),idleDrv=D.filter(d=>d.employment_status==="active"&&!onVeh.has(d.id));
+  /* maintenance reminders across the fleet */
+  const rem=[];V.forEach(v=>{const L=T.filter(t=>t.veh===v.id);if(!L.length)return;tvReminders(v,tvMaintItems(L)).filter(x=>x.st!=="ok").forEach(x=>rem.push({v,...x}))});rem.sort((a,b)=>(a.st==="over"?0:1)-(b.st==="over"?0:1));
+  /* last 6 months */
+  const ms=[];for(let k=5;k>=0;k--){const d=new Date(now.getFullYear(),now.getMonth()-k,1),key=mk(d),x=agg(T.filter(t=>String(t.date||"").slice(0,7)===key));ms.push({key,l:d.toLocaleString("en-GB",{month:"short"}),i:x.i,o:x.e+x.m})}
+  const mx=Math.max(1,...ms.map(x=>Math.max(x.i,x.o)));
+  const chart=ms.some(x=>x.i||x.o)?`<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end">${ms.map(x=>`<div style="display:grid;gap:4px"><div style="display:flex;gap:4px;align-items:flex-end;height:120px;border-bottom:1px solid var(--line)" title="${esc(x.l)}: income ${tvM(x.i)}, expenses ${tvM(x.o)}"><div style="flex:1;background:var(--teal);height:${Math.round(x.i/mx*120)}px;min-height:${x.i?3:0}px;border-radius:3px 3px 0 0"></div><div style="flex:1;background:var(--accent);height:${Math.round(x.o/mx*120)}px;min-height:${x.o?3:0}px;border-radius:3px 3px 0 0"></div></div><small class="hint" style="text-align:center">${esc(x.l)}</small></div>`).join("")}</div><p class="hint" style="margin:8px 0 0"><span style="color:var(--teal)">■</span> Income &nbsp; <span style="color:var(--accent)">■</span> Expenses + maintenance</p>`:'<p class="hint">Trip vouchers will appear here once you add them in a vehicle folder.</p>';
+  /* per vehicle, this month */
+  const perf=V.map(v=>{const L=T.filter(t=>t.veh===v.id&&String(t.date||"").slice(0,7)===cm),x=agg(L),f=tvFuel(L);return {v,x,f,net:net(x)}}).filter(r=>r.x.n).sort((a,b)=>b.net-a.net);
   const bars=Object.entries(FL_VST).map(([k,l])=>{const n=cnt(k);return `<div class="fl-hb"><span>${l}</span><div class="fl-tr"><i style="width:${V.length?Math.round(n/V.length*100):0}%"></i></div><b>${n}</b></div>`}).join("");
-  el.innerHTML=flHead("","")+
-  `<div class="fl-k">${tiles.map(([n,l],i)=>`<div class="fl-card${i===5&&n?" e":""}${i===3&&n?" w":""}"><b>${n}</b><span>${l}</span></div>`).join("")}</div>
-  <div class="fl-two"><div class="panel"><h3>Vehicle status</h3>${V.length?bars:'<p class="hint">No vehicles yet. Add your first vehicle in Vehicle Management.</p>'}</div>
-  <div class="panel"><h3>Upcoming alerts</h3>${items.length?flAlertGroups(items):'<p class="hint">No document is expired or due within 60 days.</p>'}</div></div>`}
+  const sec=(h,hint,b)=>`<div class="panel"><h3 style="margin:0">${h}</h3>${hint?`<p class="hint" style="margin:2px 0 10px">${hint}</p>`:'<div style="height:8px"></div>'}${b}</div>`;
+  const go=(id,t)=>`<button type="button" class="btn ghost sm" data-fl="veh-folder" data-id="${esc(id)}">${t||"Open"}</button>`;
+  const tile=(ico,l,v,sub,act,c)=>`<div class="fl-card${c?" "+c:""}" role="button" tabindex="0" data-fl="${act}" style="cursor:pointer"><span style="font-size:20px;display:block">${ico}</span><b>${v}</b><span>${l}</span>${sub?`<small style="display:block;margin-top:2px">${sub}</small>`:""}</div>`;
+  /* the to-do list: plain sentences, each with a button */
+  const todo=[];
+  rem.slice(0,5).forEach(x=>todo.push({t:`${x.v.reg_no}: ${x.c} is ${x.st==="over"?"overdue":"due soon"}`,s:tvRemTxt(x),c:x.st==="over"?"e":"w",id:x.v.id}));
+  items.slice(0,5).forEach(i=>todo.push({t:`${i.who}: ${i.type} ${i.b.n<0?"has expired":"expires soon"}`,s:(i.b.n<0?Math.abs(i.b.n)+" days ago":"in "+i.b.n+" days")+" ("+flFmtD(i.exp)+")",c:i.b.c,doc:1}));
+  noDrv.slice(0,3).forEach(v=>todo.push({t:`${v.reg_no} has no driver`,s:"Attach a driver in the vehicle folder",c:"w",id:v.id}));
+  idleDrv.slice(0,3).forEach(d=>todo.push({t:`${d.full_name} is not on any vehicle`,s:"Open Drivers and assign a vehicle",c:"n",drv:1}));
+  const todoHTML=todo.length?`<div class="fl-al">${todo.map(x=>`<div><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span>${x.id?go(x.id,"Open vehicle"):x.drv?`<button type="button" class="btn ghost sm" data-fl="godrvlist">Open drivers</button>`:`<button type="button" class="btn ghost sm" data-fl="godoclist">Open documents</button>`}</div>`).join("")}</div>${items.length>5||rem.length>5?`<p class="hint" style="margin:8px 0 0">More alerts are in <b>Documents</b> and in each vehicle folder.</p>`:""}`:`<p style="margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--teal) 12%,transparent)">✅ <b>All good.</b> Nothing is expired, overdue or missing right now.</p>`;
+  const money=[["Money earned",tvM(A.i),A.i,P.i,"The freight you received this month"],["Money spent",tvM(A.e),A.e,P.e,"Diesel, toll, driver and other trip costs"],["Repairs",tvM(A.m),A.m,P.m,"Tyre, engine, service and other maintenance"],["Profit (what is left)",tvM(net(A)),net(A),net(P),"Earned minus spent minus repairs"]];
+  el.innerHTML=flHead("Fleet overview",now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),`<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-fl="goveh">+ Add vehicle</button><button type="button" class="btn ghost sm" data-fl="godrv">+ Add driver</button></span>`)+
+  sec(todo.length?`⚠ Needs your attention (${todo.length})`:"Needs your attention","Start here. Press a button to fix it.",todoHTML)+
+  `<div class="fl-k">${tile("🚛","Vehicles",V.length,cnt("available")+" free to use","golistveh")}${tile("🛣","On the road",cnt("on_trip"),"","golistveh")}${tile("🔧","In workshop",cnt("maintenance"),"","golistveh",cnt("maintenance")?"w":"")}${tile("🧑","Drivers",D.filter(d=>d.employment_status==="active").length,"working now","godrvlist")}${tile("📄","Document alerts",items.length,items.filter(i=>i.b.n<0).length+" expired","godoclist",items.length?"e":"")}</div>`+
+  sec("This month, "+now.toLocaleString("en-GB",{month:"long",year:"numeric"}),`${A.n} trip voucher${A.n===1?"":"s"} · ${Math.round(A.km).toLocaleString("en-PK")} km driven. Arrows compare with last month.`,`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">${money.map(([l,t,c,p,h],i)=>`<div style="background:var(--chip);border-radius:10px;padding:12px"><b style="font-size:13px">${l}</b><div style="font-size:21px;font-weight:800;${i===3?"color:"+(net(A)<0?"var(--accent)":"var(--teal)"):""}">${t}</div><div>${i===1||i===2?(p?`<small class="hint">last month ${tvM(p)}</small>`:""):dl(c,p)}</div><small class="hint">${h}</small></div>`).join("")}</div>`)+
+  sec("Which vehicle earned the most?","This month, best first. Red means a loss. Press Open to see that vehicle.",perf.length?`<div class="tbl-wrap"><table><thead><tr><th>Vehicle</th><th class="num">Trips</th><th class="num">Earned</th><th class="num">Spent + repairs</th><th class="num">Profit</th><th class="num">Diesel average</th><th></th></tr></thead><tbody>${perf.map(r=>`<tr><td><b>${esc(r.v.reg_no)}</b></td><td class="num">${r.x.n}</td><td class="num">${tvM(r.x.i)}</td><td class="num">${tvM(r.x.e+r.x.m)}</td><td class="num" style="color:${r.net<0?"var(--accent)":"var(--teal)"};font-weight:700">${tvM(r.net)}</td><td class="num">${r.f.kmpl?r.f.kmpl.toFixed(1)+" km per litre":"-"}</td><td>${go(r.v.id,"📁 Open")}</td></tr>`).join("")}</tbody></table></div>`:'<p class="hint" style="margin:0">No trip voucher this month yet. Open a vehicle folder and press New trip voucher.</p>')+
+  `<div class="fl-two">${sec("Last 6 months","Green is money earned, red is money spent plus repairs.",chart)}${sec("Vehicles by status","",V.length?bars:'<p class="hint" style="margin:0">No vehicles yet. Press + Add vehicle.</p>')}</div>`}
 
 /* ----- vehicles ----- */
 function pFleetVeh(){
@@ -4462,7 +4490,10 @@ document.addEventListener("click",async ev=>{
   if(a==="cancel"){flBack();renderPanel();return}
   if(a==="ask-no"){FL.ask="";renderPanel();return}
   if(a==="bk"){FL.bk=b.dataset.k;renderPanel();return}
-  if(a==="veh-new"){FL.edit=null;FL.mode.veh="form";renderPanel();return}
+  if(a==="golistveh"||a==="godrvlist"||a==="godoclist"){const t={golistveh:"fleetveh",godrvlist:"fleetdrv",godoclist:"fleetdoc"}[a],m=document.querySelector('.kp-menu [data-s="'+t+'"]');FL.mode.veh="list";FL.mode.drv="list";FL.edit=null;if(m)m.click();window.scrollTo({top:0,behavior:"auto"});return}
+   if(a==="goveh"){const m=document.querySelector('.kp-menu [data-s="fleetveh"]');if(m)m.click();FL.edit=null;FL.mode.veh="form";renderPanel();return}
+   if(a==="godrv"){const m=document.querySelector('.kp-menu [data-s="fleetdrv"]');if(m)m.click();FL.edit=null;FL.mode.drv="form";renderPanel();return}
+   if(a==="veh-new"){FL.edit=null;FL.mode.veh="form";renderPanel();return}
   if(a==="veh-edit"){FL.edit=flVeh(id);FL.mode.veh="form";renderPanel();return}
   if(a==="veh-folder"){FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.edit=null;FL.folder=id;FL.mode.veh="folder";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
   if(a==="folder-renew"){FL.edit={...FL.docs.find(x=>x.id===id),renew:true};renderPanel();return}
