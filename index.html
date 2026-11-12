@@ -4235,17 +4235,61 @@ function flParseDrvPdf(lines){
   if(out.licence_no)out.licence_no=out.licence_no.split(/\s{2,}/)[0];
   if(out.full_name&&/\d/.test(out.full_name))delete out.full_name;
   Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});return out}
+/* ----- driver: read CNIC + licence (PDF or photo, with OCR for scans) ----- */
+let tessLoad=null;
+function loadTess(){return tessLoad||(tessLoad=new Promise((ok,no)=>{if(window.Tesseract)return ok(window.Tesseract);const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";s.onload=()=>ok(window.Tesseract);s.onerror=()=>{tessLoad=null;no(new Error("ocr"))};document.head.appendChild(s)}))}
+async function ocrCanvas(cv,note){const T=await loadTess();const w=await T.createWorker("eng",1,{logger:m=>{if(note&&m.status==="recognizing text")note(Math.round(m.progress*100))}});try{const r=await w.recognize(cv);return r.data.text}finally{await w.terminate()}}
+async function flFileToCanvases(f){
+  if(/^image\//.test(f.type)||/\.(jpe?g|png|webp|bmp)$/i.test(f.name)){
+    const url=URL.createObjectURL(f);try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+      const k=Math.min(2,2200/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);return[cv]}finally{URL.revokeObjectURL(url)}}
+  const lib=await loadPdfJs(),doc=await lib.getDocument({data:await f.arrayBuffer(),isEvalSupported:false}).promise,out=[];
+  for(let p=1;p<=Math.min(doc.numPages,2);p++){const pg=await doc.getPage(p),vp=pg.getViewport({scale:2.2}),cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;out.push(cv)}
+  return out}
+const flND=t=>{const m=String(t||"").match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4})/);if(!m)return"";const d=+m[1],mo=+m[2];if(mo<1||mo>12||d<1||d>31)return"";return m[3]+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0")};
+function flParseDrvDoc(texts,kind){
+  const L=texts.map(x=>String(x).replace(/\s+/g," ").trim()).filter(Boolean),all=L.join("\n"),out={};
+  const isLic=kind?kind==="lic":/licen[cs]e|driving/i.test(all);
+  const after=(re,n)=>{for(let i=0;i<L.length;i++){const m=L[i].match(re);if(!m)continue;let v=L[i].slice(m.index+m[0].length).replace(/^[\s:.\-–—|]+/,"").trim();if(v)return v;for(let j=1;j<=(n||1);j++){const nx=(L[i+j]||"").trim();if(nx)return nx}}return""};
+  const nm=v=>v.replace(/[^A-Za-z .'\-]/g," ").replace(/\s+/g," ").trim();
+  let name=nm(after(/(?<!father\s)(?<!husband\s)\bname\b/i)),fa=nm(after(/(?:father|husband)(?:'s)?\s*name|s\/o|d\/o|w\/o/i));
+  if(name&&name.length>2&&!/father|husband/i.test(name))out.full_name=name.replace(/\b\w/g,c=>c.toUpperCase()).replace(/(\w)(\w*)/g,(m,a,b)=>a+b.toLowerCase());
+  if(fa&&fa.length>2)out.father_name=fa.replace(/(\w)(\w*)/g,(m,a,b)=>a.toUpperCase()+b.toLowerCase());
+  const c=all.match(/\b\d{5}\s*[- ]\s*\d{7}\s*[- ]\s*\d\b/)||all.match(/\b\d{13}\b/);if(c){const d=c[0].replace(/\D/g,"");out.cnic=d.slice(0,5)+"-"+d.slice(5,12)+"-"+d.slice(12)}
+  const mb=all.match(/\b(?:\+?92|0)\s?3\d{2}[- ]?\d{7}\b/);if(mb)out.mobile=mb[0].replace(/[\s]/g,"");
+  const lab=(re)=>flND(after(re,1));
+  if(isLic){
+    const ln=after(/licen[cs]e\s*(?:no\.?|number|#)|\bd\.?l\.?\s*(?:no\.?|number)/i);if(ln)out.licence_no=ln.split(/\s{2,}/)[0].replace(/[^A-Za-z0-9\-\/ ]/g,"").trim();
+    const ex=lab(/(?:valid\s*(?:up\s*)?(?:to|till|upto)|expiry|expires?|date\s*of\s*expiry)/i),is=lab(/(?:date\s*of\s*issue|issue\s*date|issued?(?:\s*on)?)/i);
+    if(ex)out.licence_expiry=ex;if(is)out.licence_issue=is;
+    const ds=[...all.matchAll(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{4}/g)].map(m=>flND(m[0])).filter(Boolean).sort();
+    if(ds.length>=2){if(!out.licence_issue)out.licence_issue=ds[Math.max(0,ds.length-2)];if(!out.licence_expiry)out.licence_expiry=ds[ds.length-1]}
+    const cl=after(/(?:licen[cs]e\s*)?(?:category|class(?:es)?|type)\b/i);if(cl&&cl.length<40)out.licence_category=cl.replace(/[^A-Za-z0-9,\/ \-]/g,"").trim();
+    const au=after(/issu(?:ing|ed\s*by)\s*(?:authority|office)?|authority/i);if(au&&au.length<60&&!/\d{2}[.\/-]\d{2}/.test(au))out.licence_authority=au.replace(/[^A-Za-z0-9 ,.\-]/g,"").trim();
+    const ad=after(/\baddress\b/i,2);if(ad&&ad.length>5)out.address=ad.replace(/\s+/g," ");
+  }else{
+    const dob=lab(/date\s*of\s*birth|\bd\.?o\.?b\b/i),is=lab(/date\s*of\s*issue|issue\s*date/i),ex=lab(/date\s*of\s*expiry|expiry\s*date|valid\s*(?:till|upto)/i);
+    const ds=[...all.matchAll(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{4}/g)].map(m=>flND(m[0])).filter(Boolean).sort();
+    let i2=is,e2=ex;if(ds.length>=3){if(!i2)i2=ds[1];if(!e2)e2=ds[2]}else if(ds.length===2&&!i2&&!e2){i2=ds[0];e2=ds[1]}
+    if(i2&&i2!==dob)out.cnic_issue=i2;if(e2&&e2!==dob)out.cnic_expiry=e2;
+    const ad=after(/(?:present|permanent)?\s*address\b/i,2);if(ad&&ad.length>5)out.address=ad.replace(/\s+/g," ")}
+  Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});return out}
 document.addEventListener("change",async e=>{
-  const inp=e.target.closest("#flPdfDrv");if(!inp)return;
-  const f=inp.files&&inp.files[0],msg=$("#flPdfMsgD"),form=document.querySelector('[data-flform="drv"]');if(!f||!form)return;
-  if(!/\.pdf$/i.test(f.name)&&!/pdf$/i.test(f.type)){msg.textContent="Please choose a PDF file.";return}
-  msg.textContent="Reading the PDF…";
-  try{const lines=await pdfLines(await f.arrayBuffer());
-    if(!lines.length){msg.textContent="This PDF has no readable text (it is probably a scan or photo). Please type the details.";return}
-    const got=flParseDrvPdf(lines),done=[],miss=[];
-    FL_DPDF.forEach(([k,lab])=>{const el=form.elements[k];if(el&&got[k]){el.value=got[k];done.push(lab)}else miss.push(lab)});
-    msg.innerHTML=done.length?`Filled: <b>${esc(done.join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc(miss.join(", "))}.`:"")+` Please check everything before saving.`:"No driver details could be found in this PDF. Please type them in."
-  }catch(err){msg.textContent="The PDF could not be read. Please try another file or type the details."}
+  const inp=e.target.closest(".flPdfDrv");if(!inp)return;const kind=inp.dataset.kind;
+  const files=[...(inp.files||[])],msg=$("#flPdfMsgD"),form=document.querySelector('[data-flform="drv"]');if(!files.length||!form)return;
+  const merged={},used=[];let ocr=false;
+  try{
+    for(let n=0;n<files.length;n++){const f=files[n],tag=files.length>1?` (${n+1}/${files.length})`:"";
+      msg.textContent="Reading "+f.name+tag+"…";let texts=[];
+      if(/\.pdf$/i.test(f.name)||/pdf$/i.test(f.type)){try{texts=(await pdfLines(await f.arrayBuffer())).map(l=>l.text)}catch(x){texts=[]}}
+      if(texts.join("").replace(/\W/g,"").length<25){ocr=true;msg.textContent="This looks like a scan or photo. Reading it with OCR"+tag+" (first time takes up to a minute)…";
+        const cvs=await flFileToCanvases(f);texts=[];for(const cv of cvs){const t=await ocrCanvas(cv,pc=>{msg.textContent="Reading the scan"+tag+": "+pc+"%"});texts.push(...t.split(/\n/))}}
+      const got=flParseDrvDoc(texts,kind);Object.keys(got).forEach(k=>{if(!merged[k])merged[k]=got[k]});used.push(f.name)}
+    const done=[],miss=[];
+    const KF=kind==="lic"?["licence_no","licence_issue","licence_expiry","licence_category","licence_authority"]:["cnic","cnic_issue","cnic_expiry"],LAB={licence_no:"Licence number",licence_issue:"Licence issue date",licence_expiry:"Licence expiry date",licence_category:"Licence category",licence_authority:"Issuing authority",cnic:"CNIC number",cnic_issue:"CNIC issue date",cnic_expiry:"CNIC expiry date",full_name:"Full name",father_name:"Father name",address:"Address",mobile:"Mobile number"};
+    Object.keys(LAB).forEach(k=>{if(!KF.includes(k)&&!["full_name","father_name","address","mobile"].includes(k))return;const lab=LAB[k];const el=form.elements[k];if(!el)return;if(merged[k]){el.value=merged[k];el.dispatchEvent(new Event("input",{bubbles:true}));done.push(lab)}else miss.push(lab)});
+    msg.innerHTML=done.length?`Filled from ${used.length} file${used.length>1?"s":""}: <b>${esc([...new Set(done)].join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc([...new Set(miss)].join(", "))}.`:"")+(ocr?" (Read by OCR, so spelling and digits may be wrong.)":"")+" Please check every field before saving.":"Nothing readable was found. Try a clearer, straight, well-lit picture or PDF, or type the details."
+  }catch(err){msg.textContent="Could not read the file"+(ocr?" (OCR needs internet and may be blocked)":"")+". Please try another file or type the details."}
 });
 
 /* ----- fill vehicle form from a PDF ----- */
@@ -4317,7 +4361,7 @@ function flDrvForm(){
   const d=FL.edit||{employment_status:"active"};const nw=!FL.edit;
   const cur=nw?[]:FL.vd.filter(a=>a.driver_id===d.id);
   return flHead(nw?"Add driver":"Edit driver "+esc(d.full_name),"Fields marked * are required")+
-  `<div class="panel" style="display:grid;gap:8px"><h3 style="margin:0">📄 Fill from PDF</h3><p class="hint" style="margin:0">Choose the driver's licence or CNIC PDF. The form below fills itself; check every field and correct it before saving.</p><div><input type="file" id="flPdfDrv" accept="application/pdf,.pdf" aria-label="Driver PDF"></div><div id="flPdfMsgD" class="hint" role="status" aria-live="polite"></div></div>`+
+  `<div class="panel" style="display:grid;gap:8px"><h3 style="margin:0">📄 Fill from PDF</h3><p class="hint" style="margin:0">Upload the CNIC and the licence separately (PDF or photo; choose both sides together if they are separate files). The form below fills itself and scans are read with OCR. You can also type or correct any detail below by hand. Check every field before saving.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px"><label>🪪 CNIC<input type="file" class="flPdfDrv" data-kind="cnic" multiple accept="application/pdf,.pdf,image/*" aria-label="Driver CNIC"></label><label>🚚 Driving licence<input type="file" class="flPdfDrv" data-kind="lic" multiple accept="application/pdf,.pdf,image/*" aria-label="Driver licence"></label></div><div id="flPdfMsgD" class="hint" role="status" aria-live="polite"></div></div>`+
   `<form class="panel fl-form" data-flform="drv" autocomplete="off"><div class="fl-fm">
   <h3>Personal information</h3>${flIn("full_name","Full name *",d.full_name,"text","required")}${flIn("father_name","Father name",d.father_name)}${flIn("cnic","CNIC number",d.cnic,"text",'placeholder="34603-1234567-1"')}${flIn("cnic_issue","CNIC issue date",d.cnic_issue,"date")}${flIn("cnic_expiry","CNIC expiry date",d.cnic_expiry,"date")}${flIn("mobile","Mobile number",d.mobile,"tel")}${flIn("address","Permanent address",d.address)}${flIn("emergency_contact","Second number / emergency contact (name and number)",d.emergency_contact,"text",'placeholder="e.g. Brother Ahmed 0300-1234567"')}
   <h3>Driving licence</h3>${flIn("licence_no","Licence number",d.licence_no)}${flIn("licence_authority","Issuing authority",d.licence_authority)}${flIn("licence_category","Licence category",d.licence_category)}${flIn("licence_classes","Permitted vehicle classes",d.licence_classes)}${flIn("licence_issue","Issue date",d.licence_issue,"date")}${flIn("licence_expiry","Expiry date",d.licence_expiry,"date")}
@@ -6292,4 +6336,55 @@ go(0);tick();})();
  addEventListener("pageshow",function(e){if(e.persisted)home()});})();
 </script>
 
+<style id="klc-classic">
+/* KLC classic minimal layer: quieter palette, hairlines instead of shadows, small radii, ink headings, burgundy accent. Loaded last. */
+:root,:root:not([data-theme="light"]),:root[data-theme="dark"]{
+  --burgundy:#7D1A1F;--red:#7D1A1F;--red-hover:#5E1217;--ivory:#FBF9F5;--soft:#F4F0E9;--border:#E6E0D6;--field:#B5ABA0;
+  --text:#1F1B1A;--text-2:#625B56;--wa:#1E7B4A;
+  --r-ctl:4px;--r-card:6px;--r-hero:0px;--shadow-sm:none;--shadow-md:none;
+}
+html{scroll-behavior:auto}
+body{font-size:15.5px;background:var(--ivory)!important}
+h1,h2,h3{color:var(--text)!important;font-weight:600;letter-spacing:0}
+.eyebrow{color:var(--text-2)!important;letter-spacing:.2em;font-weight:600;font-size:11.5px!important}
+/* header */
+header.top{box-shadow:none!important;border-bottom:1px solid var(--border)}
+header.top .stripe,.stripe{height:2px!important;background:var(--burgundy)!important}
+.brand{font-weight:600}
+header.top .tabs button{font-weight:500!important;border-radius:0!important;color:var(--text-2)!important}
+header.top .tabs button:not(.book):hover{background:transparent!important;color:var(--text)!important}
+header.top .tabs button:not(.book)[aria-current="page"]{color:var(--text)!important}
+header.top .tabs button:not(.book)[aria-current="page"]::after{background:var(--burgundy)!important;height:1px!important;bottom:2px!important}
+header.top .tabs button.book{border-radius:3px!important;box-shadow:inset 0 0 0 1px var(--burgundy)!important;font-weight:600!important}
+/* hero */
+.khero{background:transparent!important;border:0!important;border-bottom:1px solid var(--border)!important;border-radius:0!important;padding:56px 0 64px!important}
+.khero::before,.khero::after{display:none!important}
+.khero h1{font-weight:600!important;letter-spacing:-.01em}
+.khero-exp{box-shadow:none!important;background:transparent!important;border:0!important;border-left:2px solid var(--burgundy)!important;border-radius:0!important;padding-left:16px!important}
+.khero-logo{filter:none!important;box-shadow:none!important}
+/* cards and surfaces */
+.card,.panel,.svc-card,.cbox,.stat,.trackcard,.quick button,.contactbox,.knotice,.steps li,.lock,.modal-box{box-shadow:none!important;border-radius:6px!important}
+.knotice{background:transparent!important;border:1px solid var(--border)!important}
+.svc-card,.quick button,.steps li,.trackcard{border:1px solid var(--border)!important;background:#fff}
+.svc-card:hover,.quick button:hover{border-color:var(--burgundy)!important}
+.svc-ic{background:transparent!important;border:0!important;padding:0!important;width:auto!important;height:auto!important;font-size:20px;filter:grayscale(1);opacity:.7}
+.steps li::before{background:transparent!important;color:var(--burgundy)!important;border:1px solid var(--burgundy)!important}
+.cities span:not(.lbl),.tag,.pill,.chipbtn,.fl-chip,.fl-bg{border-radius:3px!important}
+.cities span:not(.lbl){background:transparent!important;border:1px solid var(--border)}
+/* buttons and fields */
+.btn{box-shadow:none;letter-spacing:.01em;font-weight:600}
+.btn.ghost{box-shadow:inset 0 0 0 1px var(--field)!important;color:var(--text)!important}
+.btn.ghost:hover{background:var(--soft)!important}
+.btn:not(.ghost):not(.wa):not(.outline){background:var(--burgundy)}
+input,select,textarea{border-color:var(--field);border-radius:4px}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 2px rgba(125,26,31,.16)}
+/* tables and lists */
+th{font-size:10.5px!important;letter-spacing:.1em!important;color:var(--text-2)!important;font-weight:600!important;border-bottom:1px solid var(--field)!important;background:transparent!important}
+td{border-bottom:1px solid var(--border)!important}
+table tr:nth-child(even) td{background:transparent!important}
+details.faq,.faq details,details{border-radius:0}
+/* floating buttons keep, but quieter */
+.fab,.chatfab{box-shadow:0 2px 6px rgba(0,0,0,.18)!important}
+@media (max-width:560px){.khero{padding:32px 0 44px!important}}
+</style>
 </body></html>
