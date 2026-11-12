@@ -3926,6 +3926,10 @@ function flSel(name,opts,val,blank){return `<select name="${name}">${blank?`<opt
 function flIn(name,label,val,type,extra){return `<label>${label}<input name="${name}" type="${type||"text"}" value="${esc(val??"")}" ${extra||""}></label>`}
 
 /* ----- dashboard ----- */
+function flAlertGroups(items){
+  const G={};items.forEach(i=>{(G[i.who]=G[i.who]||[]).push(i)});
+  const gs=Object.entries(G).map(([w,a])=>({w,a:a.sort((x,y)=>x.b.n-y.b.n)})).sort((x,y)=>x.a[0].b.n-y.a[0].b.n);
+  return `<p class="hint" style="margin:0 0 8px">Press a name to see what is expiring.</p><div style="display:grid;gap:6px">${gs.map(g=>`<details style="border:1px solid var(--line);border-radius:8px;padding:0"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;list-style:none"><b>${esc(g.w)}</b><span style="display:flex;gap:8px;align-items:center"><small class="hint">${g.a.length} alert${g.a.length>1?"s":""}</small>${flBadge(g.a[0].b.c,g.a[0].b.t)}</span></summary><div class="fl-al" style="padding:0 12px 10px">${g.a.map(i=>`<div><span><b>${esc(i.type)}</b><small>${i.b.n<0?Math.abs(i.b.n)+" days ago":"in "+i.b.n+" days"} (${flFmtD(i.exp)})</small></span>${flBadge(i.b.c,i.b.t)}</div>`).join("")}</div></details>`).join("")}</div>`}
 function pFleetDash(){
   const el=$("#p-fleetdash");if(!flGate(el))return;
   const V=FL.veh.filter(v=>!v.archived),D=FL.drv.filter(d=>!d.archived);
@@ -3936,7 +3940,7 @@ function pFleetDash(){
   el.innerHTML=flHead("","")+
   `<div class="fl-k">${tiles.map(([n,l],i)=>`<div class="fl-card${i===5&&n?" e":""}${i===3&&n?" w":""}"><b>${n}</b><span>${l}</span></div>`).join("")}</div>
   <div class="fl-two"><div class="panel"><h3>Vehicle status</h3>${V.length?bars:'<p class="hint">No vehicles yet. Add your first vehicle in Vehicle Management.</p>'}</div>
-  <div class="panel"><h3>Upcoming alerts</h3>${items.length?`<div class="fl-al">${items.slice(0,8).map(i=>`<div><span><b>${esc(i.type)}</b><small>${esc(i.who)} · ${i.b.n<0?Math.abs(i.b.n)+" days ago":"in "+i.b.n+" days"} (${flFmtD(i.exp)})</small></span>${flBadge(i.b.c,i.b.t)}</div>`).join("")}</div>`:'<p class="hint">No document is expired or due within 60 days.</p>'}</div></div>`}
+  <div class="panel"><h3>Upcoming alerts</h3>${items.length?flAlertGroups(items):'<p class="hint">No document is expired or due within 60 days.</p>'}</div></div>`}
 
 /* ----- vehicles ----- */
 function pFleetVeh(){
@@ -3959,6 +3963,9 @@ function flVehFolder(){
   const docs=FL.docs.filter(d=>d.owner_type==="vehicle"&&d.vehicle_id===v.id).sort((a,b)=>(a.status===b.status?0:a.status==="current"?-1:1)||String(a.doc_type).localeCompare(String(b.doc_type)));
   const nCur=docs.filter(d=>d.status==="current").length;
   return flHead("📁 "+esc(v.reg_no),esc([v.name,v.make,v.model,v.year].filter(Boolean).join(" · "))||"Vehicle documents",`<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-tv="report">🖨 Full vehicle report</button><button type="button" class="btn ghost sm" data-fl="cancel">← All vehicles</button></span>`)+
+  (()=>{const ids=new Set([v.reg_no,flVLabel(v.id)]);FL.vd.filter(x=>x.vehicle_id===v.id&&!x.to_date).forEach(x=>{const d=flDrv(x.driver_id);if(d){ids.add(d.full_name);ids.add(flDLabel(d.id))}});
+    const al=flItems().filter(i=>ids.has(i.who)).map(i=>({...i,b:flBucket(i.exp)})).filter(i=>i.b.k!=="valid").sort((a,b)=>a.b.n-b.b.n);
+    return al.length?`<div class="panel" style="border-color:#c2414b"><h3 style="margin:0 0 6px">⚠ Expiring or expired (${al.length})</h3><div class="fl-al">${al.map(i=>`<div><span><b>${esc(i.type)}</b><small>${esc(i.who)} · ${i.b.n<0?Math.abs(i.b.n)+" days ago":"in "+i.b.n+" days"} (${flFmtD(i.exp)})</small></span>${flBadge(i.b.c,i.b.t)}</div>`).join("")}</div></div>`:""})()+
   tvSummaryHTML(v)+
   `<div class="panel"><div class="ph"><h3>1. Vehicle details</h3><button type="button" class="btn ghost sm" data-fl="veh-edit" data-id="${esc(v.id)}">Edit details</button></div>
   <div class="fl-kv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 18px">${[["Registration",v.reg_no],["Name",v.name],["Category",v.category],["Make",v.make],["Model",v.model],["Year",v.year],["Colour",v.colour],["Chassis no.",v.chassis_no],["Engine no.",v.engine_no],["Engine capacity",v.engine_cc],["Fuel",v.fuel_type],["Load (tons)",v.load_tons],["Odometer",v.odometer!=null?Number(v.odometer).toLocaleString("en-PK")+" km":""],["Registered on",v.reg_date?flFmtD(v.reg_date):""],["Ownership",v.ownership==="rented"?"Rented / leased":"Company-owned"],["Status",FL_VST[v.status]||v.status],...(v.ownership==="rented"?[["Owner",v.owner_name],["Owner phone",v.owner_phone],["Rent",v.rent_amount?"Rs "+Number(v.rent_amount).toLocaleString("en-PK")+(v.rent_basis?" / "+v.rent_basis.toLowerCase():""):""]]:[["Purchased",v.purchase_date?flFmtD(v.purchase_date):""],["Purchase price",v.purchase_price?"Rs "+Number(v.purchase_price).toLocaleString("en-PK"):""]])].map(([k,x])=>`<div><small class="hint" style="display:block">${k}</small><b>${esc(x!=null&&x!==""?x:"-")}</b></div>`).join("")}</div></div>`+
