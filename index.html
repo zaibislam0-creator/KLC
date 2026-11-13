@@ -4046,7 +4046,7 @@ function vehIdentityHTML(v){
   const bad=docs.filter(d=>{const k=flBucket(d.expiry_date).k;return d.expiry_date&&k!=="valid"&&k!=="none"}).length;
   const card=(k,val,c)=>`<div style="background:var(--chip);border-radius:10px;padding:8px 12px"><small class="hint" style="display:block">${k}</small><b style="font-size:16px;${c?"color:"+c:""}">${val}</b></div>`;
   const kv=[["Vehicle",[v.name,v.category].filter(Boolean).join(" · ")],["Make / model",[v.make,v.model,v.year].filter(Boolean).join(" ")],["Status",FL_VST[v.status]||v.status],["Ownership",v.ownership==="rented"?"Rented / leased":"Company-owned"]].filter(x=>x[1]);
-  return `<div class="panel" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start"><div style="display:grid;gap:6px;flex:none;justify-items:center"><div style="width:130px;height:110px;border-radius:14px;overflow:hidden;background:var(--chip);display:grid;place-items:center;font-size:44px">${ph?`<img data-ph="${esc(ph.file_path)}" alt="${esc(v.reg_no)}" style="width:100%;height:100%;object-fit:cover">`:"🚚"}</div><button type="button" class="btn ghost sm" data-tv="sec" data-s="docs">${ph?"Change photo":"📷 Add photo"}</button></div>
+  return `<div class="panel" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start"><div style="display:grid;gap:6px;flex:none;justify-items:center"><div style="width:130px;height:110px;border-radius:14px;overflow:hidden;background:var(--chip);display:grid;place-items:center;font-size:44px">${ph?`<img data-ph="${esc(ph.file_path)}" alt="${esc(v.reg_no)}" style="width:100%;height:100%;object-fit:cover">`:"🚚"}</div><label class="btn ghost sm" style="cursor:pointer">${ph?"📷 Change photo":"📷 Add photo"}<input type="file" class="flQuickPh" data-own="vehicle" data-id="${esc(v.id)}" accept="image/*" hidden></label></div>
   <div style="flex:1 1 260px;display:grid;gap:10px;min-width:0"><div><h3 style="margin:0;font-size:20px">${esc(v.reg_no)}</h3>${kv.map(([k,x])=>`<div><small class="hint">${k}:</small> <b>${esc(x)}</b></div>`).join("")}<div><small class="hint">Driver now:</small> ${cur.length?cur.map(d=>`<b>${esc(d.full_name)}</b>${String(d.mobile||"").replace(/\D/g,"").length>=10?` <a href="tel:${esc(String(d.mobile).replace(/[\s-]/g,""))}" style="font-weight:600">📞 Call</a>`:""}`).join(", "):'<b style="color:var(--accent)">No driver attached</b>'}</div></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">${card("Trips",L.length)}${card("Income",tvM(ti),"var(--teal)")}${card("Expenses",tvM(te),"var(--accent)")}${card("Net",tvM(ti-te))}${card("Documents",docs.length+(bad?" · "+bad+" need attention":""),bad?"var(--accent)":"")}</div></div></div>`}
 function drvAlertHTML(d,docs){
@@ -4241,9 +4241,9 @@ function drvData(d){
 function drvReportHTML(d){
   const {L,fu,ti,te,as,docs}=drvData(d),b=flBucket(d.licence_expiry),card=(k,v,c)=>`<div style="background:var(--chip);border-radius:10px;padding:10px 12px"><small class="hint" style="display:block">${k}</small><b style="font-size:17px;${c?"color:"+c:""}">${v}</b></div>`;
   return flHead("📊 "+esc(d.full_name),esc([d.mobile,d.licence_no?"Licence "+d.licence_no:""].filter(Boolean).join(" · "))||"Driver report",`<button type="button" class="btn sm" data-tv="drvprint" data-id="${esc(d.id)}">🖨 Print report</button><button type="button" class="btn ghost sm" data-fl="cancel">← All drivers</button>`)+
-  drvIdentityHTML(d,docs)+drvAlertHTML(d,docs)+
+  drvProfileHeadHTML(d,docs)+drvAlertHTML(d,docs)+
   `<div class="panel"><div class="ph"><h3>Performance</h3><span class="hint">From the trip vouchers where this driver is chosen.</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">${card("Trips",L.length)}${card("Income",tvM(ti),"var(--teal)")}${card("Expenses",tvM(te),"var(--accent)")}${card("Net",tvM(ti-te))}${L.length?card("Average net per trip",tvM((ti-te)/L.length)):""}${fu.km?card("Distance",Math.round(fu.km).toLocaleString("en-PK")+" km"):""}${fu.kmpl?card("Diesel average",fu.kmpl.toFixed(2)+" km/L"):""}${fu.cpk?card("Expense per km",tvM(fu.cpk)):""}</div>${d.licence_expiry?`<p class="hint" style="margin:10px 0 0">Licence expiry: ${flBadge(b.c,flFmtD(d.licence_expiry))}</p>`:""}</div>
-  <div class="panel"><div class="ph"><h3>Vehicles driven (${as.length})</h3></div><div class="tbl-wrap"><table><thead><tr><th>Vehicle</th><th>Role</th><th>From</th><th>Left on</th></tr></thead><tbody>${as.map(x=>`<tr><td><b>${esc(flVLabel(x.vehicle_id))}</b></td><td>${esc(x.role||"-")}</td><td>${flFmtD(x.from_date)}</td><td>${x.to_date?flFmtD(x.to_date):"Still on this vehicle"}</td></tr>`).join("")||'<tr><td colspan="4" class="hint">No vehicle assigned yet.</td></tr>'}</tbody></table></div></div>
+  ${drvHistoryHTML(d,as,L)}
   <div class="panel"><div class="ph"><h3>Trips (${L.length})</h3></div><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Route</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net</th><th class="num">Km</th><th class="num">Km/L</th></tr></thead><tbody>${L.map(t=>{const k=tvTripKm(t);return `<tr><td>${esc(t.date?flFmtD(t.date):"-")}</td><td>${esc(flVLabel(t.veh))}</td><td>${esc(t.from||"-")} → ${esc(t.to||"-")}</td><td class="num">${tvM(tvSum(t.inc))}</td><td class="num">${tvM(tvSum(t.exp))}</td><td class="num"><b>${tvM(tvSum(t.inc)-tvSum(t.exp))}</b></td><td class="num">${k?k.toLocaleString("en-PK"):"-"}</td><td class="num">${k&&tvN(t.lt)?(k/tvN(t.lt)).toFixed(2):"-"}</td></tr>`}).join("")||'<tr><td colspan="8" class="hint">No trip voucher has this driver yet. Choose the driver when you fill a trip voucher.</td></tr>'}</tbody></table></div></div>
   ${drvDocsHTML(d,docs)}`}
 function drvIsImg(p){return /\.(jpe?g|png|webp|gif|heic)$/i.test(p||"")}
@@ -6638,4 +6638,77 @@ function flRel(n){const d=Math.abs(n);if(d<31)return d+" day"+(d===1?"":"s")+" a
 (function(){let q=0;const run=()=>{q=0;if(!document.documentElement.classList.contains("fleet-app"))return;document.querySelectorAll("#panelBody table:not([data-flcards])").forEach(t=>{const th=[...t.querySelectorAll("thead th")].map(x=>x.textContent.trim());if(!th.length)return;t.dataset.flcards="1";t.querySelectorAll("tbody tr").forEach(r=>{[...r.children].forEach((c,i)=>{if(c.tagName==="TD"&&!c.hasAttribute("data-l"))c.setAttribute("data-l",th[i]||"")})})})};
 const pb=document.getElementById("panelBody");if(pb)new MutationObserver(()=>{if(!q)q=requestAnimationFrame(run)}).observe(pb,{childList:true,subtree:true});run()})();
 </script>
+<style id="klc-fleet-ui2">
+html.fleet-app .dp-head{display:grid;grid-template-columns:170px minmax(0,1fr);gap:20px;align-items:start}
+html.fleet-app .dp-ph{display:grid;gap:10px;justify-items:center}
+html.fleet-app .dp-img{width:150px;height:150px;border-radius:16px;overflow:hidden;background:#F1EBE3;display:grid;place-items:center;font:700 44px var(--display);color:var(--fl-maroon)}
+html.fleet-app .dp-img img{width:100%;height:100%;object-fit:cover}
+html.fleet-app .dp-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 20px}
+html.fleet-app .dp-kv small,html.fleet-app .dp-cur small{display:block;color:var(--fl-mut);font:600 11px var(--body);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+html.fleet-app .dp-cur{border:1px solid #E7D3D4;background:#FAF1F1;border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+@media (max-width:720px){html.fleet-app .dp-head{grid-template-columns:1fr;justify-items:center}html.fleet-app .dp-head>div:last-child{width:100%}html.fleet-app #panelBody table[data-flcards] td[data-l="Vehicle"]{grid-column:1/-1;font-size:16px}html.fleet-app #panelBody table[data-flcards] td[data-l="Vehicle"]::before{display:none!important}}
+@media (max-width:720px){html.fleet-app .kp-menu{display:grid!important;grid-template-columns:auto 1fr auto auto!important;overflow:visible!important}html.fleet-app #subtabs .chipbtn:not([aria-pressed="true"]) b{display:none!important}html.fleet-app #subtabs .chipbtn:not([aria-pressed="true"]){padding:6px 14px!important}html.fleet-app #subtabs .chipbtn .ti{font-size:18px!important}}
+</style>
+<script>function flDur(f,t){if(!f)return "-";const a=new Date(f),b=t?new Date(t):new Date();const d=Math.round((b-a)/864e5);if(isNaN(d)||d<0)return "-";if(d<1)return "Less than a day";const y=Math.floor(d/365),m=Math.floor(d%365/30),dd=d%365%30,p=[];if(y)p.push(y+" year"+(y>1?"s":""));if(m)p.push(m+" month"+(m>1?"s":""));if(!y&&(!m||dd))p.push(dd+" day"+(dd===1?"":"s"));return p.join(" ")}
+function drvProfileHeadHTML(d,docs){
+  const ph=docs.find(q=>q.doc_type==="Driver photograph"&&q.file_path&&drvIsImg(q.file_path));
+  const ini=String(d.full_name||"?").split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();
+  const cur=FL.vd.filter(x=>x.driver_id===d.id&&!x.to_date).sort((a,b)=>String(b.from_date||"").localeCompare(String(a.from_date||"")));
+  const lb=flBucket(d.licence_expiry),cb=flBucket(d.cnic_expiry);
+  const st={active:["Active","ok"],on_leave:["On leave","w"],left:["Left","n"]}[d.employment_status]||["Active","ok"];
+  const tel=x=>String(x||"").replace(/\D/g,"").length>=10?` <a href="tel:${esc(String(x).match(/[+\d][\d\s-]{8,}/)?.[0].replace(/[\s-]/g,"")||"")}" style="font-weight:600">📞 Call</a>`:"";
+  const kv=[["Father",d.father_name],["CNIC",flMask(d.cnic)],["Mobile",d.mobile?esc(d.mobile)+tel(d.mobile):""],["Second number",d.emergency_contact?esc(d.emergency_contact)+tel(d.emergency_contact):""],["Licence no.",d.licence_no],["Licence category",d.licence_category],["Joined KLC",d.joined_on?flFmtD(d.joined_on)+" ("+flDur(d.joined_on)+")":""],["Address",d.address]].filter(x=>x[1]);
+  const co=x=>{const o=FL.vd.filter(y=>y.vehicle_id===x.vehicle_id&&!y.to_date&&y.driver_id!==d.id);return o.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #E3C9CB">${o.map(y=>{const q=flDrv(y.driver_id);return q?`<span class="hint">Other driver on this vehicle:</span> <b>${esc(q.full_name)}</b> <span class="hint">(${esc(y.role||"-")})</span>${tel(q.mobile)} <button type="button" class="btn ghost sm" data-tv="drvrep" data-id="${esc(q.id)}">Profile</button>`:""}).join("<br>")}</div>`:`<div class="hint" style="margin-top:6px">No other driver on this vehicle right now</div>`};
+  const curBox=cur.length?cur.map(x=>{const v=flVeh(x.vehicle_id);return `<div class="dp-cur"><div><small>Driving now</small><b style="font-size:17px">${esc(v?v.reg_no:x.vehicle_id)}</b> <span class="hint">${esc(v?[v.name,v.make,v.model].filter(Boolean).join(" · "):"")}</span><br><span class="hint">${esc(x.role||"-")} · since ${x.from_date?flFmtD(x.from_date)+" ("+flDur(x.from_date)+")":"date not saved"}</span>${co(x)}</div><button type="button" class="btn sm" data-fl="veh-folder" data-id="${esc(x.vehicle_id)}">Open vehicle</button></div>`}).join(""):`<div class="dp-cur" style="background:#F6F3EF"><div><small>Driving now</small><b>Not on any vehicle right now</b><br><span class="hint">Attach a vehicle from the vehicle's Profile, or when editing the driver.</span></div></div>`;
+  return `<div class="panel dp-head"><div class="dp-ph"><div class="dp-img">${ph?`<img data-ph="${esc(ph.file_path)}" alt="${esc(d.full_name)}">`:esc(ini)}</div><label class="btn ghost sm" style="cursor:pointer">📷 ${ph?"Change photo":"Add photo"}<input type="file" class="flQuickPh" data-own="driver" data-id="${esc(d.id)}" accept="image/*" hidden></label></div>
+  <div style="display:grid;gap:12px;min-width:0"><div><h2 style="margin:0;font-size:22px">${esc(d.full_name)}</h2><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="fl-bg ${st[1]}">${st[0]}</span>${d.licence_expiry?flBadge(lb.c,(lb.k==="expired"?"Licence expired ":"Licence valid till ")+flFmtD(d.licence_expiry)):""}${d.cnic_expiry&&cb.k==="expired"?flBadge("e","CNIC expired "+flFmtD(d.cnic_expiry)):""}</div></div>
+  ${curBox}
+  <div class="dp-kv">${kv.map(([k,x])=>`<div><small>${k}</small><b>${k==="Mobile"||k==="Second number"?x:esc(x)}</b></div>`).join("")}</div></div></div>`}
+function drvHistoryHTML(d,as,L){
+  const rows=as.slice().sort((a,b)=>(!a.to_date===!b.to_date?String(b.from_date||"").localeCompare(String(a.from_date||"")):a.to_date?1:-1));
+  const inR=(t,x)=>t.veh===x.vehicle_id&&(!x.from_date||String(t.date||"")>=x.from_date)&&(!x.to_date||String(t.date||"")<=x.to_date);
+  const days=x=>{if(!x.from_date)return 0;const a=new Date(x.from_date),b=x.to_date?new Date(x.to_date):new Date(),n=Math.round((b-a)/864e5);return isNaN(n)||n<0?0:n};
+  const wth=x=>{const n=[...new Set(FL.vd.filter(y=>y.vehicle_id===x.vehicle_id&&y.driver_id!==d.id&&String(y.from_date||"0000")<=String(x.to_date||"9999")&&String(x.from_date||"0000")<=String(y.to_date||"9999")).map(y=>flDLabel(y.driver_id)))];return n.length?esc(n.join(", ")):"-"};
+  const totalD=rows.reduce((s,x)=>s+days(x),0),nVeh=new Set(rows.map(x=>x.vehicle_id)).size;
+  const dur=n=>{if(n<1)return "-";const y=Math.floor(n/365),m=Math.floor(n%365/30),dd=n%365%30,p=[];if(y)p.push(y+" year"+(y>1?"s":""));if(m)p.push(m+" month"+(m>1?"s":""));if(!y&&(!m||dd))p.push(dd+" day"+(dd===1?"":"s"));return p.join(" ")};
+  const card=(k,v)=>`<div style="background:var(--chip);border-radius:10px;padding:10px 12px"><small class="hint" style="display:block">${k}</small><b style="font-size:16px">${v}</b></div>`;
+  return `<div class="panel"><div class="ph"><h3>Vehicle history and track record (${rows.length})</h3><span class="hint">Every vehicle this driver has driven, with dates.</span></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px">${card("Vehicles driven",nVeh)}${card("Total time on vehicles",dur(totalD))}${card("Trips (all vehicles)",L.length)}${card("Now on",rows.filter(x=>!x.to_date).map(x=>esc(flVLabel(x.vehicle_id))).join(", ")||"No vehicle")}</div>
+  <div class="tbl-wrap"><table><thead><tr><th>Vehicle</th><th>Role</th><th>From</th><th>To</th><th>Time on vehicle</th><th>Driven with</th><th>Trips</th><th>Net</th></tr></thead><tbody>${rows.map(x=>{const T=L.filter(t=>inR(t,x)),net=T.reduce((s,t)=>s+tvSum(t.inc)-tvSum(t.exp),0);return `<tr><td><b>${esc(flVLabel(x.vehicle_id))}</b></td><td>${esc(x.role||"-")}</td><td>${x.from_date?flFmtD(x.from_date):"-"}</td><td>${x.to_date?flFmtD(x.to_date):'<span class="fl-bg ok">Present</span>'}</td><td>${x.from_date?flDur(x.from_date,x.to_date):"-"}</td><td>${wth(x)}</td><td class="num">${T.length}</td><td class="num">${T.length?tvM(net):"-"}</td></tr>`}).join("")||'<tr><td colspan="8" class="hint">No vehicle assigned yet.</td></tr>'}</tbody></table></div></div>`}
+function flQuickPhotoInit(){
+  document.addEventListener("change",async e=>{
+    const i=e.target.closest(".flQuickPh");if(!i)return;let f=i.files&&i.files[0];if(!f)return;
+    if(!/^image\//.test(f.type)){toast("Please choose a photo (JPG or PNG)");i.value="";return}
+    const own=i.dataset.own,id=i.dataset.id,type=own==="driver"?"Driver photograph":"Vehicle photograph";
+    try{toast("Uploading photo…");
+      try{const bm=await createImageBitmap(f),k=Math.min(1,1280/Math.max(bm.width,bm.height)),c=document.createElement("canvas");c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);c.getContext("2d").drawImage(bm,0,0,c.width,c.height);const bl=await new Promise(r=>c.toBlob(r,"image/jpeg",.85));if(bl)f=new File([bl],"photo.jpg",{type:"image/jpeg"})}catch(x){}
+      const old=FL.docs.filter(q=>q.owner_type===own&&q[own+"_id"]===id&&q.doc_type===type&&q.status==="current");
+      const o={id:flNext(FL.docs,"DOC-"),owner_type:own,vehicle_id:own==="vehicle"?id:null,driver_id:own==="driver"?id:null,doc_type:type,verification:"pending",status:"current",created_by:me()?.user||null,updated_by:me()?.user||null};
+      await flReq("fleet_documents",{method:"POST",body:o});
+      const p=await flUpload(o.id,f);await flReq("fleet_documents?id=eq."+encodeURIComponent(o.id),{method:"PATCH",body:{file_path:p}});
+      for(const q of old)await flReq("fleet_documents?id=eq."+encodeURIComponent(q.id),{method:"PATCH",body:{status:"superseded",updated_by:me()?.user||null}});
+      flLog("create","document",o.id,{type});await flRefresh();toast("Photo saved")
+    }catch(er){toast(er.message||"The photo could not be saved. Please try again.")}finally{i.value=""}
+  })}
+function flHistoryInit(){
+  if(window.__flHist)return;window.__flHist=1;
+  const snap=()=>({sub:sub,mode:Object.assign({},FL.mode),folder:FL.folder||"",fsec:FL.fsec||"",drvRep:FL.drvRep||""});
+  let last="",restoring=false;
+  const track=()=>{
+    if(!document.documentElement.classList.contains("fleet-app")||!/^fleet/.test(sub))return;
+    const s=snap(),k=JSON.stringify(s);
+    if(restoring){last=k;return}
+    if(!last){try{history.replaceState({klc:1,v:"panel",o:0,fl:s},"")}catch(e){}last=k;return}
+    if(k!==last){try{history.pushState({klc:1,v:"panel",o:0,fl:s},"")}catch(e){}last=k}
+  };
+  const orig=renderPanel;
+  window.renderPanel=function(){const r=orig.apply(this,arguments);try{track()}catch(e){}return r};
+  addEventListener("popstate",e=>{
+    const s=e.state&&e.state.fl;if(!s)return;
+    restoring=true;
+    try{sub=s.sub;FL.mode=Object.assign({veh:"list",drv:"list",doc:"list"},s.mode);FL.folder=s.folder;FL.fsec=s.fsec;FL.drvRep=s.drvRep;FL.edit=null;FL.ask="";FL.busy=false;renderPanel();window.scrollTo({top:0,behavior:"auto"})}
+    finally{restoring=false}
+  });
+}
+flQuickPhotoInit();flHistoryInit();</script>
 </body></html>
