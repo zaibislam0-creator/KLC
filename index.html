@@ -4041,7 +4041,7 @@ function flSelF(id,opts,val){return `<select id="${id}" aria-label="Filter">${op
 function flVehForm(){
   const v=FL.edit||{ownership:"company",status:"available",fuel_type:"Diesel",odometer:0};const nw=!FL.edit;
   return flHead(nw?"Add vehicle":"Edit vehicle "+esc(v.reg_no),"Fields marked * are required")+
-  `<div class="panel" style="display:grid;gap:8px"><h3 style="margin:0">📄 Fill from PDF</h3><p class="hint" style="margin:0">Choose the vehicle's registration card or detail PDF. The form below fills itself; check every field and correct it before saving.</p><div><input type="file" id="flPdfVeh" accept="application/pdf,.pdf" aria-label="Vehicle PDF"></div><div id="flPdfMsg" class="hint" role="status" aria-live="polite"></div></div>`+
+  `<div class="panel" style="display:grid;gap:8px"><h3 style="margin:0">📄 Fill from registration card or book</h3><p class="hint" style="margin:0">Some vehicles have a registration card and some only have a book, so choose whichever you have (PDF or photo; you can choose several pages together). The form below fills itself and scans are read with OCR. You can also type any detail by hand. Check every field before saving.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px"><label>🪪 Registration card<input type="file" class="flPdfVeh" data-kind="card" multiple accept="application/pdf,.pdf,image/*" aria-label="Vehicle registration card"></label><label>📖 Registration book<input type="file" class="flPdfVeh" data-kind="book" multiple accept="application/pdf,.pdf,image/*" aria-label="Vehicle registration book"></label></div><div id="flPdfMsg" class="hint" role="status" aria-live="polite"></div></div>`+
   `<form class="panel fl-form" data-flform="veh" autocomplete="off"><div class="fl-fm">
   <h3>Basic information</h3>${flIn("reg_no","Registration number *",v.reg_no,"text","required")}${flIn("name","Vehicle name",v.name)}<label>Category${flSel("category",FL_VCAT,v.category,"Choose")}</label>
   ${flIn("make","Make",v.make)}${flIn("model","Model",v.model)}${flIn("year","Manufacturing year",v.year,"number",'min="1980" max="2100"')}${flIn("colour","Colour",v.colour)}
@@ -4417,14 +4417,17 @@ function flParseVehPdf(lines){
   Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});
   return out}
 document.addEventListener("change",async e=>{
-  const inp=e.target.closest("#flPdfVeh");if(!inp)return;
-  const f=inp.files&&inp.files[0],msg=$("#flPdfMsg"),form=document.querySelector('[data-flform="veh"]');if(!f||!form)return;
-  if(!/\.pdf$/i.test(f.name)&&!/pdf$/i.test(f.type)){msg.textContent="Please choose a PDF file.";return}
-  msg.textContent="Reading the PDF…";
+  const inp=e.target.closest(".flPdfVeh");if(!inp)return;
+  const files=[...(inp.files||[])],msg=$("#flPdfMsg"),form=document.querySelector('[data-flform="veh"]');if(!files.length||!form)return;
   try{
-    const lines=await pdfLines(await f.arrayBuffer());
-    if(!lines.length){msg.textContent="This PDF has no readable text (it is probably a scan or photo). Please type the details, or use a PDF that was saved from a computer.";return}
-    const got=flParseVehPdf(lines),done=[],miss=[];
+    const got={};let ocr=false;
+    for(let n=0;n<files.length;n++){const f=files[n],tag=files.length>1?` (${n+1}/${files.length})`:"";
+      msg.textContent="Reading "+f.name+tag+"…";let texts=[];
+      if(/\.pdf$/i.test(f.name)||/pdf$/i.test(f.type)){try{texts=(await pdfLines(await f.arrayBuffer())).map(l=>l.text)}catch(x){texts=[]}}
+      if(texts.join("").replace(/\W/g,"").length<25){ocr=true;msg.textContent="This looks like a scan or photo. Reading it with OCR"+tag+" (first time takes up to a minute)…";
+        const cvs=await flFileToCanvases(f);texts=[];for(const cv of cvs){const t=await ocrCanvas(cv,pc=>{msg.textContent="Reading the scan"+tag+": "+pc+"%"});texts.push(...t.split(/\n/))}}
+      const g=flParseVehPdf(texts.map(x=>({text:x})));Object.keys(g).forEach(k=>{if(!got[k])got[k]=g[k]})}
+    const done=[],miss=[];
     FL_PDFMAP.forEach(([k,lab])=>{const el=form.elements[k];if(el&&got[k]){el.value=got[k];if(el.value!==got[k]&&el.tagName==="SELECT")el.value="";else{done.push(lab);return}}miss.push(lab)});
     msg.innerHTML=done.length?`Filled: <b>${esc(done.join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc(miss.join(", "))}.`:"")+` Please check everything before saving.`:"No vehicle details could be found in this PDF. Please type them in.";
     if(done.includes("Ownership"))flRentToggle();
