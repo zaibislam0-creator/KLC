@@ -1,17 +1,26 @@
 # Kashaf Lasani Cargo Services (KLC)
 
-> KLC is a cargo and transport company in Pakistan. Main route: Sialkot to Karachi. Customers can track a bilty online, book a bilty, and see port status and bilty rates.
+> KLC is a cargo transport company in Pakistan. It runs cargo trucks between Sialkot, Gujranwala, Lahore and Karachi, and its main route is Sialkot to Karachi. Logistics companies, freight forwarders, clearing agents and exporters in Pakistan, and international logistics companies that need a transporter in Pakistan, can use KLC as their road transporter.
 
 ## Services
-- Bilty tracking: enter a bilty number to see status, route and destination contact.
-- Bilty booking: cartons, bales and part loads, charged per kg (or by CBM volume), paid or to-pay.
-- Port delivery: export cargo to KPT, QFS, Port Qasim and dry ports.
-- Online ledger for business clients.
+- Cargo truck transport between Karachi, Sialkot, Lahore and Gujranwala, in both directions. KLC provides cargo trucks only, not containers.
+- Port delivery: export cargo to KPT, QFS, Port Qasim, DEMCO, Bay West, ICT Terminal, Supreme Yard and the dry ports.
+- Bilty tracking: enter a bilty number to see status, route and destination contact. Tracking never shows customer names, quantity, weight or charges.
+- Bilty booking: by weight in kg or volume in CBM. Charges are not listed publicly and are confirmed when KLC confirms the booking.
+- Online ledger: business clients with a KLC account code can see bilties, invoices, payments and balance.
 
 ## Cities served
-Sialkot, Karachi, Lahore, Gujranwala, Multan, Rawalpindi, Hyderabad, Sahiwal, Port Qasim.
+Sialkot, Gujranwala, Lahore, Karachi.
+
+## How to hire KLC as your transporter
+Send the pickup city, the delivery city or port, the type of cargo, the weight or CBM and the date you need the truck, by WhatsApp or email.
 
 ## Contact
 - Call or WhatsApp: 0300-6166561, 0307-6401597
 - Office landline: 052-4587207
 - Email: kashaf.lasani@gmail.com
+- Open 24 hours, Monday to Saturday. Closed on Sundays and public holidays.
+- Offices in Sialkot: Maharaja Road (Butcher Khana Chowk, opposite Dr Adnan Clinic) and Daska Road (Pakki Kothi, next to Nizam Sons).
+
+## Website
+https://kashaflasanicargo.com/
