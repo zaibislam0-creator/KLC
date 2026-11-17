@@ -3909,7 +3909,7 @@ function renderPanel(){
   try{({imp:pImp,bilty:pBilty,rates:pRates,acct:pAcct,xchk:pXchk,news:pNews,dir:pDir,partners:pPartners,inbox:pInbox,fleetdash:pFleetDash,fleetveh:pFleetVeh,fleetdrv:pFleetDrv,fleetdoc:pFleetDoc,admin:pAdmin})[sub]()}catch(err){console.error("section "+sub,err);toast("This section could not load fully. Please refresh and try again.")}
 }
 /* ---------- Kashaf Fleet Management, phase 1 (vehicles, drivers, legal documents) ---------- */
-const FL={veh:[],drv:[],vd:[],docs:[],logs:null,logsFor:"",logsBusy:false,logsErr:"",loaded:false,loading:false,tried:false,err:"",mode:{veh:"list",drv:"list",doc:"list"},edit:null,q:{veh:"",drv:"",doc:""},st:"all",sd:"all",bk:"all",ask:"",old:false,busy:false};
+const FL={veh:[],drv:[],vd:[],docs:[],logs:null,logsFor:"",logsBusy:false,logsErr:"",todoAll:false,loaded:false,loading:false,tried:false,err:"",mode:{veh:"list",drv:"list",doc:"list"},edit:null,q:{veh:"",drv:"",doc:""},st:"all",sd:"all",bk:"all",ask:"",old:false,busy:false};
 const FL_VST={available:"Available",on_trip:"On trip",maintenance:"Under maintenance",out_of_service:"Out of service",inactive:"Inactive"};
 const FL_VCAT=["Truck","Trailer","Pickup","Container carrier","Other"];
 const FL_VDOC=["Vehicle registration certificate","Registration book / card","Route permit","Fitness certificate","Token tax","Third-party insurance","Comprehensive insurance","Ownership documents","Purchase invoice","Inter-provincial permit","Goods transport permission","Axle load / weight record","Vehicle photograph","Other"];
@@ -3994,7 +3994,8 @@ function pFleetDash(){
   items.slice(0,5).forEach(i=>todo.push({t:`${i.who}: ${i.type} ${i.b.n<0?"has expired":"expires soon"}`,s:(i.b.n<0?flRel(i.b.n):"in "+i.b.n+" days")+" ("+flFmtD(i.exp)+")",c:i.b.c,doc:1}));
   noDrv.slice(0,3).forEach(v=>todo.push({t:`${v.reg_no} has no driver`,s:"Attach a driver in the vehicle folder",c:"w",id:v.id}));
   idleDrv.slice(0,3).forEach(d=>todo.push({t:`${d.full_name} is not on any vehicle`,s:"Open Drivers and assign a vehicle",c:"n",drv:1}));
-  const todoHTML=todo.length?`<div class="fl-al">${todo.map(x=>`<div><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span>${x.id?go(x.id,"Open vehicle"):x.drv?`<button type="button" class="btn ghost sm" data-fl="godrvlist">Open drivers</button>`:`<button type="button" class="btn ghost sm" data-fl="godoclist">Open documents</button>`}</div>`).join("")}</div>${items.length>5||rem.length>5?`<p class="hint" style="margin:8px 0 0">More alerts are in <b>Documents</b> and in each vehicle folder.</p>`:""}`:`<p style="margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--teal) 12%,transparent)"><b>All good.</b> Nothing is expired, overdue or missing right now.</p>`;
+  const TODO_N=3,todoMore=todo.length-TODO_N;
+  const todoHTML=todo.length?`<div class="fl-al">${todo.map((x,ix)=>`<div${!FL.todoAll&&ix>=TODO_N?' class="fl-hid"':''}><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span>${x.id?go(x.id,'<span class="fl-bl">Vehicle</span>'):x.drv?`<button type="button" class="btn ghost sm" data-fl="godrvlist"><span class="fl-bl">Drivers</span></button>`:`<button type="button" class="btn ghost sm" data-fl="godoclist"><span class="fl-bl">Documents</span></button>`}</div>`).join("")}</div>${todoMore>0?`<button type="button" class="btn ghost sm" data-fl="todo-all" style="margin-top:8px">${FL.todoAll?"Show fewer":"Show all "+todo.length}</button>`:""}${items.length>5||rem.length>5?`<p class="hint" style="margin:8px 0 0">More alerts are in <b>Documents</b> and in each vehicle folder.</p>`:""}`:`<p style="margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--teal) 12%,transparent)"><b>All good.</b> Nothing is expired, overdue or missing right now.</p>`;
   const money=[["Money earned",tvM(A.i),A.i,P.i,"The freight you received this month"],["Money spent",tvM(A.e),A.e,P.e,"Diesel, toll, driver and other trip costs"],["Repairs",tvM(A.m),A.m,P.m,"Tyre, engine, service and other maintenance"],["Profit (what is left)",tvM(net(A)),net(A),net(P),"Earned minus spent minus repairs"]];
   el.innerHTML=(syncOK?"":'<p class="hint">Trip figures are still loading…</p>')+flHead("Fleet overview",now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),`<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-fl="goveh">+ Add vehicle</button><button type="button" class="btn ghost sm" data-fl="godrv">+ Add driver</button></span>`)+
   sec(todo.length?`Needs your attention (${todo.length})`:"Needs your attention","Start here. Press a button to fix it.",todoHTML).replace("<div class=\"panel\">",todo.length?"<div class=\"panel fl-redp\">":"<div class=\"panel\">")+
@@ -4596,6 +4597,7 @@ document.addEventListener("click",async ev=>{
   const b=ev.target.closest("[data-fl]");if(!b)return;const a=b.dataset.fl,id=b.dataset.id;
   try{
   if(a==="reload"){FL.tried=false;FL.loaded=false;flLoad(true);renderPanel();return}
+  if(a==="todo-all"){FL.todoAll=!FL.todoAll;renderPanel();return}
   if(a==="cancel"){flBack();renderPanel();return}
   if(a==="ask-no"){FL.ask="";renderPanel();return}
   if(a==="bk"){FL.bk=b.dataset.k;renderPanel();return}
@@ -6628,6 +6630,15 @@ html.fleet-app .fl-card{border-radius:10px;border-color:var(--fl-line);padding:1
 html.fleet-app .fl-card b{font:700 26px var(--body)}
 html.fleet-app .fl-card.e b{color:#b3362c}
 html.fleet-app .fl-al>div{border-radius:8px;border-color:var(--fl-line);padding:10px 12px}
+html.fleet-app .fl-al>div.fl-hid{display:none}
+html.fleet-app .fl-redp .fl-al{gap:6px}
+html.fleet-app .fl-redp .fl-al>div{padding:6px 10px;gap:8px}
+html.fleet-app .fl-redp .fl-al>div b{font-size:13.5px;line-height:1.35}
+html.fleet-app .fl-redp .fl-al small{font-size:12px;line-height:1.3}
+html.fleet-app #panelBody .fl-redp .fl-al>div .btn.sm{min-height:28px;padding:3px 8px;font-size:12px;white-space:nowrap;flex:none}
+html.fleet-app .fl-redp .fl-al>div>span{flex:1 1 auto;min-width:0}
+@media(min-width:760px){html.fleet-app #panelBody .fl-redp .fl-al>div>span{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}html.fleet-app #panelBody .fl-redp .fl-al>div>span small{display:inline}}
+@media(max-width:520px){html.fleet-app .fl-redp .fl-al .fl-bl{display:none}html.fleet-app #panelBody .fl-redp .fl-al>div .btn.sm{padding:3px 9px}html.fleet-app #panelBody .fl-redp .fl-al>div .btn.sm::after{content:"\203A";font-size:17px;line-height:1}}
 html.fleet-app .fl-redp{border-left:4px solid #b3362c!important}
 html.fleet-app .fl-bg{border-radius:6px;font-size:12px;padding:3px 9px}
 html.fleet-app .fl-chip{border-radius:8px;padding:7px 14px;border-color:var(--fl-line)}
