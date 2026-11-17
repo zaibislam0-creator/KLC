@@ -3909,7 +3909,7 @@ function renderPanel(){
   try{({imp:pImp,bilty:pBilty,rates:pRates,acct:pAcct,xchk:pXchk,news:pNews,dir:pDir,partners:pPartners,inbox:pInbox,fleetdash:pFleetDash,fleetveh:pFleetVeh,fleetdrv:pFleetDrv,fleetdoc:pFleetDoc,admin:pAdmin})[sub]()}catch(err){console.error("section "+sub,err);toast("This section could not load fully. Please refresh and try again.")}
 }
 /* ---------- Kashaf Fleet Management, phase 1 (vehicles, drivers, legal documents) ---------- */
-const FL={veh:[],drv:[],vd:[],docs:[],logs:null,logsFor:"",logsBusy:false,logsErr:"",todoAll:false,loaded:false,loading:false,tried:false,err:"",mode:{veh:"list",drv:"list",doc:"list"},edit:null,q:{veh:"",drv:"",doc:""},st:"all",sd:"all",bk:"all",ask:"",old:false,busy:false};
+const FL={veh:[],drv:[],vd:[],docs:[],logs:null,logsFor:"",logsBusy:false,logsErr:"",todoAll:false,todoOld:false,loaded:false,loading:false,tried:false,err:"",mode:{veh:"list",drv:"list",doc:"list"},edit:null,q:{veh:"",drv:"",doc:""},st:"all",sd:"all",bk:"all",ask:"",old:false,busy:false};
 const FL_VST={available:"Available",on_trip:"On trip",maintenance:"Under maintenance",out_of_service:"Out of service",inactive:"Inactive"};
 const FL_VCAT=["Truck","Trailer","Pickup","Container carrier","Other"];
 const FL_VDOC=["Vehicle registration certificate","Registration book / card","Route permit","Fitness certificate","Token tax","Third-party insurance","Comprehensive insurance","Ownership documents","Purchase invoice","Inter-provincial permit","Goods transport permission","Axle load / weight record","Vehicle photograph","Other"];
@@ -3991,11 +3991,18 @@ function pFleetDash(){
   /* the to-do list: plain sentences, each with a button */
   const todo=[];
   rem.slice(0,5).forEach(x=>todo.push({t:`${x.v.reg_no}: ${x.c} is ${x.st==="over"?"overdue":"due soon"}`,s:tvRemTxt(x),c:x.st==="over"?"e":"w",id:x.v.id}));
-  items.slice(0,5).forEach(i=>todo.push({t:`${i.who}: ${i.type} ${i.b.n<0?"has expired":"expires soon"}`,s:(i.b.n<0?flRel(i.b.n):"in "+i.b.n+" days")+" ("+flFmtD(i.exp)+")",c:i.b.c,doc:1}));
+  const OLD_D=-365,itemsOld=items.filter(i=>i.b.n<OLD_D),itemsNew=items.filter(i=>i.b.n>=OLD_D);
+  const docRow=i=>({t:`${i.who}: ${i.type} ${i.b.n<0?"has expired":"expires soon"}`,s:(i.b.n<0?flRel(i.b.n):"in "+i.b.n+" days")+" ("+flFmtD(i.exp)+")",c:i.b.c,doc:1});
+  itemsNew.slice(0,5).forEach(i=>todo.push(docRow(i)));
+  const todoOld=itemsOld.slice(0,20).map(docRow);
   noDrv.slice(0,3).forEach(v=>todo.push({t:`${v.reg_no} has no driver`,s:"Attach a driver in the vehicle folder",c:"w",id:v.id}));
   idleDrv.slice(0,3).forEach(d=>todo.push({t:`${d.full_name} is not on any vehicle`,s:"Open Drivers and assign a vehicle",c:"n",drv:1}));
   const TODO_N=3,todoMore=todo.length-TODO_N;
-  const todoHTML=todo.length?`<div class="fl-al">${todo.map((x,ix)=>`<div${!FL.todoAll&&ix>=TODO_N?' class="fl-hid"':''}><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span>${x.id?go(x.id,'<span class="fl-bl">Vehicle</span>'):x.drv?`<button type="button" class="btn ghost sm" data-fl="godrvlist"><span class="fl-bl">Drivers</span></button>`:`<button type="button" class="btn ghost sm" data-fl="godoclist"><span class="fl-bl">Documents</span></button>`}</div>`).join("")}</div>${todoMore>0?`<button type="button" class="btn ghost sm" data-fl="todo-all" style="margin-top:8px">${FL.todoAll?"Show fewer":"Show all "+todo.length}</button>`:""}${items.length>5||rem.length>5?`<p class="hint" style="margin:8px 0 0">More alerts are in <b>Documents</b> and in each vehicle folder.</p>`:""}`:`<p style="margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--teal) 12%,transparent)"><b>All good.</b> Nothing is expired, overdue or missing right now.</p>`;
+  const rowHTML=(x,cls)=>`<div${cls?' class="'+cls+'"':''}><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span>${x.id?go(x.id,'<span class="fl-bl">Vehicle</span>'):x.drv?`<button type="button" class="btn ghost sm" data-fl="godrvlist"><span class="fl-bl">Drivers</span></button>`:`<button type="button" class="btn ghost sm" data-fl="godoclist"><span class="fl-bl">Documents</span></button>`}</div>`;
+  const okHTML=`<p style="margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--teal) 12%,transparent)"><b>All good.</b> Nothing is expired, overdue or missing right now.</p>`;
+  const oldHTML=todoOld.length?`<div class="fl-old" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--fl-line)"><button type="button" class="btn ghost sm" data-fl="todo-old">${FL.todoOld?"Hide":"Show"} old alerts (${todoOld.length})</button><p class="hint" style="margin:6px 0 0">Expired more than a year ago. If that driver or vehicle has left KLC, archive it and the alert goes away.</p>${FL.todoOld?`<div class="fl-al" style="margin-top:8px">${todoOld.map(x=>rowHTML(x,"")).join("")}</div>`:""}</div>`:"";
+  const moreHint=itemsNew.length>5||rem.length>5?`<p class="hint" style="margin:8px 0 0">More alerts are in <b>Documents</b> and in each vehicle folder.</p>`:"";
+  const todoHTML=(todo.length?`<div class="fl-al">${todo.map((x,ix)=>rowHTML(x,!FL.todoAll&&ix>=TODO_N?"fl-hid":"")).join("")}</div>${todoMore>0?`<button type="button" class="btn ghost sm" data-fl="todo-all" style="margin-top:8px">${FL.todoAll?"Show fewer":"Show all "+todo.length}</button>`:""}`:okHTML)+oldHTML+moreHint;
   const money=[["Money earned",tvM(A.i),A.i,P.i,"The freight you received this month"],["Money spent",tvM(A.e),A.e,P.e,"Diesel, toll, driver and other trip costs"],["Repairs",tvM(A.m),A.m,P.m,"Tyre, engine, service and other maintenance"],["Profit (what is left)",tvM(net(A)),net(A),net(P),"Earned minus spent minus repairs"]];
   el.innerHTML=(syncOK?"":'<p class="hint">Trip figures are still loading…</p>')+flHead("Fleet overview",now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),`<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-fl="goveh">+ Add vehicle</button><button type="button" class="btn ghost sm" data-fl="godrv">+ Add driver</button></span>`)+
   sec(todo.length?`Needs your attention (${todo.length})`:"Needs your attention","Start here. Press a button to fix it.",todoHTML).replace("<div class=\"panel\">",todo.length?"<div class=\"panel fl-redp\">":"<div class=\"panel\">")+
@@ -4598,6 +4605,7 @@ document.addEventListener("click",async ev=>{
   try{
   if(a==="reload"){FL.tried=false;FL.loaded=false;flLoad(true);renderPanel();return}
   if(a==="todo-all"){FL.todoAll=!FL.todoAll;renderPanel();return}
+  if(a==="todo-old"){FL.todoOld=!FL.todoOld;renderPanel();return}
   if(a==="cancel"){flBack();renderPanel();return}
   if(a==="ask-no"){FL.ask="";renderPanel();return}
   if(a==="bk"){FL.bk=b.dataset.k;renderPanel();return}
@@ -6631,6 +6639,8 @@ html.fleet-app .fl-card b{font:700 26px var(--body)}
 html.fleet-app .fl-card.e b{color:#b3362c}
 html.fleet-app .fl-al>div{border-radius:8px;border-color:var(--fl-line);padding:10px 12px}
 html.fleet-app .fl-al>div.fl-hid{display:none}
+html.fleet-app .fl-old .fl-al>div{background:#fff!important;border-color:var(--fl-line)!important;border-left-color:var(--fl-line)!important}
+html.fleet-app .fl-old .fl-al>div b{color:var(--fl-mut)!important}
 html.fleet-app .fl-redp .fl-al{gap:6px}
 html.fleet-app .fl-redp .fl-al>div{padding:6px 10px;gap:8px}
 html.fleet-app .fl-redp .fl-al>div b{font-size:13.5px;line-height:1.35}
