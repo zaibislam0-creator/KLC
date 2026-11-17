@@ -204,6 +204,7 @@ table.ledger td.num,table.ledger td:first-child,table.ledger td.mono{white-space
 table.ledger tr.open td{font-weight:700;background:var(--chip)}
 .codebox{display:inline-flex;align-items:center;gap:8px;background:var(--chip);border:1px dashed var(--accent);border-radius:8px;padding:6px 10px;font:700 16px var(--mono)}
 .nocost .costcol{display:none!important}
+.roview #panelBody::before{content:"Read only \2014 you can open and look, but you cannot save, add or delete.";display:block;background:#fdf3dc;color:#8a5a0c;border:1px solid #E4DED6;border-radius:8px;padding:9px 12px;margin:0 0 12px;font:600 13px var(--body)}
 .perm td,.perm th{text-align:center} .perm td:first-child,.perm th:first-child{text-align:left}
 .perm input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 .linkbtn{background:none;border:0;padding:0;font:inherit;font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer}
@@ -2805,13 +2806,20 @@ let db;
 try{Object.keys(localStorage).forEach(k=>{if(/^klc-cargo-site-v\d+$/.test(k)||k==="klc-me"||k==="klc-mine")localStorage.removeItem(k)})}catch(e){}
 try{const s=sessionStorage.getItem(KEY);db=s?JSON.parse(s):seed()}catch(e){db=seed()}
 const SB_URL="https://vcsesaxjjgiaqrkcvjyk.supabase.co",SB_KEY="sb_publishable_wG5pSbwbSmKXB2KQhFNJPQ_vLTecM_m",ADMIN_EMAIL="zaibislam0@gmail.com";
+function fixRoles(){/* the five staff roles of the Fleet spec. Adds only what is missing; never changes a role that is already there. */
+  try{const R=db.roles=Array.isArray(db.roles)?db.roles:[];let ch=false;
+  const a=R.find(r=>r.id==="admin");
+  if(a){if(a.name!=="Super Admin"){a.name="Super Admin";ch=true}["bilty","rates","cost","acct","pay","news","fleet","admin"].forEach(k=>{if(!a.perms.includes(k)){a.perms.push(k);ch=true}})}
+  [{id:"fleetmgr",name:"Fleet Manager",perms:["fleet","cost"]},{id:"acctstaff",name:"Accounts Staff",perms:["acct","pay","cost"]},{id:"dataentry",name:"Data Entry Operator",perms:["bilty","fleet"]},{id:"readonly",name:"Read Only",perms:["bilty","fleet","news","ro"]}].forEach(d=>{if(!R.some(r=>r.id===d.id)){R.push({id:d.id,name:d.name,perms:d.perms.slice()});ch=true}});
+  if(ch)save()}catch(e){}
+}
 function fixStaff(){/* demo accounts and stored passwords are removed; logins live in Supabase */
   try{db.staff=(Array.isArray(db.staff)?db.staff:[]).filter(u=>/@/.test(u.user||"")).map(u=>{const c={...u};delete c.pass;return c});
   const a=db.staff.find(u=>u.user===ADMIN_EMAIL);if(a){a.role="admin";a.active=true}else db.staff.unshift({user:ADMIN_EMAIL,name:"Zaib Islam",role:"admin",active:true});
   sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}
 }
 fixStaff();
-function save(){try{sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}if(typeof klcPush==="function")klcPush()}
+function save(){try{sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}let ro=false;try{ro=isRO()}catch(e){}if(ro){try{toast("Read only: your role cannot save changes")}catch(e){}return}if(typeof klcPush==="function")klcPush()}
 let city="";try{city=localStorage.getItem(CITYKEY)||""}catch(e){}
 
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
@@ -2837,12 +2845,14 @@ const PERMS=[
   {k:"pay",label:"Receive payments and change cheque status"},
   {k:"news",label:"News Update: port status, news posts and vessel schedule"},
   {k:"fleet",label:"Fleet: vehicles, drivers and legal documents"},
-  {k:"admin",label:"Admin: create staff accounts and roles"}
+  {k:"admin",label:"Admin: create staff accounts and roles"},
+  {k:"ro",label:"Read only: can open and look, but cannot save, add or delete"}
 ];
 let staffUser="";try{staffUser=sessionStorage.getItem("klc-staff-user")||""}catch(e){}
 const me=()=>staffUser?db.staff?.find(u=>u.user===staffUser&&u.active):null;
 const roleOf=u=>db.roles?.find(r=>r.id===u?.role);
 const can=k=>{const r=roleOf(me());return !!r&&(r.perms.includes(k)||(k==="fleet"&&r.id==="admin"))};
+function isRO(){try{const r=roleOf(me());return !!r&&r.perms.includes("ro")}catch(e){return false}}
 let staffOK=!!me();
 let staffName=me()?.name||"";
 const total=b=>(+b.freight||0)+(+b.labour||0);
@@ -3106,7 +3116,7 @@ addEventListener("popstate",e=>{
   const cb=$("#chatBox");if(cb)new MutationObserver(sync).observe(cb,{attributes:true,attributeFilter:["hidden"]});
 })();
 function endTrack(){$("#v-track").classList.remove("focus","hasres","resonly");$("#results").innerHTML=""}
-function setHH(){document.documentElement.style.setProperty("--hh",$("header.top").offsetHeight+"px")}
+function setHH(){const h=$("header.top");if(!h)return;document.documentElement.style.setProperty("--hh",h.offsetHeight+"px")}
 function fitPoster(){const p=$(".poster"),sv=$(".poster-bg");if(!p||!sv)return;const r=p.clientWidth/Math.max(1,p.clientHeight);sv.setAttribute("preserveAspectRatio",r<2.05&&innerWidth>760?"xMaxYMax meet":"xMidYMid slice")}
 setHH();fitPoster();addEventListener("resize",()=>{setHH();fitPoster()});addEventListener("load",()=>{setHH();fitPoster()});
 
@@ -3883,6 +3893,7 @@ function renderPanel(){
   const kpB={inbox:kUnread(),dir:(db.pending||[]).length,partners:(db.ppend||[]).length+(db.preqs||[]).filter(r=>r.status==="New").length};
   $$("#subtabs .chipbtn").forEach(b=>{const n=kpB[b.dataset.s]||0,i=b.querySelector(".kp-badge");if(i){i.textContent=n||"";i.hidden=!n;i.title=n?n+" waiting":""}});
   $("#v-panel").classList.toggle("nocost",!can("cost"));
+  $("#v-panel").classList.toggle("roview",isRO());
   {const sx=$("#stats");if(sx)sx.hidden=sub.startsWith("fleet")}
   const allowed=SUBS.filter(canSub);
   if(!allowed.includes(sub))sub=allowed[0]||"";
@@ -3914,7 +3925,7 @@ const flDLabel=id=>{const d=flDrv(id);return d?d.full_name:id};
 const flNext=(arr,p)=>p+String(Math.max(0,...arr.map(x=>parseInt(String(x.id).split("-")[1],10)||0))+1).padStart(3,"0");
 const flNum=v=>{v=String(v??"").trim();if(v==="")return null;const n=+v;return isNaN(n)?null:n};
 const flStr=v=>{v=String(v??"").trim();return v===""?null:v};
-async function flReq(path,o={}){const tok=await sbToken();if(!tok)throw new Error("Your session ended. Please sign in again.");
+async function flReq(path,o={}){if((o.method||"GET")!=="GET"&&isRO())throw new Error("Read only: your role cannot save changes.");const tok=await sbToken();if(!tok)throw new Error("Your session ended. Please sign in again.");
   const r=await fetch(SB_URL+"/rest/v1/"+path,{method:o.method||"GET",headers:{...sbH(tok),...(o.prefer?{Prefer:o.prefer}:{})},body:o.body!==undefined?JSON.stringify(o.body):undefined});
   if(!r.ok){let m="";try{m=(await r.json()).message||""}catch(e){}if(/duplicate key/i.test(m))m="This registration number or ID already exists.";throw new Error(m||("Could not save (error "+r.status+")"))}
   if(r.status===204)return null;try{return await r.json()}catch(e){return null}}
@@ -4522,6 +4533,7 @@ function flDocForm(){
   <div class="fl-btns"><button type="submit" class="btn"${FL.busy?" disabled":""}>${FL.busy?"Saving…":e.renew?"Save renewed document":"Save document"}</button><button type="button" class="btn ghost" data-fl="cancel">Cancel</button></div></form>`}
 function flDocOwnerToggle(){const f=document.querySelector('[data-flform="doc"]');if(!f)return;const upd=()=>{f.querySelectorAll("[data-ow]").forEach(l=>l.hidden=l.dataset.ow!==f.elements.owner_type.value)};f.elements.owner_type.addEventListener("change",upd);upd()}
 async function flUpload(docId,file){
+  if(isRO())throw new Error("Read only: your role cannot upload files.");
   const tok=await sbToken();if(!tok)throw new Error("Your session ended. Please sign in again.");
   if(file.size>10*1024*1024)throw new Error("File is too large. Keep it under 10 MB.");
   const safe=file.name.replace(/[^A-Za-z0-9._-]/g,"_").slice(-80);const path="docs/"+docId+"/"+Date.now()+"-"+safe;
@@ -6352,7 +6364,7 @@ async function syncPull(quiet){
     const rows=await r.json();
     if(rows.length){db=Object.assign(seed(),rows[0].data);dbStamp=rows[0].updated_at}
     else{const doc=initialDoc();const c=await fetch(SB_REST,{method:"POST",headers:{...sbH(tok),Prefer:"return=representation"},body:JSON.stringify({id:"db",data:doc})});if(!c.ok)throw new Error("create");const cr=await c.json();db=Object.assign(seed(),doc);dbStamp=cr[0].updated_at}
-    fixStaff();syncOK=true;return true
+    fixStaff();syncOK=true;fixRoles();return true
   }catch(e){if(!quiet)toast("Could not reach the online data. Check the internet.");return false}
 }
 function klcPush(){if(!syncOK)return;dirty=true;clearTimeout(pushT);pushT=setTimeout(doPush,1200)}
