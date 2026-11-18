@@ -4129,8 +4129,16 @@ function flVehForm(){
 function flRentToggle(){const f=document.querySelector('[data-flform="veh"]');if(!f)return;const upd=()=>{f.querySelectorAll(".fl-own").forEach(d=>d.hidden=d.dataset.own!==f.elements.ownership.value)};f.elements.ownership.addEventListener("change",upd);upd()}
 
 /* ----- trip vouchers (income, expenses, bills, challan and bilty per trip) ----- */
-const TV_EXP=["Diesel","Toll","Driver","Trip","Labour","Motorway Challan","Adjustment / Misc","Oil","Air (Hawa) / Cleaning","Karachi Police","Food Expense (Tea & Water)"];
+const TV_EXP=["Diesel","Toll","Driver","Driver Salary","Trip","Labour","Motorway Challan","Adjustment / Misc","Oil","Air (Hawa) / Cleaning","Karachi Police","Food Expense (Tea & Water)"];
 const TV_INC=["Karachi Freight (Karaya)","Sialkot Freight (Karaya)"];
+const tvHeads=k=>{const B=k==="inc"?TV_INC:TV_EXP,C=((db.tvHeads||{})[k]||[]);return [...B,...C.filter(h=>!B.some(x=>x.toLowerCase()===String(h).toLowerCase()))]};
+function tvHeadBox(k){const C=((db.tvHeads||{})[k]||[]),nm=k==="exp"?"expense":"income";
+  return `<div class="tv-heads" data-k="${k}" style="margin-top:8px;display:grid;gap:6px;padding:8px 10px;border:1px dashed var(--line);border-radius:10px">
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button type="button" class="btn ghost sm" data-tv="hnew" data-k="${k}">+ New ${nm} column</button>${C.length?`<small class="hint">Your columns:</small>`:""}${C.map(h=>`<span class="fl-bg n" style="display:inline-flex;gap:4px;align-items:center">${esc(h)}<button type="button" data-tv="hrm" data-k="${k}" data-h="${esc(h)}" aria-label="Remove column ${esc(h)}" title="Remove column" style="border:0;background:none;cursor:pointer;color:inherit;padding:0 2px;font:inherit">✕</button></span>`).join("")}</div>
+  <div class="tv-hform" style="display:none;gap:6px;flex-wrap:wrap;align-items:center"><input data-tvh maxlength="40" placeholder="New ${nm} column name" aria-label="New ${nm} column name" style="flex:1 1 200px"><button type="button" class="btn sm" data-tv="hsave" data-k="${k}">Save column</button><button type="button" class="btn ghost sm" data-tv="hcancel">Cancel</button></div>
+  <div class="tv-hask" style="display:none;gap:6px;flex-wrap:wrap;align-items:center"></div>
+  <small class="hint">A saved column shows in every new trip voucher. Old vouchers do not change.</small>
+  <datalist id="tvdl_${k}">${tvHeads(k).map(h=>`<option value="${esc(h)}">`).join("")}</datalist></div>`}
 const tvN=x=>Math.max(0,Number(String(x).replace(/,/g,""))||0),tvM=x=>"Rs. "+Math.round(x).toLocaleString("en-PK");
 const tvSum=a=>(a||[]).reduce((t,r)=>t+tvN(r.a),0),tvMaint=t=>tvSum(t.mnt)+tvN(t.maint);
 const TV_MC=["Tyre","Engine","Hub / Tube","Fuel pump","Nozzle","Gear / Gearbox","Cabin","Steering","Body / Box","Service / Oil change","Brakes","Clutch","Electrical","Battery","Suspension / Springs","Paint / Denting","Other"];
@@ -4153,7 +4161,7 @@ function tvByCat(mi){const o={};mi.forEach(({t,r,c})=>{const k=o[c]||(o[c]={n:0,
 const TV_GROUPS=[["inc","Freight / Income",true,"Freight name"],["exp","Expenses (Tafseel Kharch)",true,"Expense name"],["mnt","Vehicle maintenance",true,"Work done / part"],["chl","Challan",false,"Challan number"],["blt","Bilty",false,"Bilty number"]];
 function tvRowHTML(kind,r){r=r||{};const amt=kind!=="chl"&&kind!=="blt",ph=(TV_GROUPS.find(g=>g[0]===kind)||[])[3]||"Name";
   return `<div class="tv-row" data-f="${esc(r.f||"")}" data-fn="${esc(r.fn||"")}" style="border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px;display:grid;gap:6px;background:var(--surface)">
-  <div style="display:grid;grid-template-columns:minmax(0,1fr)${amt?" 130px":""} auto;gap:8px;align-items:center"><input data-tvl value="${esc(r.l||"")}" placeholder="${ph}" aria-label="${ph}">${amt?`<input data-tva type="number" min="0" step="any" value="${r.a?esc(r.a):""}" placeholder="Amount" aria-label="Amount">`:""}<button type="button" class="btn ghost sm" data-tv="rm" aria-label="Remove line">✕</button></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><input data-tvl value="${esc(r.l||"")}" placeholder="${ph}" aria-label="${ph}"${kind==="inc"||kind==="exp"?` list="tvdl_${kind}"`:""} style="flex:1 1 180px;min-width:0">${amt?`<input data-tva type="number" min="0" step="any" value="${r.a?esc(r.a):""}" placeholder="Amount" aria-label="Amount" style="flex:1 0 110px;max-width:150px;min-width:0">`:""}<button type="button" class="btn ghost sm" data-tv="rm" aria-label="Remove line">✕</button></div>
   ${kind==="mnt"?`<div style="display:flex;gap:8px;flex-wrap:wrap"><select data-tvc aria-label="Category" style="flex:1 1 180px">${(TV_MC.includes(r.c)||!r.c?TV_MC:[...TV_MC,r.c]).map(c=>`<option${(r.c||"Other")===c?" selected":""}>${esc(c)}</option>`).join("")}</select><input data-tvk type="number" min="0" step="any" value="${r.k?esc(r.k):""}" placeholder="Odometer km (optional)" aria-label="Odometer km" style="flex:1 1 170px"></div><input data-tvw value="${esc(r.w||"")}" placeholder="Done by (mechanic / workshop / head)" aria-label="Done by"><div style="display:flex;gap:8px;flex-wrap:wrap"><label class="hint" style="flex:1 1 170px;display:grid;gap:2px">Next due on (date)<input data-tvnd type="date" value="${esc(r.nd||"")}"></label><label class="hint" style="flex:1 1 170px;display:grid;gap:2px">Next due at (km)<input data-tvnk type="number" min="0" step="any" value="${r.nk?esc(r.nk):""}"></label></div>`:""}<input data-tvd value="${esc(r.d||"")}" placeholder="Details (optional)" aria-label="Details">
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" data-tvf accept="application/pdf,image/*" aria-label="Original bill" style="max-width:270px">${r.f?`<span class="hint">📎 ${esc(r.fn||"Bill")} <button type="button" class="btn ghost sm" data-tv="file" data-path="${esc(r.f)}">View</button> (choose a new file to replace)</span>`:'<span class="hint">Attach the original bill (PDF or photo)</span>'}</div></div>`}
 function tvDetailHTML(t){
@@ -4165,12 +4173,12 @@ function flTripVoucherHTML(v){
   const ti=L.reduce((x,t)=>x+tvSum(t.inc),0),te=L.reduce((x,t)=>x+tvSum(t.exp),0),tm=L.reduce((x,t)=>x+tvMaint(t),0);
   let form="";
   if(FL.tvMode){const e=FL.tvMode==="new"?null:db.tripv.find(t=>t.id===FL.tvMode);
-    const t=e||{date:today(),from:"Sialkot",to:"Karachi",inc:TV_INC.map(l=>({l})),exp:TV_EXP.map(l=>({l})),mnt:[],chl:[{}],blt:[{}]};
+    const t=e||{date:today(),from:"Sialkot",to:"Karachi",inc:tvHeads("inc").map(l=>({l})),exp:tvHeads("exp").map(l=>({l})),mnt:[],chl:[{}],blt:[{}]};
     const dr=FL.vd.filter(x=>x.vehicle_id===v.id).map(x=>flDrv(x.driver_id)).filter(Boolean);
     form=`<div class="stform" id="tvForm" data-id="${e?esc(e.id):""}" style="display:grid;gap:12px;padding:12px;border:1.5px solid var(--accent);border-radius:12px;margin:10px 0">
     <h3 style="margin:0">${e?"Edit":"New"} trip voucher · ${esc(v.reg_no)}</h3>
     <div class="fl-fm">${flIn("tv_date","Trip date",t.date,"date")}${flIn("tv_from","From",t.from)}${flIn("tv_to","To",t.to)}<label>Driver<select name="tv_driver"><option value="">-</option>${[...new Set(dr.map(d=>d.full_name))].map(n=>`<option${t.driver===n?" selected":""}>${esc(n)}</option>`).join("")}</select></label>${flIn("tv_km0","Odometer at start (km)",t.km0,"number",'min="0" step="any"')}${flIn("tv_km1","Odometer at end (km)",t.km1,"number",'min="0" step="any"')}${flIn("tv_lt","Diesel filled (litres)",t.lt,"number",'min="0" step="any"')}</div>
-    ${TV_GROUPS.map(([k,lab,amt])=>`<div><h3 style="margin:0 0 6px">${lab}</h3><div id="tv_${k}">${(t[k]||[]).map(r=>tvRowHTML(k,r)).join("")}</div><button type="button" class="btn ghost sm" data-tv="add" data-k="${k}">+ Add ${k==="inc"?"income":k==="exp"?"expense":k==="mnt"?"maintenance":k==="chl"?"challan":"bilty"} line</button></div>`).join("")}
+    ${TV_GROUPS.map(([k,lab,amt])=>`<div><h3 style="margin:0 0 6px">${lab}</h3><div id="tv_${k}">${(t[k]||[]).map(r=>tvRowHTML(k,r)).join("")}</div><button type="button" class="btn ghost sm" data-tv="add" data-k="${k}">+ Add ${k==="inc"?"income":k==="exp"?"expense":k==="mnt"?"maintenance":k==="chl"?"challan":"bilty"} line</button>${k==="inc"||k==="exp"?tvHeadBox(k):""}</div>`).join("")}
     ${tvN(t.maint)?`<p class="hint">Older maintenance amount without details: ${tvM(tvN(t.maint))}</p>`:""}
     ${flIn("tv_note","Note",t.note)}
     <div id="tvTot" style="font-weight:700;display:grid;gap:2px"></div>
@@ -4332,6 +4340,18 @@ document.addEventListener("click",async ev=>{
   if(a==="rm"){b.closest(".tv-row").remove();tvTotals();return}
   if(a==="add"){const k=b.dataset.k,box=$("#tv_"+k);box.insertAdjacentHTML("beforeend",tvRowHTML(k,{}));box.lastElementChild.querySelector("[data-tvl]").focus();return}
   if(a==="file"){tvFile(b.dataset.path);return}
+  if(/^h(new|save|cancel|rm|yes|no)$/.test(a)){const hb=b.closest(".tv-heads");if(!hb)return;const k=hb.dataset.k,hf=hb.querySelector(".tv-hform"),hk=hb.querySelector(".tv-hask");
+    if(a==="hnew"){hk.style.display="none";hf.style.display="flex";hf.querySelector("[data-tvh]").focus();return}
+    if(a==="hcancel"){hf.style.display="none";hf.querySelector("[data-tvh]").value="";return}
+    if(a==="hno"){hk.style.display="none";hk.innerHTML="";return}
+    if(a==="hrm"){hf.style.display="none";hk.innerHTML=`<span class="hint">Remove column <b style="color:var(--ink)">${esc(b.dataset.h)}</b> from new vouchers?</span><button type="button" class="btn sm" data-tv="hyes" data-h="${esc(b.dataset.h)}">Yes, remove</button><button type="button" class="btn ghost sm" data-tv="hno">No</button>`;hk.style.display="flex";return}
+    if(a==="hyes"){const h=b.dataset.h;db.tvHeads=db.tvHeads||{};db.tvHeads[k]=(db.tvHeads[k]||[]).filter(x=>x!==h);if(save()===false)return;hb.outerHTML=tvHeadBox(k);toast("Column removed. Old vouchers are not changed.");return}
+    if(a==="hsave"){const inp=hf.querySelector("[data-tvh]"),nm=inp.value.replace(/\s+/g," ").trim();if(!nm){toast("Type the column name");inp.focus();return}
+      const box=$("#tv_"+k),have=[...box.querySelectorAll("[data-tvl]")].some(x=>x.value.trim().toLowerCase()===nm.toLowerCase());
+      if(!tvHeads(k).some(x=>x.toLowerCase()===nm.toLowerCase())){db.tvHeads=db.tvHeads||{};(db.tvHeads[k]=db.tvHeads[k]||[]).push(nm);if(save()===false)return;toast("Column saved. It will show in every new trip voucher.")}else toast("This column is already in the list");
+      if(!have){box.insertAdjacentHTML("beforeend",tvRowHTML(k,{l:nm}));const ai=box.lastElementChild.querySelector("[data-tva]");if(ai)ai.focus()}
+      hb.outerHTML=tvHeadBox(k);return}
+    return}
   if(a==="drvrep"){FL.drvRep=id;FL.mode.drv="report";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
   if(a==="drvrenew"){const q=FL.docs.find(x=>x.id===id);if(q){FL.edit={...q,renew:true};renderPanel()}return}
   if(a==="drvrenewno"){FL.edit=null;renderPanel();return}
@@ -4374,6 +4394,7 @@ document.addEventListener("click",async ev=>{
     FL.tvBusy=false;FL.tvMode=null;save();renderPanel();toast(FL.odoWarn?"Trip voucher saved, but the vehicle odometer could not be updated":"Trip voucher saved");FL.odoWarn=0;return}
   }catch(er){FL.tvBusy=false;toast(er.message||"Something went wrong")}});
 document.addEventListener("input",ev=>{if(ev.target.closest("#tvForm"))tvTotals()});
+document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.matches&&ev.target.matches("[data-tvh]")){ev.preventDefault();const s=ev.target.closest(".tv-hform").querySelector('[data-tv="hsave"]');if(s)s.click()}});
 
 const FL_DPDF=[
  ["full_name","Full name",/\b(?:full\s*)?name\b(?!\s*of\s*father)/i],
