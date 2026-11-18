@@ -4129,15 +4129,16 @@ function flVehForm(){
 function flRentToggle(){const f=document.querySelector('[data-flform="veh"]');if(!f)return;const upd=()=>{f.querySelectorAll(".fl-own").forEach(d=>d.hidden=d.dataset.own!==f.elements.ownership.value)};f.elements.ownership.addEventListener("change",upd);upd()}
 
 /* ----- trip vouchers (income, expenses, bills, challan and bilty per trip) ----- */
-const TV_EXP=["Diesel","Toll","Driver","Driver Salary","Trip","Labour","Motorway Challan","Adjustment / Misc","Oil","Air (Hawa) / Cleaning","Karachi Police","Food Expense (Tea & Water)"];
+const TV_EXP=["Diesel","Toll","Driver Salary","Trip","Labour","Motorway Challan","Adjustment / Misc","Oil","Air (Hawa) / Cleaning","Karachi Police","Food Expense (Tea & Water)"];
 const TV_INC=["Karachi Freight (Karaya)","Sialkot Freight (Karaya)"];
-const tvHeads=k=>{const B=k==="inc"?TV_INC:TV_EXP,C=((db.tvHeads||{})[k]||[]);return [...B,...C.filter(h=>!B.some(x=>x.toLowerCase()===String(h).toLowerCase()))]};
-function tvHeadBox(k){const C=((db.tvHeads||{})[k]||[]),nm=k==="exp"?"expense":"income";
+const tvLo=x=>String(x).toLowerCase(),tvHid=k=>((db.tvHide||{})[k]||[]).map(tvLo);
+const tvHeads=k=>{const B=k==="inc"?TV_INC:TV_EXP,C=((db.tvHeads||{})[k]||[]),H=tvHid(k);return [...B.filter(x=>!H.includes(tvLo(x))),...C.filter(h=>!B.some(x=>tvLo(x)===tvLo(h)))]};
+function tvHeadBox(k){const C=tvHeads(k),nm=k==="exp"?"expense":"income";
   return `<div class="tv-heads" data-k="${k}" style="margin-top:8px;display:grid;gap:6px;padding:8px 10px;border:1px dashed var(--line);border-radius:10px">
-  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button type="button" class="btn ghost sm" data-tv="hnew" data-k="${k}">+ New ${nm} column</button>${C.length?`<small class="hint">Your columns:</small>`:""}${C.map(h=>`<span class="fl-bg n" style="display:inline-flex;gap:4px;align-items:center">${esc(h)}<button type="button" data-tv="hrm" data-k="${k}" data-h="${esc(h)}" aria-label="Remove column ${esc(h)}" title="Remove column" style="border:0;background:none;cursor:pointer;color:inherit;padding:0 2px;font:inherit">✕</button></span>`).join("")}</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button type="button" class="btn ghost sm" data-tv="hnew" data-k="${k}">+ New ${nm} column</button>${C.length?`<small class="hint">Lines in new vouchers:</small>`:""}${C.map(h=>`<span class="fl-bg n" style="display:inline-flex;gap:4px;align-items:center">${esc(h)}<button type="button" data-tv="hrm" data-k="${k}" data-h="${esc(h)}" aria-label="Remove column ${esc(h)}" title="Remove column" style="border:0;background:none;cursor:pointer;color:inherit;padding:0 2px;font:inherit">✕</button></span>`).join("")}</div>
   <div class="tv-hform" style="display:none;gap:6px;flex-wrap:wrap;align-items:center"><input data-tvh maxlength="40" placeholder="New ${nm} column name" aria-label="New ${nm} column name" style="flex:1 1 200px"><button type="button" class="btn sm" data-tv="hsave" data-k="${k}">Save column</button><button type="button" class="btn ghost sm" data-tv="hcancel">Cancel</button></div>
   <div class="tv-hask" style="display:none;gap:6px;flex-wrap:wrap;align-items:center"></div>
-  <small class="hint">A saved column shows in every new trip voucher. Old vouchers do not change.</small>
+  <small class="hint">These lines come in every new trip voucher. ✕ removes a line from new vouchers; old vouchers do not change.</small>
   <datalist id="tvdl_${k}">${tvHeads(k).map(h=>`<option value="${esc(h)}">`).join("")}</datalist></div>`}
 const tvN=x=>Math.max(0,Number(String(x).replace(/,/g,""))||0),tvM=x=>"Rs. "+Math.round(x).toLocaleString("en-PK");
 const tvSum=a=>(a||[]).reduce((t,r)=>t+tvN(r.a),0),tvMaint=t=>tvSum(t.mnt)+tvN(t.maint);
@@ -4344,11 +4345,11 @@ document.addEventListener("click",async ev=>{
     if(a==="hnew"){hk.style.display="none";hf.style.display="flex";hf.querySelector("[data-tvh]").focus();return}
     if(a==="hcancel"){hf.style.display="none";hf.querySelector("[data-tvh]").value="";return}
     if(a==="hno"){hk.style.display="none";hk.innerHTML="";return}
-    if(a==="hrm"){hf.style.display="none";hk.innerHTML=`<span class="hint">Remove column <b style="color:var(--ink)">${esc(b.dataset.h)}</b> from new vouchers?</span><button type="button" class="btn sm" data-tv="hyes" data-h="${esc(b.dataset.h)}">Yes, remove</button><button type="button" class="btn ghost sm" data-tv="hno">No</button>`;hk.style.display="flex";return}
-    if(a==="hyes"){const h=b.dataset.h;db.tvHeads=db.tvHeads||{};db.tvHeads[k]=(db.tvHeads[k]||[]).filter(x=>x!==h);if(save()===false)return;hb.outerHTML=tvHeadBox(k);toast("Column removed. Old vouchers are not changed.");return}
+    if(a==="hrm"){hf.style.display="none";hk.innerHTML=`<span class="hint">Remove line <b style="color:var(--ink)">${esc(b.dataset.h)}</b> from new vouchers?</span><button type="button" class="btn sm" data-tv="hyes" data-h="${esc(b.dataset.h)}">Yes, remove</button><button type="button" class="btn ghost sm" data-tv="hno">No</button>`;hk.style.display="flex";return}
+    if(a==="hyes"){const h=b.dataset.h,B=k==="inc"?TV_INC:TV_EXP;db.tvHeads=db.tvHeads||{};db.tvHeads[k]=(db.tvHeads[k]||[]).filter(x=>tvLo(x)!==tvLo(h));if(B.some(x=>tvLo(x)===tvLo(h))){db.tvHide=db.tvHide||{};db.tvHide[k]=[...new Set([...(db.tvHide[k]||[]),h])]}if(save()===false)return;hb.outerHTML=tvHeadBox(k);toast("Line removed from new vouchers. Old vouchers are not changed.");return}
     if(a==="hsave"){const inp=hf.querySelector("[data-tvh]"),nm=inp.value.replace(/\s+/g," ").trim();if(!nm){toast("Type the column name");inp.focus();return}
       const box=$("#tv_"+k),have=[...box.querySelectorAll("[data-tvl]")].some(x=>x.value.trim().toLowerCase()===nm.toLowerCase());
-      if(!tvHeads(k).some(x=>x.toLowerCase()===nm.toLowerCase())){db.tvHeads=db.tvHeads||{};(db.tvHeads[k]=db.tvHeads[k]||[]).push(nm);if(save()===false)return;toast("Column saved. It will show in every new trip voucher.")}else toast("This column is already in the list");
+      if(!tvHeads(k).some(x=>x.toLowerCase()===nm.toLowerCase())){const B=k==="inc"?TV_INC:TV_EXP;if(B.some(x=>tvLo(x)===tvLo(nm))){db.tvHide=db.tvHide||{};db.tvHide[k]=(db.tvHide[k]||[]).filter(x=>tvLo(x)!==tvLo(nm))}else{db.tvHeads=db.tvHeads||{};(db.tvHeads[k]=db.tvHeads[k]||[]).push(nm)}if(save()===false)return;toast("Column saved. It will show in every new trip voucher.")}else toast("This column is already in the list");
       if(!have){box.insertAdjacentHTML("beforeend",tvRowHTML(k,{l:nm}));const ai=box.lastElementChild.querySelector("[data-tva]");if(ai)ai.focus()}
       hb.outerHTML=tvHeadBox(k);return}
     return}
