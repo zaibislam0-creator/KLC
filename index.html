@@ -4087,7 +4087,8 @@ function flVehFolder(){
   const sec=FL.fsec&&TV_SECS.some(x=>x[0]===FL.fsec)?FL.fsec:"details",part=TV_PARTS.find(x=>x[0]===sec);
   const tabs=`<div class="fl-chips" role="tablist" aria-label="Vehicle sections" style="margin:0 0 12px">${TV_SECS.map(([k,n])=>`<button type="button" class="fl-chip" data-tv="sec" data-s="${k}" aria-pressed="${k===sec}">${vhIc(k)}${n}</button>`).join("")}</div>`;
   let body="";
-  if(sec==="details")body=EXP+SUM+SEC_DET;
+  if(sec==="details")body=EXP+SUM+SEC_DET+(()=>{const R=docs.filter(d=>d.status==="current"&&/registration/i.test(d.doc_type));
+    return `<div class="panel"><div class="ph"><h3>Registration card / book</h3><button type="button" class="btn ghost sm" data-tv="sec" data-s="docs">All documents</button></div>${R.length?`<div class="fl-act" style="display:flex;flex-wrap:wrap;gap:6px">${R.map(d=>d.file_path?`<button type="button" class="btn ghost sm" data-fl="doc-file" data-id="${esc(d.id)}">📄 ${esc(d.remarks||d.doc_type)}</button>`:`<span class="hint">${esc(d.remarks||d.doc_type)} (no file)</span>`).join("")}</div>`:`<p class="hint" style="margin:0">No registration card or book saved yet. Press Edit details, choose the card or book at the top, then Save. Or upload it in Documents.</p>`}</div>`})();
   else if(sec==="driver")body=SEC_DRV;
   else if(sec==="income")body=TVH.income;
   else if(sec==="maint")body=TVH.maint;
@@ -4398,17 +4399,26 @@ async function ocrCanvas(cv,note){const T=await loadTess();const w=await T.creat
 async function flFileToCanvases(f){
   if(/^image\//.test(f.type)||/\.(jpe?g|png|webp|bmp)$/i.test(f.name)){
     const url=URL.createObjectURL(f);try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
-      const k=Math.min(2,2200/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);return[cv]}finally{URL.revokeObjectURL(url)}}
+      const k=Math.min(2,2200/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);return[flPrep(cv)]}finally{URL.revokeObjectURL(url)}}
   const lib=await loadPdfJs(),doc=await lib.getDocument({data:await f.arrayBuffer(),isEvalSupported:false}).promise,out=[];
-  for(let p=1;p<=Math.min(doc.numPages,2);p++){const pg=await doc.getPage(p),vp=pg.getViewport({scale:2.2}),cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;out.push(cv)}
+  for(let p=1;p<=Math.min(doc.numPages,2);p++){const pg=await doc.getPage(p),vp=pg.getViewport({scale:2.2}),cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;out.push(flPrep(cv))}
   return out}
+function flPrep(cv){/* grey + stretch contrast: coloured card backgrounds confuse OCR */
+  try{const x=cv.getContext("2d"),d=x.getImageData(0,0,cv.width,cv.height),p=d.data,H=new Uint32Array(256);
+    for(let i=0;i<p.length;i+=4){const g=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000|0;p[i]=g;H[g]++}
+    const n=p.length/4;let lo=0,hi=255,s=0;for(;lo<255;lo++){s+=H[lo];if(s>n*.02)break}s=0;for(;hi>0;hi--){s+=H[hi];if(s>n*.02)break}
+    const k=hi>lo+10?255/(hi-lo):1;for(let i=0;i<p.length;i+=4){const v=Math.max(0,Math.min(255,(p[i]-lo)*k));p[i]=p[i+1]=p[i+2]=v}
+    x.putImageData(d,0,0)}catch(e){}return cv}
 const flND=t=>{const m=String(t||"").match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4})/);if(!m)return"";const d=+m[1],mo=+m[2];if(mo<1||mo>12||d<1||d>31)return"";return m[3]+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0")};
 function flParseDrvDoc(texts,kind){
   const L=texts.map(x=>String(x).replace(/\s+/g," ").trim()).filter(Boolean),all=L.join("\n"),out={};
   const isLic=kind?kind==="lic":/licen[cs]e|driving/i.test(all);
-  const after=(re,n)=>{for(let i=0;i<L.length;i++){const m=L[i].match(re);if(!m)continue;let v=L[i].slice(m.index+m[0].length).replace(/^[\s:.\-–—|]+/,"").trim();if(v)return v;for(let j=1;j<=(n||1);j++){const nx=(L[i+j]||"").trim();if(nx)return nx}}return""};
+  const DLAB=/\b(?:name|father|husband|gender|sex|country|stay|identity|number|date|birth|issue|expiry|valid|pakistan|national|card|signature|holder|licen[cs]e|category|address|authority|blood|cnic|islamic|republic|government|punjab|sindh|nadra)\b/i;
+  const after=(re,n,ok)=>{for(let i=0;i<L.length;i++){const m=L[i].match(re);if(!m)continue;const cs=[L[i].slice(m.index+m[0].length)];for(let j=1;j<=(n||1);j++)cs.push(L[i+j]||"");
+    for(let j=0;j<cs.length;j++){let v=cs[j].replace(/^[\s:.\-–—|=;,_]+/,"").trim();if(!v)continue;if(ok){const g=ok(v);if(g)return g;continue}if(j>0&&DLAB.test(v.split(/[\s:]/)[0]||""))continue;return v}}return""};
   const nm=v=>v.replace(/[^A-Za-z .'\-]/g," ").replace(/\s+/g," ").trim();
-  let name=nm(after(/(?<!father\s)(?<!husband\s)\bname\b/i)),fa=nm(after(/(?:father|husband)(?:'s)?\s*name|s\/o|d\/o|w\/o/i));
+  const okName=v=>{v=nm(v.split(/\s{3,}/)[0]);return v.length>2&&v.length<40&&/[A-Za-z]{2}/.test(v)&&!DLAB.test(v)?v:""};
+  let name=after(/(?<!father\s)(?<!husband\s)(?<!father's\s)\bname\b/i,2,okName),fa=after(/(?:father|husband)(?:'s)?\s*name|s\/o|d\/o|w\/o/i,2,okName);
   if(name&&name.length>2&&!/father|husband/i.test(name))out.full_name=name.replace(/\b\w/g,c=>c.toUpperCase()).replace(/(\w)(\w*)/g,(m,a,b)=>a+b.toLowerCase());
   if(fa&&fa.length>2)out.father_name=fa.replace(/(\w)(\w*)/g,(m,a,b)=>a.toUpperCase()+b.toLowerCase());
   const c=all.match(/\b\d{5}\s*[- ]\s*\d{7}\s*[- ]\s*\d\b/)||all.match(/\b\d{13}\b/);if(c){const d=c[0].replace(/\D/g,"");out.cnic=d.slice(0,5)+"-"+d.slice(5,12)+"-"+d.slice(12)}
@@ -4417,22 +4427,22 @@ function flParseDrvDoc(texts,kind){
   if(isLic){
     const ln=after(/licen[cs]e\s*(?:no\.?|number|#)|\bd\.?l\.?\s*(?:no\.?|number)/i);if(ln)out.licence_no=ln.split(/\s{2,}/)[0].replace(/[^A-Za-z0-9\-\/ ]/g,"").trim();
     const ex=lab(/(?:valid\s*(?:up\s*)?(?:to|till|upto)|expiry|expires?|date\s*of\s*expiry)/i),is=lab(/(?:date\s*of\s*issue|issue\s*date|issued?(?:\s*on)?)/i);
-    if(ex)out.licence_expiry=ex;if(is)out.licence_issue=is;
-    const ds=[...all.matchAll(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{4}/g)].map(m=>flND(m[0])).filter(Boolean).sort();
+    const ds=[...new Set([...all.matchAll(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{4}/g)].map(m=>flND(m[0])).filter(Boolean))].sort();
+    if(ex&&ex===ds[ds.length-1])out.licence_expiry=ex;if(is&&is<(out.licence_expiry||ds[ds.length-1]||"9"))out.licence_issue=is;
     if(ds.length>=2){if(!out.licence_issue)out.licence_issue=ds[Math.max(0,ds.length-2)];if(!out.licence_expiry)out.licence_expiry=ds[ds.length-1]}
     const cl=after(/(?:licen[cs]e\s*)?(?:category|class(?:es)?|type)\b/i);if(cl&&cl.length<40)out.licence_category=cl.replace(/[^A-Za-z0-9,\/ \-]/g,"").trim();
     const au=after(/issu(?:ing|ed\s*by)\s*(?:authority|office)?|authority/i);if(au&&au.length<60&&!/\d{2}[.\/-]\d{2}/.test(au))out.licence_authority=au.replace(/[^A-Za-z0-9 ,.\-]/g,"").trim();
     const ad=after(/\baddress\b/i,2);if(ad&&ad.length>5)out.address=ad.replace(/\s+/g," ");
   }else{
-    const dob=lab(/date\s*of\s*birth|\bd\.?o\.?b\b/i),is=lab(/date\s*of\s*issue|issue\s*date/i),ex=lab(/date\s*of\s*expiry|expiry\s*date|valid\s*(?:till|upto)/i);
-    const ds=[...all.matchAll(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{4}/g)].map(m=>flND(m[0])).filter(Boolean).sort();
-    let i2=is,e2=ex;if(ds.length>=3){if(!i2)i2=ds[1];if(!e2)e2=ds[2]}else if(ds.length===2&&!i2&&!e2){i2=ds[0];e2=ds[1]}
+    const dob=lab(/date\s*of\s*birth|\bd\.?o\.?b\b/i);
+    const ds=[...new Set([...all.matchAll(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{4}/g)].map(m=>flND(m[0])).filter(Boolean))].sort();
+    let i2="",e2="";if(ds.length>=2){e2=ds[ds.length-1];i2=ds[ds.length-2];if(i2===dob&&ds.length<3)i2=""}
     if(i2&&i2!==dob)out.cnic_issue=i2;if(e2&&e2!==dob)out.cnic_expiry=e2;
     const ad=after(/(?:present|permanent)?\s*address\b/i,2);if(ad&&ad.length>5)out.address=ad.replace(/\s+/g," ")}
   Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});return out}
 document.addEventListener("change",async e=>{
   const inp=e.target.closest(".flPdfDrv");if(!inp)return;const kind=inp.dataset.kind;
-  const files=[...(inp.files||[])],msg=$("#flPdfMsgD"),form=document.querySelector('[data-flform="drv"]');if(!files.length||!form)return;
+  const files=[...(inp.files||[])],msg=$("#flPdfMsgD"),form=document.querySelector('[data-flform="drv"]');if(!files.length||!form)return;FL.drvScan=FL.drvScan||{};FL.drvScan[kind||"cnic"]=files;
   const merged={},used=[];let ocr=false;
   try{
     for(let n=0;n<files.length;n++){const f=files[n],tag=files.length>1?` (${n+1}/${files.length})`:"";
@@ -4444,49 +4454,65 @@ document.addEventListener("change",async e=>{
     const done=[],miss=[];
     const KF=kind==="lic"?["licence_no","licence_issue","licence_expiry","licence_category","licence_authority"]:["cnic","cnic_issue","cnic_expiry"],LAB={licence_no:"Licence number",licence_issue:"Licence issue date",licence_expiry:"Licence expiry date",licence_category:"Licence category",licence_authority:"Issuing authority",cnic:"CNIC number",cnic_issue:"CNIC issue date",cnic_expiry:"CNIC expiry date",full_name:"Full name",father_name:"Father name",address:"Address",mobile:"Mobile number"};
     Object.keys(LAB).forEach(k=>{if(!KF.includes(k)&&!["full_name","father_name","address","mobile"].includes(k))return;const lab=LAB[k];const el=form.elements[k];if(!el)return;if(merged[k]){el.value=merged[k];el.dispatchEvent(new Event("input",{bubbles:true}));done.push(lab)}else miss.push(lab)});
-    msg.innerHTML=done.length?`Filled from ${used.length} file${used.length>1?"s":""}: <b>${esc([...new Set(done)].join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc([...new Set(miss)].join(", "))}.`:"")+(ocr?" (Read by OCR, so spelling and digits may be wrong.)":"")+" Please check every field before saving.":"Nothing readable was found. Try a clearer, straight, well-lit picture or PDF, or type the details."
+    msg.innerHTML=done.length?`Filled from ${used.length} file${used.length>1?"s":""}: <b>${esc([...new Set(done)].join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc([...new Set(miss)].join(", "))}.`:"")+(ocr?" (Read by OCR, so spelling and digits may be wrong.)":"")+" Please check every field before saving.":"Nothing readable was found. Try a clearer, straight, well-lit picture or PDF, or type the details.";msg.insertAdjacentHTML("beforeend",'<br>📎 '+(files.length>1?files.length+" files":"This file")+' will be saved in this driver\'s documents when you press Save.')
   }catch(err){msg.textContent="Could not read the file"+(ocr?" (OCR needs internet and may be blocked)":"")+". Please try another file or type the details."}
 });
 
 /* ----- fill vehicle form from a PDF ----- */
 const FL_PDFMAP=[
- ["reg_no","Registration number",/(?:registration|reg\.?|vehicle|plate|number\s*plate)\s*(?:no\.?|number|#)/i],
+ ["reg_no","Registration number",/(?:registration|regn?\.?|vehicle|plate|number\s*plate)\s*(?:n[o0]\.?|number|#)/i],
  ["make","Make",/\b(?:make|maker|manufacturer)\b(?!\s*\/?\s*model\s*year)/i],
  ["model","Model",/\bmodel\b(?!\s*year)/i],
  ["year","Manufacturing year",/(?:model\s*year|manufactur\w*\s*year|year\s*of\s*manufactur\w*|mfg\.?\s*year)/i],
  ["colour","Colour",/\bcolou?r\b/i],
  ["chassis_no","Chassis number",/chassis\s*(?:no\.?|number|#)?/i],
- ["engine_no","Engine number",/engine\s*(?:no\.?|number|#)/i],
- ["engine_cc","Engine capacity",/(?:engine\s*(?:capacity|cc|power)|horse\s*power|\bcc\b)/i],
+ ["engine_no","Engine number",/engine\s*(?:n[o0]\.?|number|#)/i],
+ ["engine_cc","Engine capacity",/(?:engine\s*(?:capacity|cc|power)|horse\s*power|cylinder\s*capacity|\bh\.?p\b|\bcc\b)/i],
  ["reg_date","Registration date",/(?:registration\s*date|date\s*of\s*registration|reg\.?\s*date)/i],
  ["fuel_type","Fuel type",/\bfuel\b/i],
  ["category","Category",/(?:body\s*type|vehicle\s*(?:type|class)|\bclass\b)/i]
 ];
 function flPdfDate(t){const m=String(t||"").match(/(\d{1,2})[\/.\-\s](\d{1,2}|[A-Za-z]{3})[\/.\-\s](\d{4})/);if(!m)return"";const mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};const mm=isNaN(m[2])?mo[m[2].toLowerCase()]:+m[2];if(!mm||mm>12||+m[1]>31)return"";return m[3]+"-"+String(mm).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0")}
+const FL_LABW=/\b(?:registration|regn?|chassis|engine|make|maker|model|colou?r|year|owner|father|address|fuel|body|class|seating|horse|capacity|date|cnic|token|weight|laden|cylinders?|type|number|no)\b/i;
+const FL_PLATE=/\b([A-Z]{1,4})\s*[-–]?\s*(\d{2})\s*[-–\s]\s*(\d{3,4})\b|\b([A-Z]{1,4})\s*[-–]?\s*(\d{1,4})\b/;
+const FL_VOK={
+ reg_no:v=>{const m=v.toUpperCase().replace(/[^A-Z0-9\- ]/g," ").match(FL_PLATE);if(!m)return"";const p=m[1]?[m[1],m[2],m[3]]:[m[4],m[5]];if(/^(NO|CC|HP|KG|PB|CNIC|MODEL|YEAR)$/.test(p[0]))return"";return p.filter(Boolean).join("-")},
+ make:v=>{v=v.replace(/[^A-Za-z0-9 .\-]/g," ").replace(/\s+/g," ").trim();return /[A-Za-z]{2}/.test(v)&&v.length<=30&&!FL_LABW.test(v)?v:""},
+ model:v=>{v=v.replace(/[^A-Za-z0-9 .\-\/]/g," ").replace(/\s+/g," ").trim();return v&&v.length<=30&&!/^(?:make|model|year)$/i.test(v)?v:""},
+ year:v=>{const y=v.match(/\b(19[89]\d|20[0-4]\d)\b/);return y?y[1]:""},
+ colour:v=>{v=v.replace(/[^A-Za-z \/]/g," ").replace(/\s+/g," ").trim();return v.length>=3&&v.length<=20&&!FL_LABW.test(v)?v:""},
+ chassis_no:v=>{const m=v.toUpperCase().replace(/\s*-\s*/g,"-").match(/\b[A-Z0-9][A-Z0-9\-]{5,21}\b/g);const c=(m||[]).find(x=>/\d/.test(x)&&!/^(CHASSIS|NUMBER)$/.test(x));return c||""},
+ engine_no:v=>{const m=v.toUpperCase().replace(/\s*-\s*/g,"-").match(/\b[A-Z0-9][A-Z0-9\-]{3,21}\b/g);const c=(m||[]).find(x=>/\d/.test(x));return c||""},
+ engine_cc:v=>{const m=v.match(/(\d[\d,]{2,6})\s*(cc|hp)?/i);return m?m[1].replace(/,/g,"")+" "+(m[2]||"cc").toLowerCase():""},
+ reg_date:v=>flPdfDate(v),
+ fuel_type:v=>/diesel/i.test(v)?"Diesel":/cng/i.test(v)?"CNG":/petrol|gasoline/i.test(v)?"Petrol":"",
+ category:v=>/trailer/i.test(v)?"Trailer":/pick\s*-?\s*up|pickup/i.test(v)?"Pickup":/container/i.test(v)?"Container carrier":/truck|lorry|goods|cargo|dumper|tanker|prime\s*mover/i.test(v)?"Truck":""
+};
 function flParseVehPdf(lines){
-  const L=lines.map(l=>l.text).filter(Boolean),out={};
-  FL_PDFMAP.forEach(([k,,re])=>{
-    for(let i=0;i<L.length;i++){
+  const L=lines.map(l=>String(l.text||"").replace(/[|¦]/g," ").replace(/\s+/g," ").trim()).filter(Boolean),out={};
+  FL_PDFMAP.forEach(([k,,re])=>{const ok=FL_VOK[k]||(v=>v);
+    for(let i=0;i<L.length&&!out[k];i++){
       const m=L[i].match(re);if(!m)continue;
-      let v=L[i].slice(m.index+m[0].length).replace(/^[\s:.\-–—|]+/,"").trim();
-      if(!v&&L[i+1])v=L[i+1].trim();
-      v=v.split(/\s{2,}|\s+(?:chassis|engine|colou?r|model|make|fuel|owner|registration|date)\b/i)[0].trim();
-      if(!v||v.length>60)continue;
-      out[k]=v;break}
+      const lo=x=>{if(!x)return false;for(const [,,r] of FL_PDFMAP){const q=x.match(r);if(q&&!x.slice(q.index+q[0].length).replace(/^[\s:.\-–—=;,_]+/,"").trim())return true}return false};
+      const cands=[L[i].slice(m.index+m[0].length)];if(lo(L[i])){let s=i,e=i;while(s>0&&lo(L[s-1]))s--;while(lo(L[e+1]))e++;if(e>s)cands.push(L[e+1+(i-s)]||"");else cands.push(L[i+1]||"",L[i+2]||"")}else cands.push(L[i+1]||"",L[i+2]||"");
+      for(let j=0;j<cands.length;j++){let v=cands[j].replace(/^[\s:.\-–—=;,_]+/,"").trim();
+        if(j>0&&FL_LABW.test(v.split(/[\s:]/)[0]||""))continue;
+        v=v.split(/\s{3,}|\s+(?=(?:chassis|engine|colou?r|model|make|fuel|owner|registration|reg\.?\s*date|body|class|seating|horse|cnic|father|year)\b)/i)[0].trim();
+        if(!v)continue;const g=ok(v);if(g){out[k]=g;break}}
+    }
   });
-  if(!out.reg_no){const m=L.join("\n").match(/\b([A-Z]{2,4})[\s-]?(\d{2})?[\s-]?(\d{1,4})\b/);if(m&&/\d/.test(m[0]))out.reg_no=m[0].replace(/\s+/g,"-")}
-  if(out.reg_date)out.reg_date=flPdfDate(out.reg_date);
+  if(!out.reg_no){for(const l of L){if(/cnic|phone|mobile|chassis|engine|\bcc\b|date|\d{4,}\s*$/i.test(l))continue;const g=FL_VOK.reg_no(l);if(g&&/[A-Z]{2}/.test(g)&&/-\d{2,}/.test(g)){out.reg_no=g;break}}}
+  if(out.model&&/^(19[89]\d|20[0-4]\d)$/.test(out.model)){if(!out.year)out.year=out.model;delete out.model}
   if(out.year){const y=String(out.year).match(/(19[89]\d|20\d{2})/);out.year=y?y[1]:""}
   if(out.model&&!out.year){const y=out.model.match(/(19[89]\d|20\d{2})/);if(y)out.year=y[1]}
   if(out.engine_cc)out.engine_cc=out.engine_cc.replace(/\s+/g," ");
-  if(out.fuel_type){const f=out.fuel_type.toLowerCase();out.fuel_type=/diesel/.test(f)?"Diesel":/cng/.test(f)?"CNG":/petrol|gasoline/.test(f)?"Petrol":""}
-  if(out.category){const c=FL_VCAT.find(x=>out.category.toLowerCase().includes(x.toLowerCase().split(" ")[0]));out.category=c||""}
+
   if(out.reg_no)out.reg_no=out.reg_no.toUpperCase();
   Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});
   return out}
 document.addEventListener("change",async e=>{
   const inp=e.target.closest(".flPdfVeh");if(!inp)return;
-  const files=[...(inp.files||[])],msg=$("#flPdfMsg"),form=document.querySelector('[data-flform="veh"]');if(!files.length||!form)return;
+  const files=[...(inp.files||[])],msg=$("#flPdfMsg"),form=document.querySelector('[data-flform="veh"]');if(!files.length||!form)return;FL.vehScan=FL.vehScan||{};FL.vehScan[inp.dataset.kind||"card"]=files;
   try{
     const got={};let ocr=false;
     for(let n=0;n<files.length;n++){const f=files[n],tag=files.length>1?` (${n+1}/${files.length})`:"";
@@ -4498,6 +4524,7 @@ document.addEventListener("change",async e=>{
     const done=[],miss=[];
     FL_PDFMAP.forEach(([k,lab])=>{const el=form.elements[k];if(el&&got[k]){el.value=got[k];if(el.value!==got[k]&&el.tagName==="SELECT")el.value="";else{done.push(lab);return}}miss.push(lab)});
     msg.innerHTML=done.length?`Filled: <b>${esc(done.join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc(miss.join(", "))}.`:"")+` Please check everything before saving.`:"No vehicle details could be found in this PDF. Please type them in.";
+    msg.insertAdjacentHTML("beforeend",'<br>📎 '+(files.length>1?files.length+" files":"This file")+' will be saved in this vehicle\'s Documents when you press Save.');
     if(done.includes("Ownership"))flRentToggle();
   }catch(err){msg.textContent="The PDF could not be read. Please try another file or type the details."}
 });
@@ -4582,12 +4609,22 @@ async function flSaveVeh(f){
   if(!o.reg_no)throw new Error("Enter the registration number.");o.reg_no=o.reg_no.toUpperCase();{const nz=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,""),dv=FL.veh.find(v=>nz(v.reg_no)===nz(o.reg_no)&&(!FL.edit||v.id!==FL.edit.id));if(dv)throw new Error("This registration number already exists as "+dv.reg_no+(dv.archived?" (archived, restore it instead)":"")+".")}o.ownership=o.ownership||"company";o.status=o.status||"available";o.updated_by=me()?.user||null;
   if(o.ownership==="company"){["owner_name","owner_cnic","owner_phone","rent_basis","rent_amount","agreement_start","agreement_end","deposit"].forEach(k=>o[k]=null)}else{["purchase_date","purchase_price","seller","est_value"].forEach(k=>o[k]=null)}
   if(FL.edit){await flReq("fleet_vehicles?id=eq."+encodeURIComponent(FL.edit.id),{method:"PATCH",body:o});flLog("update","vehicle",FL.edit.id,{reg_no:o.reg_no})}
-  else{o.id=flNext(FL.veh,"V-");o.created_by=me()?.user||null;await flPostNew("fleet_vehicles","V-",o);flLog("create","vehicle",o.id,{reg_no:o.reg_no})}}
+  else{o.id=flNext(FL.veh,"V-");o.created_by=me()?.user||null;await flPostNew("fleet_vehicles","V-",o);flLog("create","vehicle",o.id,{reg_no:o.reg_no})}
+  {const S=FL.vehScan||{};FL.vehScan=null;const L=[...(S.card||[]).map((x,i,a)=>["Registration book / card","Registration card"+(a.length>1?" page "+(i+1):""),x,null]),...(S.book||[]).map((x,i,a)=>["Registration book / card","Registration book"+(a.length>1?" page "+(i+1):""),x,null])];
+   const m=await flSaveScans("vehicle",FL.edit?FL.edit.id:o.id,L);if(m)FL.pendingMsg="Vehicle saved."+m}}
+async function flSaveScans(own,id,list){/* list: [type,label,file,expiry] ; uploads the files the staff chose for reading */
+  if(!list.length)return "";let ok=0,fail=0;const types=[...new Set(list.map(x=>x[0]))],olds=FL.docs.filter(d=>d.owner_type===own&&d[own+"_id"]===id&&d.status==="current"&&types.includes(d.doc_type)),made=[];
+  for(const [type,label,file,exp] of list){try{const tid=flNext([...FL.docs,...made.map(x=>({id:x}))],"DOC-");const p=await flUpload(tid,file);
+    const o={id:tid,owner_type:own,vehicle_id:own==="vehicle"?id:null,driver_id:own==="driver"?id:null,doc_type:type,expiry_date:exp||null,verification:"pending",status:"current",remarks:label,file_path:p,created_by:me()?.user||null,updated_by:me()?.user||null};
+    await flPostNew("fleet_documents","DOC-",o);made.push(o.id);ok++}catch(e){fail++}}
+  if(ok){for(const d of olds.filter(d=>list.some(x=>x[0]===d.doc_type))){try{await flReq("fleet_documents?id=eq."+encodeURIComponent(d.id),{method:"PATCH",body:{status:"superseded",updated_by:me()?.user||null}})}catch(e){}}flLog("upload",own,id,own==="vehicle"?{vehicle:id,files:ok}:{files:ok})}
+  return fail?" But "+fail+" file"+(fail>1?"s":"")+" could not be uploaded, please upload "+(fail>1?"them":"it")+" in Documents.":ok?" "+ok+" file"+(ok>1?"s":"")+" saved in Documents.":""}
 async function flSaveDrv(f){
   const o=flRows(f,["full_name","father_name","cnic","cnic_issue","cnic_expiry","mobile","address","emergency_contact","licence_no","licence_authority","licence_category","licence_classes","licence_issue","licence_expiry","joined_on","employment_status","monthly_salary","daily_allowance","trip_allowance"],["monthly_salary","daily_allowance","trip_allowance"]);
   if(!o.full_name)throw new Error("Enter the driver's full name.");o.employment_status=o.employment_status||"active";o.updated_by=me()?.user||null;
-  if(FL.edit){await flReq("fleet_drivers?id=eq."+encodeURIComponent(FL.edit.id),{method:"PATCH",body:o});flLog("update","driver",FL.edit.id,null)}
-  else{o.id=flNext(FL.drv,"D-");o.created_by=me()?.user||null;await flPostNew("fleet_drivers","D-",o);flLog("create","driver",o.id,null);
+  const scanMsg=async did=>{const S=FL.drvScan||{};FL.drvScan=null;const L=[...(S.cnic||[]).map((x,i,a)=>["CNIC","CNIC"+(a.length>1?" page "+(i+1):""),x,o.cnic_expiry||null]),...(S.lic||[]).map((x,i,a)=>["Driving licence","Driving licence"+(a.length>1?" page "+(i+1):""),x,o.licence_expiry||null])];return flSaveScans("driver",did,L)};
+  if(FL.edit){await flReq("fleet_drivers?id=eq."+encodeURIComponent(FL.edit.id),{method:"PATCH",body:o});flLog("update","driver",FL.edit.id,null);const sm=await scanMsg(FL.edit.id);if(sm)FL.pendingMsg="Driver saved."+sm;return}
+  else{o.id=flNext(FL.drv,"D-");o.created_by=me()?.user||null;await flPostNew("fleet_drivers","D-",o);flLog("create","driver",o.id,null);{const sm=await scanMsg(o.id);if(sm)FL.pendingMsg="Driver saved."+sm}
     const av=$("#flAsgV"),vid=av&&av.value;if(vid&&flPrimaryClash(vid,o.id,$("#flAsgR").value)){FL.pendingMsg="Driver saved. Not attached: "+flPrimaryClash(vid,o.id,$("#flAsgR").value)}else if(vid){const b={vehicle_id:vid,driver_id:o.id,role:$("#flAsgR").value,created_by:me()?.user||null},fd=$("#flAsgF").value;if(fd)b.from_date=fd;await flReq("fleet_vehicle_drivers",{method:"POST",body:b});flLog("assign","driver",o.id,{vehicle:vid})}}}
 async function flSaveDoc(f){
   const e=FL.edit||{},renew=!!e.renew;const ot=f.elements.owner_type.value;
@@ -4606,7 +4643,7 @@ async function flSaveDoc(f){
 function flPrimaryClash(vid,did,role){if(role!=="primary")return "";const live=FL.vd.filter(x=>!x.to_date&&x.role==="primary");
   const a=live.find(x=>x.vehicle_id===vid&&x.driver_id!==did&&flDrv(x.driver_id)&&!flDrv(x.driver_id).archived);if(a)return flDLabel(a.driver_id)+" is already the primary driver of this vehicle. End that first, or choose Secondary.";
   const b=live.find(x=>x.driver_id===did&&x.vehicle_id!==vid&&flVeh(x.vehicle_id)&&!flVeh(x.vehicle_id).archived);if(b)return "This driver is already primary on "+flVLabel(b.vehicle_id)+". End that first, or choose Secondary.";return ""}
-function flBack(){FL.fsec="";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.tvView="";FL.mode={veh:"list",drv:"list",doc:"list"};FL.edit=null;FL.ask="";FL.busy=false}
+function flBack(){FL.vehScan=null;FL.drvScan=null;FL.fsec="";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.tvView="";FL.mode={veh:"list",drv:"list",doc:"list"};FL.edit=null;FL.ask="";FL.busy=false}
 document.addEventListener("click",async ev=>{
   const b=ev.target.closest("[data-fl]");if(!b)return;const a=b.dataset.fl,id=b.dataset.id;
   try{
@@ -4618,17 +4655,17 @@ document.addEventListener("click",async ev=>{
   if(a==="ask-no"){FL.ask="";renderPanel();return}
   if(a==="bk"){FL.bk=b.dataset.k;renderPanel();return}
   if(a==="golistveh"||a==="godrvlist"||a==="godoclist"){const t={golistveh:"fleetveh",godrvlist:"fleetdrv",godoclist:"fleetdoc"}[a],m=document.querySelector('.kp-menu [data-s="'+t+'"]');FL.mode.veh="list";FL.mode.drv="list";FL.mode.doc="list";FL.edit=null;FL.ask="";if(a==="golistveh")FL.st=b.dataset.st||"all";if(m)m.click();window.scrollTo({top:0,behavior:"auto"});return}
-   if(a==="goveh"){const m=document.querySelector('.kp-menu [data-s="fleetveh"]');if(m)m.click();FL.edit=null;FL.mode.veh="form";renderPanel();return}
-   if(a==="godrv"){const m=document.querySelector('.kp-menu [data-s="fleetdrv"]');if(m)m.click();FL.edit=null;FL.mode.drv="form";renderPanel();return}
-   if(a==="veh-new"){FL.edit=null;FL.mode.veh="form";renderPanel();return}
-  if(a==="veh-edit"){FL.edit=flVeh(id);FL.mode.veh="form";renderPanel();return}
+   if(a==="goveh"){FL.vehScan=null;FL.drvScan=null;const m=document.querySelector('.kp-menu [data-s="fleetveh"]');if(m)m.click();FL.edit=null;FL.mode.veh="form";renderPanel();return}
+   if(a==="godrv"){FL.vehScan=null;FL.drvScan=null;const m=document.querySelector('.kp-menu [data-s="fleetdrv"]');if(m)m.click();FL.edit=null;FL.mode.drv="form";renderPanel();return}
+   if(a==="veh-new"){FL.vehScan=null;FL.drvScan=null;FL.edit=null;FL.mode.veh="form";renderPanel();return}
+  if(a==="veh-edit"){FL.vehScan=null;FL.drvScan=null;FL.edit=flVeh(id);FL.mode.veh="form";renderPanel();return}
   if(a==="veh-folder"){FL.fsec="details";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.edit=null;FL.folder=id;FL.mode.veh="folder";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
   if(a==="folder-renew"){FL.edit={...FL.docs.find(x=>x.id===id),renew:true};renderPanel();return}
   if(a==="folder-back"){FL.edit=null;renderPanel();return}
   if(a==="veh-arch"){FL.ask="v:"+id;renderPanel();return}
   if(a==="veh-arch-yes"){const v=flVeh(id);await flReq("fleet_vehicles?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!v.archived,updated_by:me()?.user||null}});if(!v.archived&&FL.vd.some(x=>x.vehicle_id===id&&!x.to_date)){try{await flReq("fleet_vehicle_drivers?vehicle_id=eq."+encodeURIComponent(id)+"&to_date=is.null",{method:"PATCH",body:{to_date:flToday()}});flLog("unassign","vehicle",id,{vehicle:id,reason:"archived"})}catch(e){}}flLog(v.archived?"restore":"archive","vehicle",id,null);FL.ask="";await flRefresh();toast(v.archived?"Vehicle restored":"Vehicle archived");return}
-  if(a==="drv-new"){FL.edit=null;FL.mode.drv="form";renderPanel();return}
-  if(a==="drv-edit"){FL.edit=flDrv(id);FL.mode.drv="form";renderPanel();return}
+  if(a==="drv-new"){FL.vehScan=null;FL.drvScan=null;FL.edit=null;FL.mode.drv="form";renderPanel();return}
+  if(a==="drv-edit"){FL.vehScan=null;FL.drvScan=null;FL.edit=flDrv(id);FL.mode.drv="form";renderPanel();return}
   if(a==="drv-arch"){FL.ask="d:"+id;renderPanel();return}
   if(a==="drv-arch-yes"){const d=flDrv(id);await flReq("fleet_drivers?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!d.archived,updated_by:me()?.user||null}});if(!d.archived&&FL.vd.some(x=>x.driver_id===id&&!x.to_date)){try{await flReq("fleet_vehicle_drivers?driver_id=eq."+encodeURIComponent(id)+"&to_date=is.null",{method:"PATCH",body:{to_date:flToday()}});flLog("unassign","driver",id,{reason:"archived"})}catch(e){}}flLog(d.archived?"restore":"archive","driver",id,null);FL.ask="";await flRefresh();toast(d.archived?"Driver restored":"Driver archived");return}
   if(a==="asg-add"){const vid=$("#flAsgV").value;if(!vid){toast("Choose a vehicle first");return}
