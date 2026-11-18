@@ -4399,21 +4399,27 @@ async function ocrCanvas(cv,note){const T=await loadTess();const w=await T.creat
 async function flFileToCanvases(f){
   if(/^image\//.test(f.type)||/\.(jpe?g|png|webp|bmp)$/i.test(f.name)){
     const url=URL.createObjectURL(f);try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
-      const k=Math.min(2,2200/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);return[flPrep(cv)]}finally{URL.revokeObjectURL(url)}}
+      const k=Math.min(2,2200/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);return[cv]}finally{URL.revokeObjectURL(url)}}
   const lib=await loadPdfJs(),doc=await lib.getDocument({data:await f.arrayBuffer(),isEvalSupported:false}).promise,out=[];
-  for(let p=1;p<=Math.min(doc.numPages,2);p++){const pg=await doc.getPage(p),vp=pg.getViewport({scale:2.2}),cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;out.push(flPrep(cv))}
+  for(let p=1;p<=Math.min(doc.numPages,2);p++){const pg=await doc.getPage(p),vp=pg.getViewport({scale:2.2}),cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;out.push(cv)}
   return out}
-function flPrep(cv){/* grey + stretch contrast: coloured card backgrounds confuse OCR */
-  try{const x=cv.getContext("2d"),d=x.getImageData(0,0,cv.width,cv.height),p=d.data,H=new Uint32Array(256);
+function flCopyCv(cv){const c=document.createElement("canvas");c.width=cv.width;c.height=cv.height;c.getContext("2d").drawImage(cv,0,0);return c}
+function flDark(src){/* keep only the dark print: card values are bold black, the security pattern behind them is lighter */
+  const cv=flCopyCv(src);try{const x=cv.getContext("2d"),d=x.getImageData(0,0,cv.width,cv.height),p=d.data,H=new Uint32Array(256);
+    for(let i=0;i<p.length;i+=4){const g=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000|0;p[i]=g;H[g]++}
+    const n=p.length/4;let lo=0,hi=255,s=0;for(;lo<255;lo++){s+=H[lo];if(s>n*.02)break}s=0;for(;hi>0;hi--){s+=H[hi];if(s>n*.02)break}
+    const t=lo+.28*(hi-lo);for(let i=0;i<p.length;i+=4){const v=p[i]>t?255:0;p[i]=p[i+1]=p[i+2]=v}x.putImageData(d,0,0)}catch(e){}return cv}
+function flPrep(src){/* grey + stretch contrast: coloured card backgrounds confuse OCR */
+  const cv=flCopyCv(src);try{const x=cv.getContext("2d"),d=x.getImageData(0,0,cv.width,cv.height),p=d.data,H=new Uint32Array(256);
     for(let i=0;i<p.length;i+=4){const g=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000|0;p[i]=g;H[g]++}
     const n=p.length/4;let lo=0,hi=255,s=0;for(;lo<255;lo++){s+=H[lo];if(s>n*.02)break}s=0;for(;hi>0;hi--){s+=H[hi];if(s>n*.02)break}
     const k=hi>lo+10?255/(hi-lo):1;for(let i=0;i<p.length;i+=4){const v=Math.max(0,Math.min(255,(p[i]-lo)*k));p[i]=p[i+1]=p[i+2]=v}
     x.putImageData(d,0,0)}catch(e){}return cv}
-const flND=t=>{const m=String(t||"").match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4})/);if(!m)return"";const d=+m[1],mo=+m[2];if(mo<1||mo>12||d<1||d>31)return"";return m[3]+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0")};
+const flND=t=>flPdfDate(t);
 function flParseDrvDoc(texts,kind){
-  const L=texts.map(x=>String(x).replace(/\s+/g," ").trim()).filter(Boolean),all=L.join("\n"),out={};
+  const L=texts.map(x=>String(x).replace(/[“”"’‘|¦]/g," ").replace(/\s+/g," ").replace(/^[^A-Za-z0-9]+/,"").trim()).filter(x=>x&&!/camscanner/i.test(x)),all=L.join("\n"),out={};
   const isLic=kind?kind==="lic":/licen[cs]e|driving/i.test(all);
-  const DLAB=/\b(?:name|father|husband|gender|sex|country|stay|identity|number|date|birth|issue|expiry|valid|pakistan|national|card|signature|holder|licen[cs]e|category|address|authority|blood|cnic|islamic|republic|government|punjab|sindh|nadra)\b/i;
+  const DLAB=/\b(?:name|father|husband|gender|sex|country|stay|identity|number|date|birth|issue|expiry|valid|pakistan|national|card|signature|holder|licen[cs]e|category|address|authority|blood|cnic|islamic|republic|government|punjab|sindh|nadra|khyber|pakhtunkhwa|balochistan|transport|department|driver|drivers|mass|transit|emergency|contact|group|issued|expires|dob|gender|male|female|unknown)\b/i;
   const after=(re,n,ok)=>{for(let i=0;i<L.length;i++){const m=L[i].match(re);if(!m)continue;const cs=[L[i].slice(m.index+m[0].length)];for(let j=1;j<=(n||1);j++)cs.push(L[i+j]||"");
     for(let j=0;j<cs.length;j++){let v=cs[j].replace(/^[\s:.\-–—|=;,_]+/,"").trim();if(!v)continue;if(ok){const g=ok(v);if(g)return g;continue}if(j>0&&DLAB.test(v.split(/[\s:]/)[0]||""))continue;return v}}return""};
   const nm=v=>v.replace(/[^A-Za-z .'\-]/g," ").replace(/\s+/g," ").trim();
@@ -4422,7 +4428,8 @@ function flParseDrvDoc(texts,kind){
   if(name&&name.length>2&&!/father|husband/i.test(name))out.full_name=name.replace(/\b\w/g,c=>c.toUpperCase()).replace(/(\w)(\w*)/g,(m,a,b)=>a+b.toLowerCase());
   if(fa&&fa.length>2)out.father_name=fa.replace(/(\w)(\w*)/g,(m,a,b)=>a.toUpperCase()+b.toLowerCase());
   const c=all.match(/\b\d{5}\s*[- ]\s*\d{7}\s*[- ]\s*\d\b/)||all.match(/\b\d{13}\b/);if(c){const d=c[0].replace(/\D/g,"");out.cnic=d.slice(0,5)+"-"+d.slice(5,12)+"-"+d.slice(12)}
-  const mb=all.match(/\b(?:\+?92|0)\s?3\d{2}[- ]?\d{7}\b/);if(mb)out.mobile=mb[0].replace(/[\s]/g,"");
+  {const mre=/\b(?:\+?92|0)\s?3\d{2}\s*-?\s*\d{7}\b/;for(let i=0;i<L.length;i++){const mb=L[i].match(mre);if(!mb)continue;const v=mb[0].replace(/\s/g,"");if(/emergency/i.test(L[i]+" "+(L[i-1]||"")))out.emergency_contact=out.emergency_contact||v;else out.mobile=out.mobile||v}}
+  const caps=v=>{const w=String(v).split(/\s+/),U=w.filter(x=>/^[A-Z][A-Z.'\-]{1,}$/.test(x));return U.length&&U.join("").length>=3?U.join(" "):v};
   const lab=(re)=>flND(after(re,1));
   if(isLic){
     const ln=after(/licen[cs]e\s*(?:no\.?|number|#)|\bd\.?l\.?\s*(?:no\.?|number)/i);if(ln)out.licence_no=ln.split(/\s{2,}/)[0].replace(/[^A-Za-z0-9\-\/ ]/g,"").trim();
@@ -4432,7 +4439,16 @@ function flParseDrvDoc(texts,kind){
     if(ds.length>=2){if(!out.licence_issue)out.licence_issue=ds[Math.max(0,ds.length-2)];if(!out.licence_expiry)out.licence_expiry=ds[ds.length-1]}
     const cl=after(/(?:licen[cs]e\s*)?(?:category|class(?:es)?|type)\b/i);if(cl&&cl.length<40)out.licence_category=cl.replace(/[^A-Za-z0-9,\/ \-]/g,"").trim();
     const au=after(/issu(?:ing|ed\s*by)\s*(?:authority|office)?|authority/i);if(au&&au.length<60&&!/\d{2}[.\/-]\d{2}/.test(au))out.licence_authority=au.replace(/[^A-Za-z0-9 ,.\-]/g,"").trim();
-    const ad=after(/\baddress\b/i,2);if(ad&&ad.length>5)out.address=ad.replace(/\s+/g," ");
+    const ad=after(/\b\w{0,2}dress\b/i,2,v=>{v=caps(v.replace(/[^A-Za-z0-9 ,.\-#\/]/g," ").replace(/\s+/g," ").trim());return v.length>5&&!DLAB.test(v)?v:""});if(ad)out.address=ad;
+    /* licence cards often print values without labels: number, then name, then father's name */
+    const ix=L.findIndex(l=>/^\d{8,15}$/.test(l.replace(/[\s\-]/g,""))&&!/^\d{13}$/.test(l.replace(/[\s\-]/g,"")));
+    if(ix>=0&&!out.licence_no)out.licence_no=L[ix].replace(/[\s]/g,"");
+    const ic=L.findIndex(l=>/\b(?:HTV|LTV|PSV|M\.?\s?CAR|M\.?\s?CYCLE|M\/CYCLE|JEEP|TRACTOR|RICKSHAW|INVALID\s*CARRIAGE)\b/i.test(l));
+    if(ic>=0&&(!out.licence_category||out.licence_category.length<2))out.licence_category=L[ic].replace(/[^A-Za-z0-9,\/ \-]/g," ").replace(/\s+/g," ").replace(/[ ,]+$/,"").trim();
+    if(ic>0&&/^[A-Za-z][A-Za-z .\-]{2,25}$/.test(L[ic-1])&&!DLAB.test(L[ic-1]))out.licence_authority=L[ic-1].trim();
+    if(out.licence_authority&&(out.licence_authority.length<4||!/[A-Z]/.test(out.licence_authority)))delete out.licence_authority;
+    if(!out.full_name&&ix>=0){const nmL=L.slice(ix+1,ix+5).map(okName).filter(x=>x&&/^[A-Za-z]+(?: [A-Za-z]+){0,3}$/.test(x));
+      if(nmL[0])out.full_name=nmL[0].replace(/(\w)(\w*)/g,(m,a,b)=>a.toUpperCase()+b.toLowerCase());if(nmL[1]&&!out.father_name)out.father_name=nmL[1].replace(/(\w)(\w*)/g,(m,a,b)=>a.toUpperCase()+b.toLowerCase())}
   }else{
     const dob=lab(/date\s*of\s*birth|\bd\.?o\.?b\b/i);
     const ds=[...new Set([...all.matchAll(/\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{4}/g)].map(m=>flND(m[0])).filter(Boolean))].sort();
@@ -4448,12 +4464,12 @@ document.addEventListener("change",async e=>{
     for(let n=0;n<files.length;n++){const f=files[n],tag=files.length>1?` (${n+1}/${files.length})`:"";
       msg.textContent="Reading "+f.name+tag+"…";let texts=[];
       if(/\.pdf$/i.test(f.name)||/pdf$/i.test(f.type)){try{texts=(await pdfLines(await f.arrayBuffer())).map(l=>l.text)}catch(x){texts=[]}}
-      if(texts.join("").replace(/\W/g,"").length<25){ocr=true;msg.textContent="This looks like a scan or photo. Reading it with OCR"+tag+" (first time takes up to a minute)…";
-        const cvs=await flFileToCanvases(f);texts=[];for(const cv of cvs){const t=await ocrCanvas(cv,pc=>{msg.textContent="Reading the scan"+tag+": "+pc+"%"});texts.push(...t.split(/\n/))}}
-      const got=flParseDrvDoc(texts,kind);Object.keys(got).forEach(k=>{if(!merged[k])merged[k]=got[k]});used.push(f.name)}
+      let t2=[];if(texts.join("").replace(/camscanner/ig,"").replace(/\W/g,"").length<25){ocr=true;msg.textContent="This looks like a scan or photo. Reading it with OCR"+tag+" (takes about a minute)…";
+        const cvs=await flFileToCanvases(f);texts=[];let pg=0;for(const cv of cvs){pg++;const pt=cvs.length>1?" page "+pg+"/"+cvs.length:"";texts.push(...(await ocrCanvas(flDark(cv),pc=>{msg.textContent="Reading the scan"+tag+pt+", step 1 of 2: "+pc+"%"})).split(/\n/));t2.push(...(await ocrCanvas(flPrep(cv),pc=>{msg.textContent="Reading the scan"+tag+pt+", step 2 of 2: "+pc+"%"})).split(/\n/))}}
+      const got=flParseDrvDoc(texts,kind),got2=t2.length?flParseDrvDoc(t2,kind):{};[got,got2].forEach(G=>Object.keys(G).forEach(k=>{if(!merged[k])merged[k]=G[k]}));used.push(f.name)}
     const done=[],miss=[];
-    const KF=kind==="lic"?["licence_no","licence_issue","licence_expiry","licence_category","licence_authority"]:["cnic","cnic_issue","cnic_expiry"],LAB={licence_no:"Licence number",licence_issue:"Licence issue date",licence_expiry:"Licence expiry date",licence_category:"Licence category",licence_authority:"Issuing authority",cnic:"CNIC number",cnic_issue:"CNIC issue date",cnic_expiry:"CNIC expiry date",full_name:"Full name",father_name:"Father name",address:"Address",mobile:"Mobile number"};
-    Object.keys(LAB).forEach(k=>{if(!KF.includes(k)&&!["full_name","father_name","address","mobile"].includes(k))return;const lab=LAB[k];const el=form.elements[k];if(!el)return;if(merged[k]){el.value=merged[k];el.dispatchEvent(new Event("input",{bubbles:true}));done.push(lab)}else miss.push(lab)});
+    const KF=kind==="lic"?["licence_no","licence_issue","licence_expiry","licence_category","licence_authority"]:["cnic","cnic_issue","cnic_expiry"],LAB={licence_no:"Licence number",licence_issue:"Licence issue date",licence_expiry:"Licence expiry date",licence_category:"Licence category",licence_authority:"Issuing authority",cnic:"CNIC number",cnic_issue:"CNIC issue date",cnic_expiry:"CNIC expiry date",full_name:"Full name",father_name:"Father name",address:"Address",mobile:"Mobile number",emergency_contact:"Emergency contact"};
+    Object.keys(LAB).forEach(k=>{if(!KF.includes(k)&&!["full_name","father_name","address","mobile","emergency_contact"].includes(k))return;const lab=LAB[k];const el=form.elements[k];if(!el)return;if(merged[k]){el.value=merged[k];el.dispatchEvent(new Event("input",{bubbles:true}));done.push(lab)}else miss.push(lab)});
     msg.innerHTML=done.length?`Filled from ${used.length} file${used.length>1?"s":""}: <b>${esc([...new Set(done)].join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc([...new Set(miss)].join(", "))}.`:"")+(ocr?" (Read by OCR, so spelling and digits may be wrong.)":"")+" Please check every field before saving.":"Nothing readable was found. Try a clearer, straight, well-lit picture or PDF, or type the details.";msg.insertAdjacentHTML("beforeend",'<br>📎 '+(files.length>1?files.length+" files":"This file")+' will be saved in this driver\'s documents when you press Save.')
   }catch(err){msg.textContent="Could not read the file"+(ocr?" (OCR needs internet and may be blocked)":"")+". Please try another file or type the details."}
 });
@@ -4472,44 +4488,57 @@ const FL_PDFMAP=[
  ["fuel_type","Fuel type",/\bfuel\b/i],
  ["category","Category",/(?:body\s*type|vehicle\s*(?:type|class)|\bclass\b)/i]
 ];
-function flPdfDate(t){const m=String(t||"").match(/(\d{1,2})[\/.\-\s](\d{1,2}|[A-Za-z]{3})[\/.\-\s](\d{4})/);if(!m)return"";const mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};const mm=isNaN(m[2])?mo[m[2].toLowerCase()]:+m[2];if(!mm||mm>12||+m[1]>31)return"";return m[3]+"-"+String(mm).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0")}
-const FL_LABW=/\b(?:registration|regn?|chassis|engine|make|maker|model|colou?r|year|owner|father|address|fuel|body|class|seating|horse|capacity|date|cnic|token|weight|laden|cylinders?|type|number|no)\b/i;
+function flPdfDate(t){t=String(t||"");const mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};let y,m,d,x;
+  if(x=t.match(/\b(\d{4})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\b/)){y=+x[1];m=+x[2];d=+x[3]}
+  else if(x=t.match(/\b(\d{1,2})\s*[\/.\-\s]\s*(\d{1,2}|[A-Za-z]{3})[A-Za-z]*\s*[\/.\-\s,]\s*(\d{4})\b/)){d=+x[1];m=isNaN(x[2])?mo[x[2].toLowerCase()]:+x[2];y=+x[3]}else return"";
+  if(!m||m>12||!d||d>31||y<1950||y>2060)return"";return y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0")}
+/* card / book reader: labels are matched loosely (OCR often misreads one or two letters), values are checked before use */
+const FL_VKEYS=[["chassis no","chassis_no"],["chassis number","chassis_no"],["chassis","chassis_no"],["engine no","engine_no"],["engine number","engine_no"],["make & model","makemodel"],["make and model","makemodel"],["make / model","makemodel"],["make","make"],["maker","make"],["manufacturer","make"],["model","model"],["year of manufacture","year"],["year of manufacturing","year"],["manufacturing year","year"],["model year","year"],["year","year"],["engine capacity","engine_cc"],["horse power","engine_cc"],["cylinder capacity","engine_cc"],["engine power","engine_cc"],["colour","colour"],["color","colour"],["registration no","reg_no"],["registration number","reg_no"],["regn no","reg_no"],["reg no","reg_no"],["vehicle no","reg_no"],["vehicle number","reg_no"],["date of reg","reg_date"],["date of registration","reg_date"],["registration date","reg_date"],["regn date","reg_date"],["reg date","reg_date"],["fuel","fuel_type"],["fuel type","fuel_type"],["body type","category"],["vehicle type","category"],["class of vehicle","category"],["vehicle class","category"],
+ ["seating capacity","-"],["laden weight","-"],["regd laden weight","-"],["unladen weight","-"],["owners name","-"],["owner name","-"],["owner's name","-"],["f/h name","-"],["father name","-"],["address","-"],["hpa","-"],["cnic/passport/ntn","-"],["cnic","-"],["serial no","-"],["no of cylinders","-"],["tax paid upto","-"]];
+function flLev(a,b){if(Math.abs(a.length-b.length)>2)return 9;const r=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=r[0];r[0]=i;for(let j=1;j<=b.length;j++){const t=r[j];r[j]=Math.min(r[j]+1,r[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return r[b.length]}
+function flLabKey(s){const n=String(s||"").toLowerCase().replace(/[^a-z&\/' ]/g," ").replace(/\s+/g," ").trim();if(n.length<3||n.length>28)return null;let best=null,bd=9;
+  for(const [l,k] of FL_VKEYS){const d=n===l?0:flLev(n,l),tol=l.length<=5?(l.length<=3?0:1):2;if(d<=tol&&d<bd){bd=d;best=k}}return best}
 const FL_PLATE=/\b([A-Z]{1,4})\s*[-–]?\s*(\d{2})\s*[-–\s]\s*(\d{3,4})\b|\b([A-Z]{1,4})\s*[-–]?\s*(\d{1,4})\b/;
+const FL_COLS=/\b(white|black|red|blue|green|yellow|silver|grey|gray|brown|orange|maroon|golden|gold|beige|purple|pink|cream|multi\s*colou?r|sky\s*blue|navy\s*blue|dark\s*\w+|light\s*\w+)\b/i;
+const flTok=v=>String(v).toUpperCase().replace(/[^A-Z0-9\-\/ ]/g," ").replace(/\s*-\s*/g,"-").split(/\s+/).filter(Boolean);
 const FL_VOK={
- reg_no:v=>{const m=v.toUpperCase().replace(/[^A-Z0-9\- ]/g," ").match(FL_PLATE);if(!m)return"";const p=m[1]?[m[1],m[2],m[3]]:[m[4],m[5]];if(/^(NO|CC|HP|KG|PB|CNIC|MODEL|YEAR)$/.test(p[0]))return"";return p.filter(Boolean).join("-")},
- make:v=>{v=v.replace(/[^A-Za-z0-9 .\-]/g," ").replace(/\s+/g," ").trim();return /[A-Za-z]{2}/.test(v)&&v.length<=30&&!FL_LABW.test(v)?v:""},
- model:v=>{v=v.replace(/[^A-Za-z0-9 .\-\/]/g," ").replace(/\s+/g," ").trim();return v&&v.length<=30&&!/^(?:make|model|year)$/i.test(v)?v:""},
- year:v=>{const y=v.match(/\b(19[89]\d|20[0-4]\d)\b/);return y?y[1]:""},
- colour:v=>{v=v.replace(/[^A-Za-z \/]/g," ").replace(/\s+/g," ").trim();return v.length>=3&&v.length<=20&&!FL_LABW.test(v)?v:""},
- chassis_no:v=>{const m=v.toUpperCase().replace(/\s*-\s*/g,"-").match(/\b[A-Z0-9][A-Z0-9\-]{5,21}\b/g);const c=(m||[]).find(x=>/\d/.test(x)&&!/^(CHASSIS|NUMBER)$/.test(x));return c||""},
- engine_no:v=>{const m=v.toUpperCase().replace(/\s*-\s*/g,"-").match(/\b[A-Z0-9][A-Z0-9\-]{3,21}\b/g);const c=(m||[]).find(x=>/\d/.test(x));return c||""},
- engine_cc:v=>{const m=v.match(/(\d[\d,]{2,6})\s*(cc|hp)?/i);return m?m[1].replace(/,/g,"")+" "+(m[2]||"cc").toLowerCase():""},
+ reg_no:v=>{const m=String(v).toUpperCase().replace(/[^A-Z0-9\- ]/g," ").match(FL_PLATE);if(!m)return"";const p=m[1]?[m[1],m[2],m[3]]:[m[4],m[5]];if(/^(NO|CC|HP|KG|PB|CNIC|MODEL|YEAR|PLOT|HOUSE|ST)$/.test(p[0]))return"";return p.filter(Boolean).join("-")},
+ makemodel:v=>{const t=String(v).replace(/\b\w{1,2}\b/g,m=>/[a-z]/.test(m)?" ":m).replace(/-J\b|\bJ\b|\|/g,"/").split(/\s*\/\s*/).map(x=>flTok(x).filter(w=>/[A-Z]{2}|\d/.test(w)&&w.length>1).join(" ")).filter(Boolean);if(!t.length)return"";if(t.length===1){const w=t[0].split(" ");return w[0]+(w.length>1?"\u0001"+w.slice(1).join(" "):"")}return t[0]+"\u0001"+t.slice(1).join(" ")},
+ make:v=>{const w=flTok(v).filter(x=>/[A-Z]{2}/.test(x));const s=w.join(" ");return s&&s.length<=30&&!flLabKey(s)?s:""},
+ model:v=>{const w=flTok(v).filter(x=>x.length>1);const s=w.join(" ");return s&&s.length<=30&&!flLabKey(s)?s:""},
+ year:v=>{const y=String(v).match(/\b(19[5-9]\d|20[0-4]\d)\b/);return y?y[1]:""},
+ colour:v=>{const m=String(v).match(FL_COLS);return m?m[0].replace(/\b\w/g,c=>c.toUpperCase()):""},
+ chassis_no:v=>flTok(v).find(x=>x.length>=4&&x.length<=22&&/\d/.test(x)&&!/^[A-Z]{1,4}-\d{1,4}$/.test(x)&&!/^\d{4}-\d{2}-\d{2}$/.test(x))||"",
+ engine_no:v=>flTok(v).find(x=>x.length>=4&&x.length<=22&&/\d/.test(x)&&!/^[A-Z]{1,4}-\d{1,4}$/.test(x))||"",
+ engine_cc:v=>{const m=String(v).match(/\b(\d[\d,]{1,5})\s*(cc|hp)?\b/i);if(!m)return"";const n=+m[1].replace(/,/g,"");return n>=50&&n<=20000?n+" "+(m[2]||"cc").toLowerCase():""},
  reg_date:v=>flPdfDate(v),
  fuel_type:v=>/diesel/i.test(v)?"Diesel":/cng/i.test(v)?"CNG":/petrol|gasoline/i.test(v)?"Petrol":"",
  category:v=>/trailer/i.test(v)?"Trailer":/pick\s*-?\s*up|pickup/i.test(v)?"Pickup":/container/i.test(v)?"Container carrier":/truck|lorry|goods|cargo|dumper|tanker|prime\s*mover/i.test(v)?"Truck":""
 };
 function flParseVehPdf(lines){
-  const L=lines.map(l=>String(l.text||"").replace(/[|¦]/g," ").replace(/\s+/g," ").trim()).filter(Boolean),out={};
-  FL_PDFMAP.forEach(([k,,re])=>{const ok=FL_VOK[k]||(v=>v);
-    for(let i=0;i<L.length&&!out[k];i++){
-      const m=L[i].match(re);if(!m)continue;
-      const lo=x=>{if(!x)return false;for(const [,,r] of FL_PDFMAP){const q=x.match(r);if(q&&!x.slice(q.index+q[0].length).replace(/^[\s:.\-–—=;,_]+/,"").trim())return true}return false};
-      const cands=[L[i].slice(m.index+m[0].length)];if(lo(L[i])){let s=i,e=i;while(s>0&&lo(L[s-1]))s--;while(lo(L[e+1]))e++;if(e>s)cands.push(L[e+1+(i-s)]||"");else cands.push(L[i+1]||"",L[i+2]||"")}else cands.push(L[i+1]||"",L[i+2]||"");
-      for(let j=0;j<cands.length;j++){let v=cands[j].replace(/^[\s:.\-–—=;,_]+/,"").trim();
-        if(j>0&&FL_LABW.test(v.split(/[\s:]/)[0]||""))continue;
-        v=v.split(/\s{3,}|\s+(?=(?:chassis|engine|colou?r|model|make|fuel|owner|registration|reg\.?\s*date|body|class|seating|horse|cnic|father|year)\b)/i)[0].trim();
-        if(!v)continue;const g=ok(v);if(g){out[k]=g;break}}
-    }
-  });
-  if(!out.reg_no){for(const l of L){if(/cnic|phone|mobile|chassis|engine|\bcc\b|date|\d{4,}\s*$/i.test(l))continue;const g=FL_VOK.reg_no(l);if(g&&/[A-Z]{2}/.test(g)&&/-\d{2,}/.test(g)){out.reg_no=g;break}}}
-  if(out.model&&/^(19[89]\d|20[0-4]\d)$/.test(out.model)){if(!out.year)out.year=out.model;delete out.model}
-  if(out.year){const y=String(out.year).match(/(19[89]\d|20\d{2})/);out.year=y?y[1]:""}
-  if(out.model&&!out.year){const y=out.model.match(/(19[89]\d|20\d{2})/);if(y)out.year=y[1]}
-  if(out.engine_cc)out.engine_cc=out.engine_cc.replace(/\s+/g," ");
-
-  if(out.reg_no)out.reg_no=out.reg_no.toUpperCase();
+  const L=lines.flatMap(l=>String(l.text||"").replace(/[“”"’‘]/g,"").split(/(?:\s{2,}|\s*[|¦]\s*)(?=[A-Za-z][A-Za-z .&\/']{1,25}[:;])/)).map(x=>x.replace(/[|¦\\]/g," ").replace(/\s+/g," ").replace(/^[^A-Za-z0-9]+/,"").trim()).filter(Boolean),out={};
+  /* each line: label part + value part */
+  const P=L.map(l=>{const c=l.match(/^([^:;]{2,30})[:;](.*)$/);if(c){const k=flLabKey(c[1]);if(k)return {k,v:c[2].replace(/^[\s:.\-–—=;,_]+/,"").trim(),l}}const k=flLabKey(l);return k?{k,v:"",l}:{k:null,v:l,l}});
+  const set=(k,v)=>{if(!v||out[k])return false;if(k==="makemodel"){const [a,b]=v.split("\u0001");if(a&&!out.make)out.make=a;if(b&&!out.model)out.model=b;return true}out[k]=v;return true};
+  const ok=(k,v)=>k==="-"?"":(FL_VOK[k]||(x=>x))(v);
+  /* 1. label and value on the same line */
+  P.forEach(p=>{if(p.k&&p.v)set(p.k,ok(p.k,p.v))});
+  /* 2. a block of labels, then the values in the same order (cards print two columns) */
+  for(let i=0;i<P.length;i++){if(!(P[i].k&&!P[i].v))continue;let e=i;while(P[e+1]&&P[e+1].k&&!P[e+1].v)e++;
+    const B=P.slice(i,e+1),V=[];for(let j=e+1;j<P.length&&V.length<B.length+6;j++){if(P[j].k||/<{2}/.test(P[j].l))break;V.push(P[j].l)}
+    let off=0,c=0;B.forEach((b,p)=>{if(b.k==="-"||(b.k!=="makemodel"&&out[b.k])||(b.k==="makemodel"&&out.make))return;
+      const lo=B.length===1?0:Math.max(c,p+off),hi=B.length===1?Math.min(V.length-1,2):lo+(c?1:3);
+      for(let q=lo;q<=hi&&q<V.length;q++){const g=ok(b.k,V[q]);if(g){set(b.k,g);off=q-p;c=q+1;break}}});
+    i=e}
+  /* 3. machine-readable line on the back of new cards: C<PAKJV<2769<< */
+  if(!out.reg_no){const m=L.join(" ").replace(/\s/g,"").match(/C<PAK([A-Z]{1,4})<+(\d{1,4})</);if(m)out.reg_no=m[1]+"-"+m[2]}
+  if(!out.reg_no){for(const l of L){if(/cnic|phone|mobile|chassis|engine|\bcc\b|date|plot|house|street|road|\d{5,}/i.test(l))continue;const g=FL_VOK.reg_no(l);if(g&&/[A-Z]{2}/.test(g)&&/-\d{3,}/.test(g)){out.reg_no=g;break}}}
+  if(!out.reg_date){for(const l of L){if(/birth|issue|expir|valid|tax/i.test(l))continue;const d=flPdfDate(l);if(d&&d<=new Date().toISOString().slice(0,10)){out.reg_date=d;break}}}
+  if(out.model&&!out.year){const y=out.model.match(/\b(19[5-9]\d|20[0-4]\d)\b/);if(y)out.year=y[1]}
+  if(out.model&&/^(19[5-9]\d|20[0-4]\d)$/.test(out.model))delete out.model;
   Object.keys(out).forEach(k=>{if(!out[k])delete out[k]});
   return out}
+
 document.addEventListener("change",async e=>{
   const inp=e.target.closest(".flPdfVeh");if(!inp)return;
   const files=[...(inp.files||[])],msg=$("#flPdfMsg"),form=document.querySelector('[data-flform="veh"]');if(!files.length||!form)return;FL.vehScan=FL.vehScan||{};FL.vehScan[inp.dataset.kind||"card"]=files;
@@ -4518,9 +4547,9 @@ document.addEventListener("change",async e=>{
     for(let n=0;n<files.length;n++){const f=files[n],tag=files.length>1?` (${n+1}/${files.length})`:"";
       msg.textContent="Reading "+f.name+tag+"…";let texts=[];
       if(/\.pdf$/i.test(f.name)||/pdf$/i.test(f.type)){try{texts=(await pdfLines(await f.arrayBuffer())).map(l=>l.text)}catch(x){texts=[]}}
-      if(texts.join("").replace(/\W/g,"").length<25){ocr=true;msg.textContent="This looks like a scan or photo. Reading it with OCR"+tag+" (first time takes up to a minute)…";
-        const cvs=await flFileToCanvases(f);texts=[];for(const cv of cvs){const t=await ocrCanvas(cv,pc=>{msg.textContent="Reading the scan"+tag+": "+pc+"%"});texts.push(...t.split(/\n/))}}
-      const g=flParseVehPdf(texts.map(x=>({text:x})));Object.keys(g).forEach(k=>{if(!got[k])got[k]=g[k]})}
+      let t2=[];if(texts.join("").replace(/camscanner/ig,"").replace(/\W/g,"").length<25){ocr=true;msg.textContent="This looks like a scan or photo. Reading it with OCR"+tag+" (takes about a minute)…";
+        const cvs=await flFileToCanvases(f);texts=[];let pg=0;for(const cv of cvs){pg++;const pt=cvs.length>1?" page "+pg+"/"+cvs.length:"";texts.push(...(await ocrCanvas(flDark(cv),pc=>{msg.textContent="Reading the scan"+tag+pt+", step 1 of 2: "+pc+"%"})).split(/\n/));t2.push(...(await ocrCanvas(flPrep(cv),pc=>{msg.textContent="Reading the scan"+tag+pt+", step 2 of 2: "+pc+"%"})).split(/\n/))}}
+      const g=flParseVehPdf(texts.map(x=>({text:x}))),g2=t2.length?flParseVehPdf(t2.map(x=>({text:x}))):{};[g,g2].forEach(G=>Object.keys(G).forEach(k=>{if(!got[k])got[k]=G[k]}))}
     const done=[],miss=[];
     FL_PDFMAP.forEach(([k,lab])=>{const el=form.elements[k];if(el&&got[k]){el.value=got[k];if(el.value!==got[k]&&el.tagName==="SELECT")el.value="";else{done.push(lab);return}}miss.push(lab)});
     msg.innerHTML=done.length?`Filled: <b>${esc(done.join(", "))}</b>.`+(miss.length?` Not found, please type: ${esc(miss.join(", "))}.`:"")+` Please check everything before saving.`:"No vehicle details could be found in this PDF. Please type them in.";
