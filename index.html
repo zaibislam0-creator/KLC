@@ -2819,7 +2819,8 @@ function fixStaff(){/* demo accounts and stored passwords are removed; logins li
   sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}
 }
 fixStaff();
-function save(){try{sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}let ro=false;try{ro=isRO()}catch(e){}if(ro){try{toast("Read only: your role cannot save changes")}catch(e){}return}if(typeof klcPush==="function")klcPush()}
+function save(){let ro=false;try{ro=isRO()}catch(e){}if(ro){roRevert();return false}try{sessionStorage.setItem(KEY,JSON.stringify(db))}catch(e){}if(typeof klcPush==="function")klcPush();return true}
+function roRevert(){try{if(window.dbClean)db=Object.assign(seed(),JSON.parse(window.dbClean))}catch(e){}window._roHold=Date.now()+2500;try{toast("Read only: your role cannot save changes")}catch(e){}if(!window._roRend){window._roRend=1;setTimeout(()=>{window._roRend=0;try{if(curView==="panel")renderPanel()}catch(e){}},0)}}
 let city="";try{city=localStorage.getItem(CITYKEY)||""}catch(e){}
 
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
@@ -2830,7 +2831,7 @@ const fmt=iso=>new Date(iso).toLocaleString("en-PK",{day:"numeric",month:"short"
 const fmtD=iso=>new Date(iso).toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"});
 const rs=n=>"Rs "+Number(n||0).toLocaleString("en-PK");
 const usd=n=>"$"+Number(n||0).toLocaleString("en-US");
-function toast(m){document.querySelectorAll(".toast").forEach(x=>x.remove());const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function toast(m){if(window._roHold>Date.now()&&!/^Read only/.test(m))return;document.querySelectorAll(".toast").forEach(x=>x.remove());const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 function pressGroup(sel,btn){$$(sel+" .chipbtn").forEach(b=>b.setAttribute("aria-pressed",b===btn))}
 const validMob=p=>/^03\d{9}$/.test(p);
 const rsOr=n=>n?rs(n):"On request";
@@ -3927,7 +3928,7 @@ const flNum=v=>{v=String(v??"").trim();if(v==="")return null;const n=+v;return i
 const flStr=v=>{v=String(v??"").trim();return v===""?null:v};
 async function flReq(path,o={}){if((o.method||"GET")!=="GET"&&isRO())throw new Error("Read only: your role cannot save changes.");const tok=await sbToken();if(!tok)throw new Error("Your session ended. Please sign in again.");
   const r=await fetch(SB_URL+"/rest/v1/"+path,{method:o.method||"GET",headers:{...sbH(tok),...(o.prefer?{Prefer:o.prefer}:{})},body:o.body!==undefined?JSON.stringify(o.body):undefined});
-  if(!r.ok){let m="";try{m=(await r.json()).message||""}catch(e){}if(/duplicate key/i.test(m))m="This registration number or ID already exists.";throw new Error(m||("Could not save (error "+r.status+")"))}
+  if(!r.ok){let m="";try{m=(await r.json()).message||""}catch(e){}if(/duplicate key/i.test(m))m=/reg_no/i.test(m)?"This registration number already exists.":"DUP_ID";throw new Error(m||("Could not save (error "+r.status+")"))}
   if(r.status===204)return null;try{return await r.json()}catch(e){return null}}
 function flLog(action,entity,id,detail){flReq("fleet_audit_logs",{method:"POST",body:{by_user:me()?.user||null,action,entity,entity_id:id||null,detail:detail||null}}).catch(()=>{})}
 async function flLoad(force){
@@ -3942,10 +3943,10 @@ function flGate(el){
   el.innerHTML=FL.err?`<div class="panel fl-empty"><b>Fleet data could not load</b><p class="hint">${esc(FL.err)}</p><button type="button" class="btn sm" data-fl="reload">Try again</button></div>`:`<div class="panel fl-empty"><b>Loading fleet data…</b></div>`;
   return false}
 function flItems(){/* every dated item that can expire: current documents plus driver licence and CNIC dates */
-  const out=[];const cur=FL.docs.filter(d=>d.status==="current");
-  cur.forEach(d=>{const own=d.owner_type==="vehicle"?flVeh(d.vehicle_id):flDrv(d.driver_id);if(!own||own.archived)return;out.push({type:d.doc_type,who:d.owner_type==="vehicle"?flVLabel(d.vehicle_id):flDLabel(d.driver_id),exp:d.expiry_date,src:"doc"})});
-  FL.drv.filter(d=>!d.archived).forEach(d=>{[["Driving licence",d.licence_expiry],["CNIC",d.cnic_expiry]].forEach(([t,e])=>{if(!e)return;if(cur.some(x=>x.driver_id===d.id&&x.doc_type===t&&x.expiry_date))return;out.push({type:t,who:d.full_name,exp:e,src:"driver"})})});
-  FL.veh.filter(v=>v.ownership==="rented"&&v.agreement_end&&!v.archived).forEach(v=>out.push({type:"Rental agreement",who:v.reg_no,exp:v.agreement_end,src:"vehicle"}));
+  const out=[];const cur=FL.docs.filter(d=>d.status==="current"),seen=new Set();
+  cur.slice().sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||""))).forEach(d=>{const own=d.owner_type==="vehicle"?flVeh(d.vehicle_id):flDrv(d.driver_id);if(!own||own.archived)return;const k=d.owner_type+"|"+(d.vehicle_id||d.driver_id)+"|"+d.doc_type;if(seen.has(k))return;seen.add(k);out.push({type:d.doc_type,who:d.owner_type==="vehicle"?flVLabel(d.vehicle_id):flDLabel(d.driver_id),exp:d.expiry_date,src:"doc",vid:d.owner_type==="vehicle"?d.vehicle_id:"",did:d.owner_type==="driver"?d.driver_id:""})});
+  FL.drv.filter(d=>!d.archived).forEach(d=>{[["Driving licence",d.licence_expiry,/licen/i],["CNIC",d.cnic_expiry,/cnic/i]].forEach(([t,e,re])=>{if(!e)return;if(cur.some(x=>x.driver_id===d.id&&re.test(String(x.doc_type||""))&&x.expiry_date))return;out.push({type:t,who:d.full_name,exp:e,src:"driver",did:d.id})})});
+  FL.veh.filter(v=>v.ownership==="rented"&&v.agreement_end&&!v.archived).forEach(v=>out.push({type:"Rental agreement",who:v.reg_no,exp:v.agreement_end,src:"vehicle",vid:v.id}));
   return out.filter(i=>i.exp)}
 const flBadge=(c,t)=>`<span class="fl-bg ${c}">${esc(t)}</span>`;
 function flVStatusBadge(s){return flBadge({available:"ok",on_trip:"i",maintenance:"w",out_of_service:"e",inactive:"n"}[s]||"n",FL_VST[s]||s)}
@@ -3972,7 +3973,7 @@ function pFleetDash(){
   const cy=String(now.getFullYear()),CL=T.filter(t=>String(t.date||"").startsWith(cy)),Y=agg(CL),MLc=T.filter(t=>String(t.date||"").slice(0,7)===cm),heads=tvExpHeads(MLc),hd=(H,k)=>(H.find(x=>x[0]===k)||[0,0])[1],hOther=H=>H.reduce((s,x)=>s+(["Diesel","Toll","Driver"].includes(x[0])?0:x[1]),0);
   const net=x=>x.i-x.e-x.m,dl=(c,p)=>p?`<small style="color:${c>=p?"var(--teal)":"var(--accent)"}">${c>=p?"▲":"▼"} ${Math.abs(Math.round((c-p)/Math.abs(p)*100))}% vs last month</small>`:`<small class="hint">${P.n?(c?"Nothing last month":""):"No data last month"}</small>`;
   const kpi=(l,v,sub,c)=>`<div class="fl-card${c?" "+c:""}"><b>${v}</b><span>${l}</span>${sub?`<small style="display:block;margin-top:2px">${sub}</small>`:""}</div>`;
-  const withDrv=new Set(FL.vd.filter(x=>!x.to_date).map(x=>x.vehicle_id)),onVeh=new Set(FL.vd.filter(x=>!x.to_date).map(x=>x.driver_id));
+  const liveA=FL.vd.filter(x=>{if(x.to_date)return false;const v=flVeh(x.vehicle_id),d=flDrv(x.driver_id);return v&&d&&!v.archived&&!d.archived}),withDrv=new Set(liveA.map(x=>x.vehicle_id)),onVeh=new Set(liveA.map(x=>x.driver_id));
   const noDrv=V.filter(v=>(v.status==="available"||v.status==="on_trip")&&v.category!=="Trailer"&&!withDrv.has(v.id)),idleDrv=D.filter(d=>d.employment_status==="active"&&!onVeh.has(d.id));
   /* maintenance reminders across the fleet */
   const rem=[];V.forEach(v=>{const L=T.filter(t=>t.veh===v.id);if(!L.length)return;tvReminders(v,tvMaintItems(L)).filter(x=>x.st!=="ok").forEach(x=>rem.push({v,...x}))});rem.sort((a,b)=>(a.st==="over"?0:1)-(b.st==="over"?0:1));
@@ -3987,26 +3988,28 @@ function pFleetDash(){
   const bars=Object.entries(FL_VST).map(([k,l])=>{const n=cnt(k);return `<div class="fl-hb"><span>${l}</span><div class="fl-tr"><i style="width:${V.length?Math.round(n/V.length*100):0}%"></i></div><b>${n}</b></div>`}).join("");
   const sec=(h,hint,b)=>`<div class="panel"><h3 style="margin:0">${h}</h3>${hint?`<p class="hint" style="margin:2px 0 10px">${hint}</p>`:'<div style="height:8px"></div>'}${b}</div>`;
   const go=(id,t)=>`<button type="button" class="btn ghost sm" data-fl="veh-folder" data-id="${esc(id)}">${t||"Open"}</button>`;
-  const tile=(ico,l,v,sub,act,c)=>`<div class="fl-card${c?" "+c:""}" role="button" tabindex="0" data-fl="${act}" style="cursor:pointer"><span class="dk-ic">${dkIc(ico)}</span><b>${v}</b><span>${l}</span>${sub?`<small style="display:block;margin-top:2px">${sub}</small>`:""}</div>`;
+  const tile=(ico,l,v,sub,act,c,st)=>`<div class="fl-card${c?" "+c:""}" role="button" tabindex="0" data-fl="${act}"${st?` data-st="${st}"`:""} style="cursor:pointer"><span class="dk-ic">${dkIc(ico)}</span><b>${v}</b><span>${l}</span>${sub?`<small style="display:block;margin-top:2px">${sub}</small>`:""}</div>`;
   /* the to-do list: plain sentences, each with a button */
   const todo=[];
   rem.slice(0,5).forEach(x=>todo.push({t:`${x.v.reg_no}: ${x.c} is ${x.st==="over"?"overdue":"due soon"}`,s:tvRemTxt(x),c:x.st==="over"?"e":"w",id:x.v.id}));
   const OLD_D=-365,itemsOld=items.filter(i=>i.b.n<OLD_D),itemsNew=items.filter(i=>i.b.n>=OLD_D);
-  const docRow=i=>({t:`${i.who}: ${i.type} ${i.b.n<0?"has expired":"expires soon"}`,s:(i.b.n<0?flRel(i.b.n):"in "+i.b.n+" days")+" ("+flFmtD(i.exp)+")",c:i.b.c,doc:1});
+  const docRow=i=>({t:`${i.who}: ${i.type} ${i.b.n<0?"has expired":"expires soon"}`,s:(i.b.n<0?flRel(i.b.n):"in "+i.b.n+" days")+" ("+flFmtD(i.exp)+")",c:i.b.c,...(i.src==="driver"?{drv:1}:i.src==="vehicle"&&i.vid?{id:i.vid}:{doc:1})});
   itemsNew.slice(0,5).forEach(i=>todo.push(docRow(i)));
   const todoOld=itemsOld.slice(0,20).map(docRow);
   noDrv.slice(0,3).forEach(v=>todo.push({t:`${v.reg_no} has no driver`,s:"Attach a driver in the vehicle folder",c:"w",id:v.id}));
   idleDrv.slice(0,3).forEach(d=>todo.push({t:`${d.full_name} is not on any vehicle`,s:"Open Drivers and assign a vehicle",c:"n",drv:1}));
+  {const RK={e:0,w:1,i:2,n:3};todo.sort((a,b)=>(RK[a.c]??3)-(RK[b.c]??3))}
+  const todoTotal=rem.length+itemsNew.length+noDrv.length+idleDrv.length;
   const TODO_N=3,todoMore=todo.length-TODO_N;
   const rowHTML=(x,cls)=>`<div${cls?' class="'+cls+'"':''}><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span>${x.id?go(x.id,'<span class="fl-bl">Vehicle</span>'):x.drv?`<button type="button" class="btn ghost sm" data-fl="godrvlist"><span class="fl-bl">Drivers</span></button>`:`<button type="button" class="btn ghost sm" data-fl="godoclist"><span class="fl-bl">Documents</span></button>`}</div>`;
   const okHTML=`<p style="margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--teal) 12%,transparent)"><b>All good.</b> Nothing is expired, overdue or missing right now.</p>`;
   const oldHTML=todoOld.length?`<div class="fl-old" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--fl-line)"><button type="button" class="btn ghost sm" data-fl="todo-old">${FL.todoOld?"Hide":"Show"} old alerts (${todoOld.length})</button><p class="hint" style="margin:6px 0 0">Expired more than a year ago. If that driver or vehicle has left KLC, archive it and the alert goes away.</p>${FL.todoOld?`<div class="fl-al" style="margin-top:8px">${todoOld.map(x=>rowHTML(x,"")).join("")}</div>`:""}</div>`:"";
-  const moreHint=itemsNew.length>5||rem.length>5?`<p class="hint" style="margin:8px 0 0">More alerts are in <b>Documents</b> and in each vehicle folder.</p>`:"";
+  const moreHint=todoTotal>todo.length?`<p class="hint" style="margin:8px 0 0">More alerts are in <b>Documents</b> and in each vehicle folder.</p>`:"";
   const todoHTML=(todo.length?`<div class="fl-al">${todo.map((x,ix)=>rowHTML(x,!FL.todoAll&&ix>=TODO_N?"fl-hid":"")).join("")}</div>${todoMore>0?`<button type="button" class="btn ghost sm" data-fl="todo-all" style="margin-top:8px">${FL.todoAll?"Show fewer":"Show all "+todo.length}</button>`:""}`:okHTML)+oldHTML+moreHint;
   const money=[["Money earned",tvM(A.i),A.i,P.i,"The freight you received this month"],["Money spent",tvM(A.e),A.e,P.e,"Diesel, toll, driver and other trip costs"],["Repairs",tvM(A.m),A.m,P.m,"Tyre, engine, service and other maintenance"],["Profit (what is left)",tvM(net(A)),net(A),net(P),"Earned minus spent minus repairs"]];
   el.innerHTML=(syncOK?"":'<p class="hint">Trip figures are still loading…</p>')+flHead("Fleet overview",now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),`<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-fl="goveh">+ Add vehicle</button><button type="button" class="btn ghost sm" data-fl="godrv">+ Add driver</button></span>`)+
-  sec(todo.length?`Needs your attention (${todo.length})`:"Needs your attention","Start here. Press a button to fix it.",todoHTML).replace("<div class=\"panel\">",todo.length?"<div class=\"panel fl-redp\">":"<div class=\"panel\">")+
-  `<div class="fl-k">${tile("🚛","Vehicles",V.length,cnt("available")+" free to use","golistveh")}${tile("🛣","On the road",cnt("on_trip"),"","golistveh")}${tile("🔧","In workshop",cnt("maintenance"),"","golistveh",cnt("maintenance")?"w":"")}${tile("🧑","Drivers",D.filter(d=>d.employment_status==="active").length,"working now","godrvlist")}${tile("📄","Document alerts",items.length,items.filter(i=>i.b.n<0).length+" expired","godoclist",items.some(i=>i.b.c==="e")?"e":items.some(i=>i.b.c==="w")?"w":"")}${tile("⛔","Out of service",cnt("out_of_service"),cnt("inactive")+" inactive","golistveh")}${tile("🛠","Service due",rem.length,rem.filter(x=>x.st==="over").length+" overdue","golistveh")}</div>`+
+  sec(todo.length?`Needs your attention (${todoTotal})`:"Needs your attention","Start here. Press a button to fix it.",todoHTML).replace("<div class=\"panel\">",todo.length?"<div class=\"panel fl-redp\">":"<div class=\"panel\">")+
+  `<div class="fl-k">${tile("🚛","Vehicles",V.length,cnt("available")+" free to use","golistveh")}${tile("🛣","On the road",cnt("on_trip"),"","golistveh","","on_trip")}${tile("🔧","In workshop",cnt("maintenance"),"","golistveh",cnt("maintenance")?"w":"","maintenance")}${tile("🧑","Drivers",D.filter(d=>d.employment_status==="active").length,"working now","godrvlist")}${tile("📄","Document alerts",itemsNew.length,itemsNew.filter(i=>i.b.n<0).length+" expired"+(itemsOld.length?" · "+itemsOld.length+" old":""),"godoclist",itemsNew.some(i=>i.b.c==="e")?"e":itemsNew.some(i=>i.b.c==="w")?"w":"")}${tile("⛔","Out of service",cnt("out_of_service"),cnt("inactive")+" inactive","golistveh","","out_of_service")}${tile("🛠","Service due",rem.length,rem.filter(x=>x.st==="over").length+" overdue","golistveh")}</div>`+
   sec("This month, "+now.toLocaleString("en-GB",{month:"long",year:"numeric"}),`${A.n} trip voucher${A.n===1?"":"s"} · ${Math.round(A.km).toLocaleString("en-PK")} km driven. Arrows compare with last month.`,`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">${money.map(([l,t,c,p,h],i)=>`<div style="background:var(--chip);border-radius:10px;padding:12px"><b style="font-size:13px">${l}</b><div style="font-size:21px;font-weight:800;${i===3?"color:"+(net(A)<0?"var(--accent)":"var(--teal)"):""}">${t}</div><div>${i===1||i===2?(p?`<small class="hint">last month ${tvM(p)}</small>`:""):dl(c,p)}</div><small class="hint">${h}</small></div>`).join("")}</div><div class="fl-mini">${[["Diesel",hd(heads,"Diesel")],["Toll tax",hd(heads,"Toll")],["Driver",hd(heads,"Driver")],["Repairs",A.m],["Other",hOther(heads)]].map(([l,v])=>`<div><small class="hint">${l}</small><b>${tvM(v)}</b></div>`).join("")}</div><div class="fl-mini fl-yr"><div><small class="hint">Year ${cy} earned</small><b>${tvM(Y.i)}</b></div><div><small class="hint">Year spent</small><b>${tvM(Y.e)}</b></div><div><small class="hint">Year repairs</small><b>${tvM(Y.m)}</b></div><div><small class="hint">Year profit</small><b style="color:${net(Y)<0?"var(--accent)":"var(--teal)"}">${tvM(net(Y))}</b></div><div><small class="hint">Year trips</small><b>${Y.n}</b></div></div>`)+
   sec("Which vehicle earned the most?","This month, best first. Red means a loss. Press Open to see that vehicle.",perf.length?`<div class="tbl-wrap"><table><thead><tr><th>Vehicle</th><th class="num">Trips</th><th class="num">Earned</th><th class="num">Spent + repairs</th><th class="num">Profit</th><th class="num">Diesel average</th><th></th></tr></thead><tbody>${perf.map(r=>`<tr><td><b>${esc(r.v.reg_no)}</b>${r.v.archived?" <small class=\"hint\">(archived)</small>":""}</td><td class="num">${r.x.n}</td><td class="num">${tvM(r.x.i)}</td><td class="num">${tvM(r.x.e+r.x.m)}</td><td class="num" style="color:${r.net<0?"var(--accent)":"var(--teal)"};font-weight:700">${tvM(r.net)}</td><td class="num">${r.f.kmpl?r.f.kmpl.toFixed(1)+" km per litre":"-"}</td><td>${go(r.v.id,"Open")}</td></tr>`).join("")}</tbody></table></div>`:'<p class="hint" style="margin:0">No trip voucher this month yet. Open a vehicle folder and press New trip voucher.</p>')+
   `<div class="fl-two">${sec("Last 6 months","Green is money earned, red is money spent plus repairs.",chart)}${sec("Vehicles by status","",V.length?bars:'<p class="hint" style="margin:0">No vehicles yet. Press + Add vehicle.</p>')}</div>`+
@@ -4030,7 +4033,7 @@ function pFleetVeh(){
 /* ----- one vehicle's document folder ----- */
 async function flLoadLogs(id){
   if(FL.logsBusy)return;FL.logsBusy=true;FL.logsErr="";
-  try{FL.logs=await flReq("fleet_audit_logs?order=created_at.desc&limit=300")||[]}
+  try{FL.logs=await flReq("fleet_audit_logs?order=created_at.desc&limit=2000")||[]}
   catch(e){FL.logs=[];FL.logsErr=e.message||"Could not load the activity list."}
   FL.logsFor=id;FL.logsBusy=false;if(sub.startsWith("fleet"))renderPanel()}
 const FL_ACT={create:"Added",update:"Edited",delete:"Removed",archive:"Archived",restore:"Restored",assign:"Driver attached",unassign:"Assignment ended",renew:"Document renewed",upload:"File uploaded"};
@@ -4038,7 +4041,7 @@ const flDet=r=>{let d=r&&r.detail;if(typeof d==="string"){try{d=JSON.parse(d)}ca
 const flWhen=s=>{if(!s)return "-";const d=new Date(s);return isNaN(d)?"-":d.toLocaleString("en-GB",{timeZone:"Asia/Karachi",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})};
 function flVehActHTML(v){
   if(FL.logsFor!==v.id){flLoadLogs(v.id);return '<div class="panel fl-empty"><b>Loading activity\u2026</b></div>'}
-  if(FL.logsErr)return '<div class="panel fl-empty"><b>Activity could not load</b><p class="hint">'+esc(FL.logsErr)+'</p><button type="button" class="btn sm" data-fl="reload">Try again</button></div>';
+  if(FL.logsErr)return '<div class="panel fl-empty"><b>Activity could not load</b><p class="hint">'+esc(FL.logsErr)+'</p><button type="button" class="btn sm" data-fl="logs-retry">Try again</button></div>';
   const rows=(FL.logs||[]).filter(r=>{const d=flDet(r);return r.entity_id===v.id||d.vehicle===v.id||d.reg_no===v.reg_no});
   if(!rows.length)return '<div class="panel"><h3 style="margin:0 0 6px">Activity</h3><p class="hint" style="margin:0">Nothing has been recorded for this vehicle yet. Every add, edit, driver change and document upload shows up here.</p></div>';
   const nm=id=>{const d=flDrv(id);return d?d.full_name:id};
@@ -4063,13 +4066,13 @@ function flVehFolder(){
   <div style="display:grid;gap:10px">${as.map(x=>{const d=flDrv(x.driver_id);if(!d)return"";const b=flBucket(d.licence_expiry),dd=FL.docs.filter(q=>q.owner_type==="driver"&&q.driver_id===d.id&&q.status==="current");
     const kv=(k,h)=>`<div style="min-width:0"><small class="hint" style="display:block">${k}</small><div>${h}</div></div>`;
     return `<div style="border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:10px${x.to_date?";opacity:.8":""}">
-    <div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between"><div><b style="font-size:16px">${esc(d.full_name)}</b> <span class="fl-bg">${esc(x.role||"-")}</span> ${x.to_date?'<span class="fl-bg">Left</span>':'<span class="fl-bg ok">Still on this vehicle</span>'}${as.some(o=>o.id!==x.id&&o.driver_id===x.driver_id&&o.to_date&&String(o.to_date)<=String(x.from_date||""))?' <span class="fl-bg w">Rejoined</span>':""}<br><small class="hint">CNIC ${esc(flMask(d.cnic)||"-")}</small></div><b>${esc(dur(x.from_date,x.to_date))}</b></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between"><div><b style="font-size:16px">${esc(d.full_name)}</b> <span class="fl-bg">${esc(x.role||"-")}</span> ${x.to_date?'<span class="fl-bg">Left</span>':'<span class="fl-bg ok">Still on this vehicle</span>'}${as.some(o=>o.id!==x.id&&o.driver_id===x.driver_id&&o.to_date&&String(o.to_date)<=String(x.from_date||""))?' <span class="fl-bg w">Rejoined</span>':""}<br><small class="hint">CNIC ${esc(flMask(d.cnic)||"-")}</small></div><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>${esc(dur(x.from_date,x.to_date))}</b>${x.to_date?"":`<button type="button" class="btn ghost sm" data-fl="asg-end" data-id="${esc(x.id)}">End (driver left)</button>`}</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 16px">${kv("On vehicle from",flFmtD(x.from_date))}${kv("Left on",x.to_date?flFmtD(x.to_date):"-")}${kv("Mobile",esc(d.mobile||"-"))}${kv("Licence",esc(d.licence_no||"-")+(d.licence_expiry?" "+flBadge(b.c,flFmtD(d.licence_expiry)):""))}</div>
     <div class="fl-act" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><small class="hint">Documents:</small>${dd.map(q=>q.file_path?`<button type="button" class="btn ghost sm" data-fl="doc-file" data-id="${esc(q.id)}">${esc(q.doc_type)}</button>`:`<span class="hint">${esc(q.doc_type)} (no file)</span>`).join("")||'<span class="hint">None</span>'}</div></div>`}).join("")||'<p class="hint">No driver has been assigned to this vehicle yet.</p>'}</div></div>`})();
   const SEC_TRIPS=(()=>{const di=d=>{try{return dmyToIso(d)}catch(e){return""}},nz=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,""),rn=nz(v.reg_no),T={};
-  if(rn)(db.bilties||[]).forEach(bl=>{const c=bl.challan;if(!c||!c.vehicle)return;const cv=nz(c.vehicle);if(!cv||!(cv===rn||cv.startsWith(rn)||rn.startsWith(cv)))return;const t=T[c.no]||(T[c.no]={no:c.no,date:c.date,from:bl.from,to:bl.to,n:0});t.n++});
+  if(rn)(db.bilties||[]).forEach(bl=>{const c=bl.challan;if(!c||!c.vehicle)return;const cv=nz(c.vehicle);if(!cv||!(cv===rn||(Math.min(cv.length,rn.length)>=5&&(cv.startsWith(rn)||rn.startsWith(cv)))))return;const t=T[c.no]||(T[c.no]={no:c.no,date:c.date,from:bl.from,to:bl.to,n:0});t.n++});
   const tr=Object.values(T).sort((a,b)=>String(di(b.date)||"").localeCompare(String(di(a.date)||"")));
-  const mo=new Date().toISOString().slice(0,7),thisM=tr.filter(t=>String(di(t.date)||"").slice(0,7)===mo).length;
+  const mo=flToday().slice(0,7),thisM=tr.filter(t=>String(di(t.date)||"").slice(0,7)===mo).length;
   return `<div class="panel"><div class="ph"><h3>3. Trips (${tr.length})</h3><span class="hint">Counted from imported Booking Challans where this registration number is the vehicle. This month: <b>${thisM}</b></span></div>
   <div class="tbl-wrap"><table><thead><tr><th>Challan</th><th>Date</th><th>Route</th><th class="num">Bilties</th></tr></thead><tbody>${tr.slice(0,25).map(t=>`<tr><td><b>${esc(t.no)}</b></td><td>${esc(t.date||"-")}</td><td>${esc(t.from||"-")} → ${esc(t.to||"-")}</td><td class="num">${t.n}</td></tr>`).join("")||'<tr><td colspan="4" class="hint">No trips found for this registration number yet.</td></tr>'}</tbody></table></div>${tr.length>25?`<p class="hint">Showing the latest 25 of ${tr.length}.</p>`:""}</div>`})();
   const TVH=flTripVoucherHTML(v);
@@ -4133,7 +4136,7 @@ const tvTripKm=t=>{const a=tvN(t.km0),b=tvN(t.km1);return b>a?b-a:0};
 function tvFuel(L){let km=0,kmf=0,lt=0,ex=0;L.forEach(t=>{const k=tvTripKm(t),l=tvN(t.lt);km+=k;if(k)ex+=tvSum(t.exp);if(k&&l){kmf+=k;lt+=l}});return {km,lt,kmpl:lt?kmf/lt:0,cpk:km?ex/km:0}}
 function tvDrvStats(L){const o={};L.forEach(t=>{const n=t.driver||"";if(!n)return;const k=o[n]||(o[n]={n:0,i:0,e:0,km:0,kmf:0,lt:0,name:n});k.n++;k.i+=tvSum(t.inc);k.e+=tvSum(t.exp);const d=tvTripKm(t);k.km+=d;if(d&&tvN(t.lt)){k.kmf+=d;k.lt+=tvN(t.lt)}});return Object.values(o).sort((a,b)=>b.n-a.n)}
 function tvReminders(v,mi){const last={};mi.forEach(x=>{const k=last[x.c];if(!k||String(x.t.date||"")>String(k.t.date||""))last[x.c]=x});const odo=tvN(v.odometer),now=Date.now(),R={over:0,soon:1,ok:2};
-  return Object.values(last).filter(x=>x.r.nd||tvN(x.r.nk)).map(({t,r,c})=>{const n=r.nd?Math.ceil((new Date(r.nd)-now)/864e5):null,rem=tvN(r.nk)&&odo?tvN(r.nk)-odo:null;let st="ok";if((n!==null&&n<0)||(rem!==null&&rem<=0))st="over";else if((n!==null&&n<=15)||(rem!==null&&rem<=1000))st="soon";return {c,r,n,rem,st,t,odo}}).sort((a,b)=>R[a.st]-R[b.st])}
+  return Object.values(last).filter(x=>x.r.nd||tvN(x.r.nk)).map(({t,r,c})=>{const n=r.nd?flDays(String(r.nd).slice(0,10)):null,rem=tvN(r.nk)&&odo?tvN(r.nk)-odo:null;let st="ok";if((n!==null&&n<0)||(rem!==null&&rem<=0))st="over";else if((n!==null&&n<=15)||(rem!==null&&rem<=1000))st="soon";return {c,r,n,rem,st,t,odo}}).sort((a,b)=>R[a.st]-R[b.st])}
 const tvRemTxt=x=>[x.r.nd?"on "+new Date(x.r.nd).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+(x.n<0?" (overdue by "+(-x.n)+" days)":x.n===0?" (today)":" (in "+x.n+" days)"):"",tvN(x.r.nk)?"at "+tvN(x.r.nk).toLocaleString("en-PK")+" km"+(x.rem!==null?(x.rem<=0?" (over by "+(-x.rem).toLocaleString("en-PK")+" km)":" ("+x.rem.toLocaleString("en-PK")+" km left)"):" (set the vehicle odometer to track this)"):""].filter(Boolean).join(" · ");
 const tvAgo=d=>{if(!d)return"";const n=Math.floor((Date.now()-new Date(d))/864e5);return n<1?"today":n<31?n+" days ago":n<365?(Math.round(n/30)===1?"1 month ago":Math.round(n/30)+" months ago"):(n/365).toFixed(1)+" years ago"};
 function tvExpHeads(L){const o={};L.forEach(t=>(t.exp||[]).forEach(r=>{if(tvN(r.a))o[r.l||"Other"]=(o[r.l||"Other"]||0)+tvN(r.a)}));return Object.entries(o).sort((a,b)=>b[1]-a[1])}
@@ -4340,9 +4343,9 @@ document.addEventListener("click",async ev=>{
     const r={l,a:amt||"",c,w};if(d)r.d=d;if(k)r.k=k;if(nd)r.nd=nd;if(nk)r.nk=nk;if(!w)delete r.w;
     try{if(file){b.textContent="Uploading bill…";r.f=await flUpload(sid,file);r.fn=file.name}}
     catch(er){FL.tvBusy=false;b.disabled=false;b.textContent="Save record";toast(er.message||"The bill could not be uploaded. Please try again.");return}
-    {const vv=flVeh(FL.folder);if(vv&&k&&k>tvN(vv.odometer)){try{await flReq("fleet_vehicles?id=eq."+encodeURIComponent(vv.id),{method:"PATCH",body:{odometer:k,updated_by:me()?.user||null}});vv.odometer=k}catch(e){}}}
+    {const vv=flVeh(FL.folder);if(vv&&k&&k>tvN(vv.odometer)){try{await flReq("fleet_vehicles?id=eq."+encodeURIComponent(vv.id),{method:"PATCH",body:{odometer:k,updated_by:me()?.user||null}});vv.odometer=k}catch(e){FL.odoWarn=1}}}
     db.tripv.push({id:sid,veh:FL.folder,date,svc:true,driver:"",inc:[],exp:[],mnt:[r],chl:[],blt:[],by:staffName||"",at:new Date().toISOString()});
-    FL.tvBusy=false;FL.svcOpen="";save();renderPanel();toast("Record saved");return}
+    FL.tvBusy=false;FL.svcOpen="";save();renderPanel();toast(FL.odoWarn?"Record saved, but the vehicle odometer could not be updated":"Record saved");FL.odoWarn=0;return}
   if(a==="view"){FL.tvView=FL.tvView===id?"":id;renderPanel();return}
   if(a==="new"){FL.tvMode="new";FL.tvAsk="";renderPanel();tvTotals();return}
   if(a==="edit"){FL.tvMode=id;FL.tvAsk="";renderPanel();tvTotals();return}
@@ -4359,10 +4362,10 @@ document.addEventListener("click",async ev=>{
     d.km0=tvN(d.km0)||"";d.km1=tvN(d.km1)||"";d.lt=tvN(d.lt)||"";
     if(d.km0&&d.km1&&d.km1<=d.km0){FL.tvBusy=false;b.disabled=false;b.textContent="Save voucher";toast("End odometer must be more than the start odometer");return}
     d.challan=(d.chl[0]||{}).l||"";
-    {const vv=flVeh(FL.folder);if(vv&&d.km1&&d.km1>tvN(vv.odometer)){try{await flReq("fleet_vehicles?id=eq."+encodeURIComponent(vv.id),{method:"PATCH",body:{odometer:d.km1,updated_by:me()?.user||null}});vv.odometer=d.km1}catch(e){}}}
+    {const vv=flVeh(FL.folder);if(vv&&d.km1&&d.km1>tvN(vv.odometer)){try{await flReq("fleet_vehicles?id=eq."+encodeURIComponent(vv.id),{method:"PATCH",body:{odometer:d.km1,updated_by:me()?.user||null}});vv.odometer=d.km1}catch(e){FL.odoWarn=1}}}
     if(eid){const t=db.tripv.find(x=>x.id===eid);if(t)Object.assign(t,d,{upd:new Date().toISOString(),updBy:staffName||""})}
     else db.tripv.push({id:vid,veh:FL.folder,...d,by:staffName||"",at:new Date().toISOString()});
-    FL.tvBusy=false;FL.tvMode=null;save();renderPanel();toast("Trip voucher saved");return}
+    FL.tvBusy=false;FL.tvMode=null;save();renderPanel();toast(FL.odoWarn?"Trip voucher saved, but the vehicle odometer could not be updated":"Trip voucher saved");FL.odoWarn=0;return}
   }catch(er){FL.tvBusy=false;toast(er.message||"Something went wrong")}});
 document.addEventListener("input",ev=>{if(ev.target.closest("#tvForm"))tvTotals()});
 
@@ -4572,19 +4575,20 @@ async function flOpenFile(id){
     if(!r.ok)throw new Error("Could not open the file.");const j=await r.json();window.open(SB_URL+"/storage/v1"+j.signedURL,"_blank","noopener")}catch(e){toast(e.message||"Could not open the file.")}}
 
 /* ----- saving ----- */
+async function flPostNew(table,prefix,o){for(let k=0;k<3;k++){try{return await flReq(table,{method:"POST",body:o})}catch(e){if(e.message!=="DUP_ID")throw e;const ids=await flReq(table+"?select=id")||[];o.id=flNext(ids,prefix)}}throw new Error("Could not save. Please try again.")}
 const flRows=(f,names,nums,dates)=>{const o={};names.forEach(n=>{const el=f.elements[n];if(!el)return;o[n]=nums.includes(n)?flNum(el.value):flStr(el.value)});return o};
 async function flSaveVeh(f){
   const o=flRows(f,["reg_no","name","category","make","model","year","colour","chassis_no","engine_no","engine_cc","fuel_type","axle","load_tons","odometer","reg_date","ownership","status","purchase_date","purchase_price","seller","est_value","owner_name","owner_cnic","owner_phone","rent_basis","rent_amount","agreement_start","agreement_end","deposit"],["year","load_tons","odometer","purchase_price","est_value","rent_amount","deposit"]);
-  if(!o.reg_no)throw new Error("Enter the registration number.");o.reg_no=o.reg_no.toUpperCase();o.ownership=o.ownership||"company";o.status=o.status||"available";o.updated_by=me()?.user||null;
+  if(!o.reg_no)throw new Error("Enter the registration number.");o.reg_no=o.reg_no.toUpperCase();{const nz=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,""),dv=FL.veh.find(v=>nz(v.reg_no)===nz(o.reg_no)&&(!FL.edit||v.id!==FL.edit.id));if(dv)throw new Error("This registration number already exists as "+dv.reg_no+(dv.archived?" (archived, restore it instead)":"")+".")}o.ownership=o.ownership||"company";o.status=o.status||"available";o.updated_by=me()?.user||null;
   if(o.ownership==="company"){["owner_name","owner_cnic","owner_phone","rent_basis","rent_amount","agreement_start","agreement_end","deposit"].forEach(k=>o[k]=null)}else{["purchase_date","purchase_price","seller","est_value"].forEach(k=>o[k]=null)}
   if(FL.edit){await flReq("fleet_vehicles?id=eq."+encodeURIComponent(FL.edit.id),{method:"PATCH",body:o});flLog("update","vehicle",FL.edit.id,{reg_no:o.reg_no})}
-  else{o.id=flNext(FL.veh,"V-");o.created_by=me()?.user||null;await flReq("fleet_vehicles",{method:"POST",body:o});flLog("create","vehicle",o.id,{reg_no:o.reg_no})}}
+  else{o.id=flNext(FL.veh,"V-");o.created_by=me()?.user||null;await flPostNew("fleet_vehicles","V-",o);flLog("create","vehicle",o.id,{reg_no:o.reg_no})}}
 async function flSaveDrv(f){
   const o=flRows(f,["full_name","father_name","cnic","cnic_issue","cnic_expiry","mobile","address","emergency_contact","licence_no","licence_authority","licence_category","licence_classes","licence_issue","licence_expiry","joined_on","employment_status","monthly_salary","daily_allowance","trip_allowance"],["monthly_salary","daily_allowance","trip_allowance"]);
   if(!o.full_name)throw new Error("Enter the driver's full name.");o.employment_status=o.employment_status||"active";o.updated_by=me()?.user||null;
   if(FL.edit){await flReq("fleet_drivers?id=eq."+encodeURIComponent(FL.edit.id),{method:"PATCH",body:o});flLog("update","driver",FL.edit.id,null)}
-  else{o.id=flNext(FL.drv,"D-");o.created_by=me()?.user||null;await flReq("fleet_drivers",{method:"POST",body:o});flLog("create","driver",o.id,null);
-    const av=$("#flAsgV"),vid=av&&av.value;if(vid){const b={vehicle_id:vid,driver_id:o.id,role:$("#flAsgR").value,created_by:me()?.user||null},fd=$("#flAsgF").value;if(fd)b.from_date=fd;await flReq("fleet_vehicle_drivers",{method:"POST",body:b});flLog("assign","driver",o.id,{vehicle:vid})}}}
+  else{o.id=flNext(FL.drv,"D-");o.created_by=me()?.user||null;await flPostNew("fleet_drivers","D-",o);flLog("create","driver",o.id,null);
+    const av=$("#flAsgV"),vid=av&&av.value;if(vid&&flPrimaryClash(vid,o.id,$("#flAsgR").value)){FL.pendingMsg="Driver saved. Not attached: "+flPrimaryClash(vid,o.id,$("#flAsgR").value)}else if(vid){const b={vehicle_id:vid,driver_id:o.id,role:$("#flAsgR").value,created_by:me()?.user||null},fd=$("#flAsgF").value;if(fd)b.from_date=fd;await flReq("fleet_vehicle_drivers",{method:"POST",body:b});flLog("assign","driver",o.id,{vehicle:vid})}}}
 async function flSaveDoc(f){
   const e=FL.edit||{},renew=!!e.renew;const ot=f.elements.owner_type.value;
   const o={owner_type:ot,vehicle_id:ot==="vehicle"?flStr(f.elements.vehicle_id.value):null,driver_id:ot==="driver"?flStr(f.elements.driver_id.value):null,doc_type:flStr(ot==="vehicle"?f.elements.doc_type_v.value:f.elements.doc_type_d.value),doc_no:flStr(f.elements.doc_no.value),authority:flStr(f.elements.authority.value),issue_date:flStr(f.elements.issue_date.value),expiry_date:flStr(f.elements.expiry_date.value),verification:f.elements.verification.value||"pending",remarks:flStr(f.elements.remarks.value),updated_by:me()?.user||null};
@@ -4593,23 +4597,27 @@ async function flSaveDoc(f){
   const file=f.elements.file.files[0];
   if(e.id&&!renew){await flReq("fleet_documents?id=eq."+encodeURIComponent(e.id),{method:"PATCH",body:o});if(file){const p=await flUpload(e.id,file);await flReq("fleet_documents?id=eq."+encodeURIComponent(e.id),{method:"PATCH",body:{file_path:p}})}flLog("update","document",e.id,{type:o.doc_type});return}
   o.id=flNext(FL.docs,"DOC-");o.created_by=me()?.user||null;o.status="current";if(renew)o.replaces=e.id;
-  await flReq("fleet_documents",{method:"POST",body:o});
+  await flPostNew("fleet_documents","DOC-",o);
   if(file){try{const p=await flUpload(o.id,file);await flReq("fleet_documents?id=eq."+encodeURIComponent(o.id),{method:"PATCH",body:{file_path:p}})}catch(er){FL.pendingMsg="Document saved, but the file was not uploaded: "+er.message}}
   if(renew)await flReq("fleet_documents?id=eq."+encodeURIComponent(e.id),{method:"PATCH",body:{status:"superseded",updated_by:me()?.user||null}});
   flLog(renew?"renew":"create","document",o.id,{type:o.doc_type,replaces:e.id||null})}
 
 /* ----- events ----- */
+function flPrimaryClash(vid,did,role){if(role!=="primary")return "";const live=FL.vd.filter(x=>!x.to_date&&x.role==="primary");
+  const a=live.find(x=>x.vehicle_id===vid&&x.driver_id!==did&&flDrv(x.driver_id)&&!flDrv(x.driver_id).archived);if(a)return flDLabel(a.driver_id)+" is already the primary driver of this vehicle. End that first, or choose Secondary.";
+  const b=live.find(x=>x.driver_id===did&&x.vehicle_id!==vid&&flVeh(x.vehicle_id)&&!flVeh(x.vehicle_id).archived);if(b)return "This driver is already primary on "+flVLabel(b.vehicle_id)+". End that first, or choose Secondary.";return ""}
 function flBack(){FL.fsec="";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.tvView="";FL.mode={veh:"list",drv:"list",doc:"list"};FL.edit=null;FL.ask="";FL.busy=false}
 document.addEventListener("click",async ev=>{
   const b=ev.target.closest("[data-fl]");if(!b)return;const a=b.dataset.fl,id=b.dataset.id;
   try{
   if(a==="reload"){FL.tried=false;FL.loaded=false;flLoad(true);renderPanel();return}
+  if(a==="logs-retry"){FL.logsFor="";FL.logsErr="";renderPanel();return}
   if(a==="todo-all"){FL.todoAll=!FL.todoAll;renderPanel();return}
   if(a==="todo-old"){FL.todoOld=!FL.todoOld;renderPanel();return}
   if(a==="cancel"){flBack();renderPanel();return}
   if(a==="ask-no"){FL.ask="";renderPanel();return}
   if(a==="bk"){FL.bk=b.dataset.k;renderPanel();return}
-  if(a==="golistveh"||a==="godrvlist"||a==="godoclist"){const t={golistveh:"fleetveh",godrvlist:"fleetdrv",godoclist:"fleetdoc"}[a],m=document.querySelector('.kp-menu [data-s="'+t+'"]');FL.mode.veh="list";FL.mode.drv="list";FL.edit=null;if(m)m.click();window.scrollTo({top:0,behavior:"auto"});return}
+  if(a==="golistveh"||a==="godrvlist"||a==="godoclist"){const t={golistveh:"fleetveh",godrvlist:"fleetdrv",godoclist:"fleetdoc"}[a],m=document.querySelector('.kp-menu [data-s="'+t+'"]');FL.mode.veh="list";FL.mode.drv="list";FL.mode.doc="list";FL.edit=null;FL.ask="";if(a==="golistveh")FL.st=b.dataset.st||"all";if(m)m.click();window.scrollTo({top:0,behavior:"auto"});return}
    if(a==="goveh"){const m=document.querySelector('.kp-menu [data-s="fleetveh"]');if(m)m.click();FL.edit=null;FL.mode.veh="form";renderPanel();return}
    if(a==="godrv"){const m=document.querySelector('.kp-menu [data-s="fleetdrv"]');if(m)m.click();FL.edit=null;FL.mode.drv="form";renderPanel();return}
    if(a==="veh-new"){FL.edit=null;FL.mode.veh="form";renderPanel();return}
@@ -4618,30 +4626,32 @@ document.addEventListener("click",async ev=>{
   if(a==="folder-renew"){FL.edit={...FL.docs.find(x=>x.id===id),renew:true};renderPanel();return}
   if(a==="folder-back"){FL.edit=null;renderPanel();return}
   if(a==="veh-arch"){FL.ask="v:"+id;renderPanel();return}
-  if(a==="veh-arch-yes"){const v=flVeh(id);await flReq("fleet_vehicles?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!v.archived,updated_by:me()?.user||null}});flLog(v.archived?"restore":"archive","vehicle",id,null);FL.ask="";await flRefresh();toast(v.archived?"Vehicle restored":"Vehicle archived");return}
+  if(a==="veh-arch-yes"){const v=flVeh(id);await flReq("fleet_vehicles?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!v.archived,updated_by:me()?.user||null}});if(!v.archived&&FL.vd.some(x=>x.vehicle_id===id&&!x.to_date)){try{await flReq("fleet_vehicle_drivers?vehicle_id=eq."+encodeURIComponent(id)+"&to_date=is.null",{method:"PATCH",body:{to_date:flToday()}});flLog("unassign","vehicle",id,{vehicle:id,reason:"archived"})}catch(e){}}flLog(v.archived?"restore":"archive","vehicle",id,null);FL.ask="";await flRefresh();toast(v.archived?"Vehicle restored":"Vehicle archived");return}
   if(a==="drv-new"){FL.edit=null;FL.mode.drv="form";renderPanel();return}
   if(a==="drv-edit"){FL.edit=flDrv(id);FL.mode.drv="form";renderPanel();return}
   if(a==="drv-arch"){FL.ask="d:"+id;renderPanel();return}
-  if(a==="drv-arch-yes"){const d=flDrv(id);await flReq("fleet_drivers?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!d.archived,updated_by:me()?.user||null}});flLog(d.archived?"restore":"archive","driver",id,null);FL.ask="";await flRefresh();toast(d.archived?"Driver restored":"Driver archived");return}
+  if(a==="drv-arch-yes"){const d=flDrv(id);await flReq("fleet_drivers?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{archived:!d.archived,updated_by:me()?.user||null}});if(!d.archived&&FL.vd.some(x=>x.driver_id===id&&!x.to_date)){try{await flReq("fleet_vehicle_drivers?driver_id=eq."+encodeURIComponent(id)+"&to_date=is.null",{method:"PATCH",body:{to_date:flToday()}});flLog("unassign","driver",id,{reason:"archived"})}catch(e){}}flLog(d.archived?"restore":"archive","driver",id,null);FL.ask="";await flRefresh();toast(d.archived?"Driver restored":"Driver archived");return}
   if(a==="asg-add"){const vid=$("#flAsgV").value;if(!vid){toast("Choose a vehicle first");return}
     if(FL.vd.some(x=>x.driver_id===FL.edit.id&&x.vehicle_id===vid&&!x.to_date)){toast("Already assigned to this vehicle");return}
+    {const pm=flPrimaryClash(vid,FL.edit.id,$("#flAsgR").value);if(pm){toast(pm);return}}
     await flReq("fleet_vehicle_drivers",{method:"POST",body:{vehicle_id:vid,driver_id:FL.edit.id,role:$("#flAsgR").value,created_by:me()?.user||null}});flLog("assign","driver",FL.edit.id,{vehicle:vid});await flRefresh();toast("Vehicle assigned");return}
   if(a==="fold-asg"){const did=$("#flFAd").value;if(!did){toast("Choose a driver first");return}
+    {const pm=flPrimaryClash(id,did,$("#flFAr").value);if(pm){toast(pm);return}}
     const b={vehicle_id:id,driver_id:did,role:$("#flFAr").value,created_by:me()?.user||null},fd=$("#flFAf").value;if(fd)b.from_date=fd;
     await flReq("fleet_vehicle_drivers",{method:"POST",body:b});flLog("assign","driver",did,{vehicle:id});await flRefresh();toast("Driver attached to this vehicle");return}
-  if(a==="asg-end"){await flReq("fleet_vehicle_drivers?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{to_date:flToday()}});flLog("unassign","driver",FL.edit.id,{assignment:id});await flRefresh();toast("Assignment ended");return}
+  if(a==="asg-end"){const as=FL.vd.find(x=>String(x.id)===String(id));await flReq("fleet_vehicle_drivers?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{to_date:flToday()}});flLog("unassign","driver",as?as.driver_id:(FL.edit&&FL.edit.id),{assignment:id,vehicle:as?as.vehicle_id:null});await flRefresh();toast("Assignment ended");return}
   if(a==="doc-new"){FL.edit=null;FL.mode.doc="form";renderPanel();return}
   if(a==="doc-edit"){FL.edit=FL.docs.find(x=>x.id===id);FL.mode.doc="form";renderPanel();return}
   if(a==="doc-renew"){FL.edit={...FL.docs.find(x=>x.id===id),renew:true};FL.mode.doc="form";renderPanel();return}
   if(a==="doc-file"){flOpenFile(id);return}
   }catch(er){toast(er.message||"Something went wrong. Please try again.")}});
-async function flRefresh(){FL.tried=false;FL.loaded=false;FL.loading=false;await flLoad(true)}
+async function flRefresh(){FL.tried=false;FL.loading=false;FL.logsFor="";await flLoad(true)}
 document.addEventListener("submit",async ev=>{
   const f=ev.target.closest("[data-flform]");if(!f)return;ev.preventDefault();if(FL.busy)return;
-  FL.busy=true;const btn=f.querySelector('[type="submit"]');if(btn){btn.disabled=true;btn.textContent="Saving…"}
+  FL.busy=true;const btn=f.querySelector('[type="submit"]'),lbl=btn?btn.textContent:"";if(btn){btn.disabled=true;btn.textContent="Saving…"}
   try{const k=f.dataset.flform;if(k==="veh")await flSaveVeh(f);else if(k==="drv")await flSaveDrv(f);else await flSaveDoc(f);
     const msg=FL.pendingMsg;FL.pendingMsg="";flBack();if(f.dataset.folder){FL.folder=f.dataset.folder;FL.mode.veh="folder"}if(f.dataset.drvfolder){FL.drvRep=f.dataset.drvfolder;FL.mode.drv="report"}await flRefresh();toast(msg||"Saved")}
-  catch(er){FL.busy=false;if(btn){btn.disabled=false;btn.textContent="Save"}toast(er.message||"Could not save. Please try again.")}});
+  catch(er){FL.busy=false;if(btn){btn.disabled=false;btn.textContent=lbl||"Save"}toast(er.message||"Could not save. Please try again.")}});
 document.addEventListener("input",ev=>{const q=ev.target.closest("[data-flq]");if(!q)return;FL.q[q.dataset.flq]=q.value;const pos=q.selectionStart;renderPanel();const n=document.getElementById("flQ");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}});
 document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="flSt"){if(sub==="fleetdrv")FL.sd=t.value;else FL.st=t.value;renderPanel()}if(t.id==="flOld"){FL.old=t.checked;renderPanel()}});
 const flRenderHook=()=>{if(sub==="fleetdoc")flDocOwnerToggle()};
@@ -4660,7 +4670,7 @@ function pBilty(){
   $$("#coRows select").forEach(sel=>sel.addEventListener("change",()=>{
     const b=db.bilties.find(x=>x.id===sel.dataset.bid),n=+sel.value;
     b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(new Date().toISOString());
-    b.status=n;save();renderPanel();toast(n===4&&!b.acct&&due(b)>0?`${b.id} delivered, but ${rs(due(b))} is still due. Collect it and press Mark paid.`:`${b.id}: ${STATUSES[n]}. The customer will get an SMS.`);
+    b.status=n;save();renderPanel();toast(n===4&&!b.acct&&due(b)>0?`${b.id} delivered, but ${rs(due(b))} is still due. Collect it and press Mark paid.`:`${b.id}: ${STATUSES[n]}. Customers see the new status when they track this bilty.`);
   }));
 }
 $("#coRows").addEventListener("click",e=>{if(e.target.closest("[data-comore]")){coCap+=100;pBilty()}});
@@ -4683,7 +4693,7 @@ function pCharges(){
 }
 $("#edCharges").addEventListener("change",e=>{const x=e.target;if(!x.dataset||x.dataset.ti===undefined)return;const t=db.charges.tiers[+x.dataset.ti];if(!t)return;
   if(x.dataset.f==="name")t.name=x.value.trim()||t.name;else if(x.dataset.f==="cbm"){t.cbm=Math.max(0,+x.value||0);pCharges()}else{t.r=t.r||{};t.r[x.dataset.k]=Math.max(0,+x.value||0)}save()});
-$("#edCharges").addEventListener("click",e=>{const b=e.target.closest("[data-delti]");if(!b)return;db.charges.tiers.splice(+b.dataset.delti,1);save();pCharges()});
+$("#edCharges").addEventListener("click",e=>{const b=e.target.closest("[data-delti]");if(!b)return;const t0=db.charges.tiers[+b.dataset.delti];askConfirm({title:"Are you sure you want to remove this vehicle size?",body:`<p class="cfn"><b>${esc(t0&&t0.name)}</b></p><p>Its pickup and delivery charges are deleted.</p>`,onYes:()=>{const i=db.charges.tiers.indexOf(t0);if(i>=0)db.charges.tiers.splice(i,1);save();pCharges()}})});
 $("#saveCharges").addEventListener("click",()=>{db.charges.updated=today();save();toast("Pickup and delivery charges saved")});
 $("#addTier").addEventListener("submit",e=>{e.preventDefault();db.charges.tiers.push({id:"t"+Date.now(),name:$("#atName").value.trim(),cbm:Math.max(0,+$("#atCbm").value||0),r:{}});save();e.target.reset();pCharges()});
 $$("#tierSel .chipbtn").forEach(b=>b.addEventListener("click",()=>{rTier=b.dataset.tier;pressGroup("#tierSel",b);pRates()}));
@@ -6231,7 +6241,7 @@ setInterval(tickEta,1000);
 /* auto-arrive timer: when a challan "In Transit" timer runs out, its bilties become Arrived (with the chosen station) */
 function fmtLeft(iso){const ms=Date.parse(iso)-Date.now();if(!(ms>0))return"0m";const m=Math.ceil(ms/60000),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mm=m%60;return(d?d+"d ":"")+((d||h)?h+"h ":"")+mm+"m"}
 function runDueTimers(){
-  if(typeof me!=="function"||!me())return;
+  if(typeof me!=="function"||!me()||isRO())return;
   const now=Date.now(),iso=new Date().toISOString();let n=0,bf=0;
   (db.challans||[]).forEach(c=>{if(c.auto&&c.status===STATUSES[2]&&Date.parse(c.auto.at)>now)db.bilties.forEach(b=>{if(b.challan&&b.challan.no===c.no&&b.from===c.from&&b.status===2&&b.eta!==c.auto.at){b.eta=c.auto.at;bf++}})});
   if(bf)save();
@@ -6254,10 +6264,10 @@ document.addEventListener("click",e=>{
   const t=e.target.closest("button");if(!t)return;const d=t.dataset;
   if(d.copy){const n=d.copy;try{navigator.clipboard.writeText(n).then(()=>toast(n.length>30?"Copied":"Copied: "+n),()=>toast("Number: "+n))}catch(err){toast("Number: "+n)}}
   else if(d.trackid)goTrack(d.trackid);
-  else if(d.delport!==undefined){db.ports.splice(+d.delport,1);save();pNews()}
-  else if(d.delvsl){db.vessels=db.vessels.filter(v=>v.id!=d.delvsl);save();pNews()}
+  else if(d.delport!==undefined){const p0=db.ports[+d.delport];askConfirm({title:"Are you sure you want to remove this port?",body:`<p class="cfn"><b>${esc(p0&&p0.name)}</b></p><p>It will no longer show on the News & Updates page.</p>`,onYes:()=>{const i=db.ports.indexOf(p0);if(i>=0)db.ports.splice(i,1);save();pNews()}})}
+  else if(d.delvsl){const v0=(db.vessels||[]).find(v=>v.id==d.delvsl);askConfirm({title:"Are you sure you want to remove this vessel?",body:`<p class="cfn"><b>${esc(v0&&v0.name)}</b></p><p>It will be removed from the vessel schedule.</p>`,onYes:()=>{db.vessels=db.vessels.filter(v=>v.id!=d.delvsl);save();pNews()}})}
   else if(d.again){$("#"+d.again+"Done").hidden=true;$(d.again==="bb"?"#bbForm":"#vehForm").hidden=false;prefill();window.scrollTo({top:0})}
-  else if(d.delrole){const r=db.roles.find(x=>x.id===d.delrole);if(db.staff.some(u=>u.role===r.id)){toast(`Move the users with role "${r.name}" to another role first`);return}db.roles=db.roles.filter(x=>x!==r);save();pAdmin();toast(`Role "${r.name}" removed`)}
+  else if(d.delrole){const r=db.roles.find(x=>x.id===d.delrole);if(db.staff.some(u=>u.role===r.id)){toast(`Move the users with role "${r.name}" to another role first`);return}askConfirm({title:"Are you sure you want to remove this role?",body:`<p class="cfn"><b>${esc(r.name)}</b></p><p>Staff can no longer be given this role.</p>`,onYes:()=>{db.roles=db.roles.filter(x=>x!==r);save();pAdmin();toast(`Role "${r.name}" removed`)}})}
   else if(d.uact){const u=db.staff.find(x=>x.user===d.uact);u.active=!u.active;if(activeAdmins()===0){u.active=true;toast("At least one active user must keep admin access");return}save();pAdmin();toast(`${u.name} switched ${u.active?"on":"off"}`)}
   else if(d.udel){const u=db.staff.find(x=>x.user===d.udel);if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Sure? Remove";return}db.staff=db.staff.filter(x=>x!==u);if(activeAdmins()===0){db.staff.push(u);toast("At least one active user must keep admin access");pAdmin();return}save();pAdmin();toast(`User ${u.user} removed`)}
   else if(d.upass){sbRecover(d.upass).then(ok=>toast(ok?"Reset email sent to "+d.upass:"Could not send. Try again later."))}
@@ -6268,7 +6278,7 @@ document.addEventListener("click",e=>{
   else if(d.pdf){const c=clientOf(d.pdf),P=periods[d.ctx];offerPDF(()=>statementPDF(c,P),`KLC-Statement-${c.code}-${today()}.pdf`)}
   else if(d.print){const c=clientOf(d.print),P=periods[d.ctx];if(c)printPDF(()=>statementPDF(c,P))}
   else if(d.rcpt){const p=db.payments.find(x=>x.id===d.rcpt);offerPDF(()=>receiptPDF(p),`KLC-Receipt-${p.id}.pdf`)}
-  else if(d.delpay){db.payments=db.payments.filter(x=>x.id!==d.delpay);save();renderPanel();toast("Payment removed from ledger")}
+  else if(d.delpay){const p0=(db.payments||[]).find(x=>x.id===d.delpay);askConfirm({title:"Are you sure you want to remove this payment?",body:`<p class="cfn"><b>${esc(p0?(p0.id+" · "+rs(p0.amt||p0.amount||0)):d.delpay)}</b></p><p>The customer balance goes up again by this amount.</p>`,onYes:()=>{db.payments=db.payments.filter(x=>x.id!==d.delpay);save();renderPanel();toast("Payment removed from ledger")}})}
   else if(d.acctab){acctTab=d.acctab;acctOpen="";acctShow=true;renderAccount();window.scrollTo({top:0})}
   else if(d.ordopen){acctOpen=d.ordopen;acctShow=true;renderAccount();window.scrollTo({top:0})}
   else if(d.ordback){acctOpen="";renderAccount();window.scrollTo({top:0})}
@@ -6280,10 +6290,10 @@ document.addEventListener("click",e=>{
   else if(d.newpin){const c=clientOf(d.newpin);if(c){c.pin=genPin();delete c.pwh;save();pAcct();toast(`New PIN for ${c.code}: ${c.pin}. Send it to the customer on WhatsApp.`)}}
   else if(d.chpin){const f=$("#accPinForm");if(f){f.hidden=!f.hidden;if(!f.hidden)$("#cpOld").focus()}}
   else if(d.acclogout){acctTab="ledger";acctOpen="";acctShow=false;if(accClient){const k=accClient.code;["bilties","payments","vreqs","lent","invoices","outstanding","clients"].forEach(x=>{db[x]=(db[x]||[]).filter(r=>(r.acct||r.code)!==k)})}accClient=null;$("#accCode").value="";$("#accPhone").value="";$("#accPin").value="";wipeDevice();location.reload();return}
-  else if(d.delin!==undefined){db.inland.rows.splice(+d.delin,1);save();pRates()}
-  else if(d.delsea!==undefined){db.sea.rows.splice(+d.delsea,1);save();pRates()}
+  else if(d.delin!==undefined){const r0=db.inland.rows[+d.delin];askConfirm({title:"Are you sure you want to remove this route?",body:`<p class="cfn"><b>${esc(r0?rname(r0):"")}</b></p><p>Its customer, company and cost rates are deleted.</p>`,onYes:()=>{const i=db.inland.rows.indexOf(r0);if(i>=0)db.inland.rows.splice(i,1);save();pRates()}})}
+  else if(d.delsea!==undefined){const r0=db.sea.rows[+d.delsea];askConfirm({title:"Are you sure you want to remove this rate?",body:`<p class="cfn"><b>${esc(r0?(r0.p+" "+(r0.l||"")):"")}</b></p><p>This sea freight rate is deleted.</p>`,onYes:()=>{const i=db.sea.rows.indexOf(r0);if(i>=0)db.sea.rows.splice(i,1);save();pRates()}})}
   else if(d.delnews){const n0=db.news.find(n=>n.id==d.delnews);askConfirm({title:"Are you sure you want to delete this post?",body:`<p class="cfn"><b>${esc((n0&&n0.title)||"Poster")}</b></p><p>It will be removed from the News & Updates page.</p>`,onYes:()=>{db.news=db.news.filter(n=>n.id!=d.delnews);save();pNews();toast("Post deleted")}})}
-  else if(d.deldir){db.dir=db.dir.filter(n=>n.id!=d.deldir);save();pDir()}
+  else if(d.deldir){const n0=(db.dir||[]).find(n=>n.id==d.deldir);askConfirm({title:"Are you sure you want to remove this listing?",body:`<p class="cfn"><b>${esc(n0&&(n0.name||n0.title))}</b></p><p>It will be removed from the list.</p>`,onYes:()=>{db.dir=db.dir.filter(n=>n.id!=d.deldir);save();pDir()}})}
   else if(d.editdir)sdEdit(d.editdir);
   else if(d.ok){const p=db.pending.find(x=>x.id==d.ok);db.pending=db.pending.filter(x=>x.id!=d.ok);db.dir.push({...p,mobile:p.mobile||normPhone(p.phone||""),addr:p.addr||p.area||"",wa:true});save();renderPanel();toast("Listing approved")}
   else if(d.no){db.pending=db.pending.filter(x=>x.id!=d.no);save();renderPanel();toast("Request rejected")}
@@ -6392,10 +6402,12 @@ async function syncPull(quiet){
     const rows=await r.json();
     if(rows.length){db=Object.assign(seed(),rows[0].data);dbStamp=rows[0].updated_at}
     else{const doc=initialDoc();const c=await fetch(SB_REST,{method:"POST",headers:{...sbH(tok),Prefer:"return=representation"},body:JSON.stringify({id:"db",data:doc})});if(!c.ok)throw new Error("create");const cr=await c.json();db=Object.assign(seed(),doc);dbStamp=cr[0].updated_at}
-    fixStaff();syncOK=true;fixRoles();return true
+    fixStaff();syncOK=true;window.dbClean=JSON.stringify(db);fixRoles();return true
   }catch(e){if(!quiet)toast("Could not reach the online data. Check the internet.");return false}
 }
 function klcPush(){if(!syncOK)return;dirty=true;clearTimeout(pushT);pushT=setTimeout(doPush,1200)}
+let pushWarnAt=0;function pushWarn(){if(Date.now()-pushWarnAt<60000)return;pushWarnAt=Date.now();toast("Not saved online yet. Check the internet and keep this page open, KLC will keep trying.")}
+window.addEventListener("beforeunload",e=>{if(typeof dirty!=="undefined"&&(dirty||pushing)){e.preventDefault();e.returnValue=""}});
 async function doPush(){
   if(pushing){pushT=setTimeout(doPush,800);return}
   if(!dirty)return;const tok=await sbToken();if(!tok)return;pushing=true;dirty=false;
@@ -6403,8 +6415,8 @@ async function doPush(){
     const rows=r.ok?await r.json():null;
     if(rows&&rows.length){dbStamp=rows[0].updated_at}
     else if(rows){toast("Someone else changed the data a moment ago. Latest version loaded, please repeat your last change.");await syncPull(true);renderPanel()}
-    else{dirty=true;pushT=setTimeout(doPush,8000)}
-  }catch(e){dirty=true;pushT=setTimeout(doPush,8000)}finally{pushing=false}
+    else{dirty=true;pushT=setTimeout(doPush,8000);pushWarn()}
+  }catch(e){dirty=true;pushT=setTimeout(doPush,8000);pushWarn()}finally{pushing=false}
 }
 async function syncCheck(){
   if(!syncOK||dirty||pushing||!staffOK)return;const tok=await sbToken();if(!tok)return;
@@ -6757,7 +6769,7 @@ function flQuickPhotoInit(){
       try{const bm=await createImageBitmap(f),k=Math.min(1,1280/Math.max(bm.width,bm.height)),c=document.createElement("canvas");c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);c.getContext("2d").drawImage(bm,0,0,c.width,c.height);const bl=await new Promise(r=>c.toBlob(r,"image/jpeg",.85));if(bl)f=new File([bl],"photo.jpg",{type:"image/jpeg"})}catch(x){}
       const old=FL.docs.filter(q=>q.owner_type===own&&q[own+"_id"]===id&&q.doc_type===type&&q.status==="current");
       const o={id:flNext(FL.docs,"DOC-"),owner_type:own,vehicle_id:own==="vehicle"?id:null,driver_id:own==="driver"?id:null,doc_type:type,verification:"pending",status:"current",created_by:me()?.user||null,updated_by:me()?.user||null};
-      await flReq("fleet_documents",{method:"POST",body:o});
+      await flPostNew("fleet_documents","DOC-",o);
       const p=await flUpload(o.id,f);await flReq("fleet_documents?id=eq."+encodeURIComponent(o.id),{method:"PATCH",body:{file_path:p}});
       for(const q of old)await flReq("fleet_documents?id=eq."+encodeURIComponent(q.id),{method:"PATCH",body:{status:"superseded",updated_by:me()?.user||null}});
       flLog("create","document",o.id,{type});await flRefresh();toast("Photo saved")
