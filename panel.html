@@ -4346,7 +4346,7 @@ function drvDocsHTML(d,docs){
   return `<div class="panel"><div class="ph"><h3>Driver documents (${cur.length})</h3><span class="hint">Photo, CNIC, licence and every other paper, kept here with the original copy.</span></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">${cur.map(q=>{const b=flBucket(q.expiry_date);return `<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);display:grid">${q.file_path&&drvIsImg(q.file_path)?`<img data-ph="${esc(q.file_path)}" alt="${esc(q.doc_type)}" style="width:100%;height:120px;object-fit:cover;background:var(--chip);cursor:zoom-in" data-fl="doc-file" data-id="${esc(q.id)}">`:`<div style="height:120px;display:grid;place-items:center;background:var(--chip);font-size:34px">${q.file_path?"📄":"∅"}</div>`}<div style="padding:8px 10px;display:grid;gap:4px"><b>${esc(q.doc_type)}</b>${q.doc_no?`<small class="hint">${esc(q.doc_no)}</small>`:""}${q.expiry_date?`<span>${flBadge(b.c,b.t)}</span>`:""}<div class="fl-act">${q.file_path?`<button type="button" class="btn ghost sm" data-fl="doc-file" data-id="${esc(q.id)}">View</button>`:'<span class="hint">No file</span>'}<button type="button" class="btn ghost sm" data-tv="drvrenew" data-id="${esc(q.id)}">Renew</button></div></div></div>`}).join("")||'<p class="hint">No document yet. Upload below.</p>'}</div>
   <form class="stform" data-flform="doc" data-drvfolder="${esc(d.id)}" autocomplete="off" style="display:grid;gap:10px;padding:12px;border:1.5px solid var(--accent);border-radius:12px;margin-top:12px"><h3 style="margin:0">${e?"Renew "+esc(e.doc_type):"Upload a document"}</h3>
-  <div class="fl-chips">${["Driver photograph","CNIC front","CNIC back","Driving licence front","Driving licence back"].map(t=>`<button type="button" class="fl-chip" data-tv="drvtype" data-t="${esc(t)}">${t==="Driver photograph"?"📷 ":"🆔 "}${esc(t.replace("Driver photograph","Photo"))}</button>`).join("")}</div>
+  <div class="fl-chips">${["Driver photograph","CNIC","Driving licence"].map(t=>`<button type="button" class="fl-chip" data-tv="drvtype" data-t="${esc(t)}">${t==="Driver photograph"?"📷 ":"🆔 "}${esc(t.replace("Driver photograph","Photo"))}</button>`).join("")}</div>
   <input type="hidden" name="owner_type" value="driver"><input type="hidden" name="driver_id" value="${esc(d.id)}"><input type="hidden" name="vehicle_id" value=""><input type="hidden" name="doc_type_v" value=""><input type="hidden" name="verification" value="pending">
   <div class="fl-fm"><label>Document type *${flSel("doc_type_d",FL_DDOC,e?e.doc_type:"","Choose")}</label>${flIn("doc_no","Number (CNIC / licence no.)","")}${flIn("authority","Issuing authority",e?e.authority:"")}${flIn("issue_date","Issue date","","date")}${flIn("expiry_date","Expiry date","","date")}<label>File (photo or PDF)<input type="file" name="file" accept="application/pdf,image/*"></label>${flIn("remarks","Remarks","")}</div>
   <div class="fl-btns"><button type="submit" class="btn"${FL.busy?" disabled":""}>${e?"Save renewed document":"Upload document"}</button>${e?`<button type="button" class="btn ghost" data-tv="drvrenewno">Cancel renewal</button>`:""}</div></form></div></div>`}
@@ -7041,4 +7041,97 @@ document.addEventListener("click",async e=>{
   $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${rs(amt+disc+tax)} credited to <b>${esc(c.name)}</b> (${esc(c.code)})${disc||tax?` (${rs(amt)} received, ${rs(disc)} discount, ${rs(tax)} tax)`:""}. Receipt ${esc(pay.id)} added to the ledger.${kept?" Original PDF kept with the payment.":""}`;
   toast(`${rs(amt+disc+tax)} credited to ${c.name}`);try{renderImpHist()}catch(x){}
 });
+</script><style id="klc-doc-capture-css">
+.dc{display:grid;gap:8px;grid-column:1/-1}
+.dc-lab input[type=file]{display:none}
+.dc-slot{display:flex;gap:12px;align-items:center;padding:10px;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface)}
+.dc-slot.has{border-style:solid}
+.dc-th{flex:0 0 96px;height:64px;border-radius:8px;overflow:hidden;background:var(--line);display:grid;place-items:center;text-align:center}
+.dc-th img{width:100%;height:100%;object-fit:contain;display:block}
+.dc-ph,.dc-pdf{font-size:11px;color:var(--muted);padding:4px;word-break:break-all}
+.dc-bt{display:grid;gap:6px;min-width:0}
+.dc-bt>div{display:flex;flex-wrap:wrap;gap:6px}
+.dc-box{width:min(580px,100%)!important}
+.dc-stage{position:relative;overflow:hidden;touch-action:none;user-select:none;border-radius:8px;background:#111}
+.dc-stage canvas{display:block}
+.dc-rect{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(20,20,22,.55);cursor:move;touch-action:none}
+.dc-rect i{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.dc-rect i[data-h=nw]{left:-12px;top:-12px;cursor:nwse-resize}.dc-rect i[data-h=ne]{right:-12px;top:-12px;cursor:nesw-resize}
+.dc-rect i[data-h=sw]{left:-12px;bottom:-12px;cursor:nesw-resize}.dc-rect i[data-h=se]{right:-12px;bottom:-12px;cursor:nwse-resize}
+@media(max-width:520px){.dc-slot{flex-direction:column;align-items:stretch}.dc-th{flex-basis:auto;height:120px}}
+</style><script id="klc-doc-capture">
+/* ---------- fleet documents: camera / gallery, front + back sides, crop ---------- */
+(function(){
+const TWO=/^(CNIC|Driving licence|Registration book \/ card)$/i;
+function dcType(f){const ot=f.elements.owner_type&&f.elements.owner_type.value;const s=ot==="vehicle"?f.elements.doc_type_v:f.elements.doc_type_d;return s?s.value:""}
+function loadImg(src){return new Promise((ok,no)=>{const u=typeof src==="string"?src:URL.createObjectURL(src),im=new Image();im.onload=()=>ok(im);im.onerror=()=>no(new Error("img"));im.src=u})}
+/* crop editor: returns a JPEG Blob, or null when cancelled */
+function dcCrop(src){return new Promise(async res=>{
+  let im;try{im=await loadImg(src)}catch(e){toast("This picture could not be opened. Try another one.");res(null);return}
+  let base=document.createElement("canvas");base.width=im.naturalWidth;base.height=im.naturalHeight;base.getContext("2d").drawImage(im,0,0);
+  const ov=document.createElement("div");ov.className="dpe";
+  ov.innerHTML=`<div class="dpe-box dc-box" role="dialog" aria-modal="true" aria-label="Crop picture"><h3>Crop picture</h3><p class="hint">Drag the corners to the edge of the card. Drag inside the box to move it.</p><div class="dc-stage"><canvas></canvas><div class="dc-rect"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div><div class="inline-actions"><button class="btn ghost sm" type="button" data-dc="rot">↻ Rotate</button><button class="btn ghost sm" type="button" data-dc="all">Whole picture</button></div><div class="inline-actions"><button class="btn" type="button" data-dc="ok">Use picture</button><button class="btn ghost" type="button" data-dc="no">Cancel</button></div></div>`;
+  document.body.appendChild(ov);
+  const st=ov.querySelector(".dc-stage"),cv=st.querySelector("canvas"),rc=st.querySelector(".dc-rect");
+  let k=1,R={x:0,y:0,w:0,h:0},dw=0,dh=0;
+  const lay=()=>{const mw=Math.min(window.innerWidth-72,520),mh=Math.min(window.innerHeight-300,520);k=Math.min(mw/base.width,mh/base.height,1);dw=Math.round(base.width*k);dh=Math.round(base.height*k);cv.width=dw*2;cv.height=dh*2;cv.style.width=dw+"px";cv.style.height=dh+"px";st.style.width=dw+"px";st.style.height=dh+"px";const x=cv.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(base,0,0,cv.width,cv.height);const m=Math.round(Math.min(dw,dh)*.04);R={x:m,y:m,w:dw-2*m,h:dh-2*m};put()};
+  const put=()=>{rc.style.left=R.x+"px";rc.style.top=R.y+"px";rc.style.width=R.w+"px";rc.style.height=R.h+"px"};
+  const MIN=40;let dr=null;
+  st.addEventListener("pointerdown",e=>{const h=e.target.dataset&&e.target.dataset.h;if(!h&&!e.target.closest(".dc-rect"))return;e.preventDefault();dr={h:h||"m",x:e.clientX,y:e.clientY,r:{...R}};try{st.setPointerCapture(e.pointerId)}catch(x){}});
+  st.addEventListener("pointermove",e=>{if(!dr)return;const dx=e.clientX-dr.x,dy=e.clientY-dr.y,o=dr.r;let{x,y,w,h}=o;
+    if(dr.h==="m"){x=Math.max(0,Math.min(dw-w,o.x+dx));y=Math.max(0,Math.min(dh-h,o.y+dy))}
+    else{let L=o.x,T=o.y,Rr=o.x+o.w,B=o.y+o.h;if(/w/.test(dr.h))L=Math.max(0,Math.min(Rr-MIN,o.x+dx));if(/e/.test(dr.h))Rr=Math.min(dw,Math.max(L+MIN,Rr+dx));if(/n/.test(dr.h))T=Math.max(0,Math.min(B-MIN,o.y+dy));if(/s/.test(dr.h))B=Math.min(dh,Math.max(T+MIN,B+dy));x=L;y=T;w=Rr-L;h=B-T}
+    R={x,y,w,h};put()});
+  const up=()=>{dr=null};st.addEventListener("pointerup",up);st.addEventListener("pointercancel",up);
+  const rz=()=>lay();window.addEventListener("resize",rz);
+  const done=v=>{window.removeEventListener("resize",rz);document.removeEventListener("keydown",kd);ov.remove();res(v)};
+  const kd=e=>{if(e.key==="Escape")done(null)};document.addEventListener("keydown",kd);
+  ov.addEventListener("click",e=>{const b=e.target.closest("[data-dc]");if(!b)return;const a=b.dataset.dc;
+    if(a==="no")done(null);
+    else if(a==="all"){R={x:0,y:0,w:dw,h:dh};put()}
+    else if(a==="rot"){const c=document.createElement("canvas");c.width=base.height;c.height=base.width;const x=c.getContext("2d");x.translate(c.width,0);x.rotate(Math.PI/2);x.drawImage(base,0,0);base=c;lay()}
+    else if(a==="ok"){const sx=R.x/k,sy=R.y/k,sw=R.w/k,sh=R.h/k,M=1600,s=Math.min(1,M/Math.max(sw,sh)),o=document.createElement("canvas");o.width=Math.round(sw*s);o.height=Math.round(sh*s);const x=o.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,o.width,o.height);x.imageSmoothingQuality="high";x.drawImage(base,sx,sy,sw,sh,0,0,o.width,o.height);o.toBlob(bl=>done(bl),"image/jpeg",.86)}
+  });
+  lay();
+})}
+const pick=(cam,acc)=>new Promise(res=>{const i=document.createElement("input");i.type="file";i.accept=acc;if(cam)i.setAttribute("capture","environment");i.style.cssText="position:fixed;left:-99px;opacity:0";document.body.appendChild(i);i.onchange=()=>{const f=i.files[0];i.remove();res(f||null)};i.addEventListener("cancel",()=>{i.remove();res(null)});i.click()});
+async function joinSides(a,b){const A=await loadImg(a),B=await loadImg(b);const W=Math.min(1600,Math.max(A.naturalWidth,B.naturalWidth)),ha=Math.round(A.naturalHeight*W/A.naturalWidth),hb=Math.round(B.naturalHeight*W/B.naturalWidth),g=24,c=document.createElement("canvas");c.width=W;c.height=ha+hb+g;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.imageSmoothingQuality="high";x.drawImage(A,0,0,W,ha);x.drawImage(B,0,ha+g,W,hb);return new Promise(r=>c.toBlob(r,"image/jpeg",.86))}
+async function sync(f){
+  const S=f._dc,inp=f.elements.file,two=TWO.test(dcType(f));let out=null,nm="document.jpg";const t=(dcType(f)||"document").replace(/[^\w]+/g,"-").toLowerCase();
+  f._dcBusy=true;
+  try{
+    if(two){if(S.front&&S.back){out=await joinSides(S.front,S.back);nm=t+"-front-back.jpg"}else if(S.front||S.back){out=S.front||S.back;nm=t+(S.front?"-front":"-back")+".jpg"}}
+    else if(S.one){out=S.one;nm=S.one.name&&/\.pdf$/i.test(S.one.name)?S.one.name:t+".jpg"}
+    const dt=new DataTransfer();if(out)dt.items.add(out instanceof File?out:new File([out],nm,{type:out.type||"image/jpeg"}));inp.files=dt.files;
+  }catch(e){toast("The picture could not be prepared. Try again.")}
+  f._dcBusy=false}
+function slotHTML(key,label,blob,pdfOk){
+  const th=blob?(blob.type==="application/pdf"?`<span class="dc-pdf">📄 ${esc(blob.name||"PDF")}</span>`:`<img src="${URL.createObjectURL(blob)}" alt="${esc(label)}">`):`<span class="dc-ph">${label}</span>`;
+  return `<div class="dc-slot${blob?" has":""}" data-slot="${key}"><div class="dc-th">${th}</div><div class="dc-bt"><b>${label}</b><div><button type="button" class="btn ghost sm" data-dcs="cam">📷 Camera</button><button type="button" class="btn ghost sm" data-dcs="gal">🖼 ${pdfOk?"Gallery / PDF":"Gallery"}</button>${blob&&blob.type!=="application/pdf"?`<button type="button" class="btn ghost sm" data-dcs="crop">✂ Crop</button>`:""}${blob?`<button type="button" class="btn ghost sm" data-dcs="del" aria-label="Remove">✕</button>`:""}</div></div></div>`}
+function paint(f){
+  const box=f.querySelector(".dc");if(!box)return;const S=f._dc,ty=dcType(f),two=TWO.test(ty);
+  box.innerHTML=two?`<p class="hint" style="margin:0">${esc(ty)}: add the <b>front</b> and the <b>back</b>. Both sides are saved together in one file.</p>${slotHTML("front","Front side",S.front)}${slotHTML("back","Back side",S.back)}`:slotHTML("one",ty?"Picture or PDF":"Picture or PDF",S.one,true);
+}
+function deco(f){
+  if(f.dataset.dc)return;const inp=f.elements.file;if(!inp)return;f.dataset.dc="1";
+  const lab=inp.closest("label");if(lab){lab.classList.add("dc-lab");lab.firstChild&&lab.firstChild.nodeType===3&&(lab.dataset.t=lab.firstChild.nodeValue)}
+  f._dc={front:null,back:null,one:null,src:{}};
+  const box=document.createElement("div");box.className="dc";(lab||inp).insertAdjacentElement("afterend",box);paint(f);
+  f.addEventListener("change",e=>{if(/^(doc_type_[dv]|owner_type)$/.test(e.target.name)){paint(f);sync(f)}});
+  box.addEventListener("click",async e=>{const b=e.target.closest("[data-dcs]");if(!b)return;const key=b.closest("[data-slot]").dataset.slot,a=b.dataset.dcs,S=f._dc;
+    if(a==="del"){S[key]=null;delete S.src[key];paint(f);sync(f);return}
+    let src=S.src[key];
+    if(a==="cam"||a==="gal"){const fl=await pick(a==="cam",key==="one"&&a==="gal"?"image/*,application/pdf":"image/*");if(!fl)return;
+      if(/pdf$/i.test(fl.type)||/\.pdf$/i.test(fl.name)){S[key]=fl;delete S.src[key];paint(f);sync(f);return}
+      if(!/^image\//.test(fl.type)){toast("Choose a photo or a PDF.");return}src=fl}
+    if(!src)return;
+    const out=await dcCrop(src);if(!out){if(a!=="crop"&&!S[key]){S[key]=src;S.src[key]=src;paint(f);sync(f)}return}
+    S.src[key]=src;S[key]=out;paint(f);sync(f)});
+}
+const scan=()=>document.querySelectorAll('form[data-flform="doc"]:not([data-dc])').forEach(deco);
+new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});scan();
+document.addEventListener("click",e=>{if(e.target.closest('[data-tv="drvtype"]'))setTimeout(()=>{const f=document.querySelector("[data-drvfolder]");if(f){paint(f);sync(f)}},0)});
+document.addEventListener("submit",e=>{const f=e.target;if(f.dataset&&f.dataset.dc&&f._dcBusy){e.preventDefault();e.stopImmediatePropagation();toast("The picture is still being prepared. Press again in a second.")}},true);
+window.dcCrop=dcCrop;
+})();
 </script></body></html>
