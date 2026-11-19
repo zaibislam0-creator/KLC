@@ -7134,4 +7134,33 @@ document.addEventListener("click",e=>{if(e.target.closest('[data-tv="drvtype"]')
 document.addEventListener("submit",e=>{const f=e.target;if(f.dataset&&f.dataset.dc&&f._dcBusy){e.preventDefault();e.stopImmediatePropagation();toast("The picture is still being prepared. Press again in a second.")}},true);
 window.dcCrop=dcCrop;
 })();
+</script><script id="klc-doc-capture2">
+/* ---------- Add/Edit driver + vehicle "Fill from PDF": camera, front + back, crop ---------- */
+(function(){
+const pick=(cam,acc)=>new Promise(res=>{const i=document.createElement("input");i.type="file";i.accept=acc;if(cam)i.setAttribute("capture","environment");i.style.cssText="position:fixed;left:-99px;opacity:0";document.body.appendChild(i);i.onchange=()=>{const f=i.files[0];i.remove();res(f||null)};i.addEventListener("cancel",()=>{i.remove();res(null)});i.click()});
+const isPdf=f=>/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name||"");
+function slot(key,label,f){const th=f?(isPdf(f)?`<span class="dc-pdf">📄 ${esc(f.name||"PDF")}</span>`:`<img src="${URL.createObjectURL(f)}" alt="${esc(label)}">`):`<span class="dc-ph">${label}</span>`;
+  return `<div class="dc-slot${f?" has":""}" data-slot="${key}"><div class="dc-th">${th}</div><div class="dc-bt"><b>${label}</b><div><button type="button" class="btn ghost sm" data-dcs="cam">📷 Camera</button><button type="button" class="btn ghost sm" data-dcs="gal">🖼 Gallery / PDF</button>${f&&!isPdf(f)?`<button type="button" class="btn ghost sm" data-dcs="crop">✂ Crop</button>`:""}${f?`<button type="button" class="btn ghost sm" data-dcs="del" aria-label="Remove">✕</button>`:""}</div></div></div>`}
+function deco(inp){
+  if(inp.dataset.dc)return;inp.dataset.dc="1";inp.style.display="none";
+  const S={front:null,back:null,src:{}},box=document.createElement("div");box.className="dc";inp.insertAdjacentElement("afterend",box);
+  const run=()=>{const fs=[S.front,S.back].filter(Boolean);const dt=new DataTransfer();fs.forEach((f,i)=>dt.items.add(f instanceof File?f:new File([f],(inp.dataset.kind||"doc")+(i?"-back":"-front")+".jpg",{type:"image/jpeg"})));inp.files=dt.files;inp.dispatchEvent(new Event("change",{bubbles:true}))};
+  const paint=()=>{const pdf=S.front&&isPdf(S.front);box.innerHTML=slot("front",pdf?"File":"Front side",S.front)+(pdf?"":slot("back","Back side",S.back))+(S.front&&!S.back&&!pdf?`<button type="button" class="btn ghost sm" data-dcs="read" style="justify-self:start">Read front side only</button>`:"")};
+  paint();
+  box.addEventListener("click",async e=>{const b=e.target.closest("[data-dcs]");if(!b)return;e.preventDefault();e.stopPropagation();const a=b.dataset.dcs;
+    if(a==="read"){run();return}
+    const key=b.closest("[data-slot]").dataset.slot;
+    if(a==="del"){S[key]=null;delete S.src[key];paint();if(S.front||S.back)run();return}
+    let src=S.src[key];
+    if(a==="cam"||a==="gal"){const f=await pick(a==="cam",a==="gal"?"image/*,application/pdf":"image/*");if(!f)return;
+      if(isPdf(f)){S.front=f;S.back=null;S.src={};paint();run();return}
+      if(!/^image\//.test(f.type)){toast("Choose a photo or a PDF.");return}src=f;if(S.front&&isPdf(S.front)){S.front=null}}
+    if(!src)return;
+    const out=window.dcCrop?await window.dcCrop(src):null;
+    if(!out){if(a==="crop")return;S[key]=src}else S[key]=out;S.src[key]=src;paint();
+    if(S.front&&S.back)run()});
+}
+const scan=()=>document.querySelectorAll('input.flPdfDrv:not([data-dc]),input.flPdfVeh[data-kind="card"]:not([data-dc])').forEach(deco);
+new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});scan();
+})();
 </script></body></html>
