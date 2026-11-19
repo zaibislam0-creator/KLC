@@ -2302,6 +2302,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
         <button type="button" class="uptab" data-impkind="delivery" aria-pressed="false"><span>🚚</span>Delivery</button>
         <button type="button" class="uptab" data-impkind="bilty" aria-pressed="false"><span>🧾</span>Bilty</button>
         <button type="button" class="uptab" data-impkind="outstanding" aria-pressed="false"><span>💰</span>Outstanding</button>
+        <button type="button" class="uptab" data-impkind="rcp" aria-pressed="false"><span>💵</span>RCP</button>
       </div>
       <p class="hint" id="impHint" style="margin:0"></p>
       <label id="impAcctWrap" hidden>Company account for these bilties<select id="impAcct"></select></label>
@@ -6171,7 +6172,7 @@ $("#impPreview").addEventListener("click",async e=>{
 const dmyToIso=d=>{const [dd,mm,yy]=d.split("/");return new Date(`${yy}-${mm}-${dd}T09:00:00`).toISOString()};
 /* ---------- import history (shown under the upload boxes in the KLC panel) ---------- */
 let lastImpName="",ihType="all",ihQ="";
-const IH_KIND={challan:"Challan",delivery:"Delivery",bilty:"Bilty",outstanding:"Outstanding",ledger:"Ledger"};
+const IH_KIND={challan:"Challan",delivery:"Delivery",bilty:"Bilty",outstanding:"Outstanding",rcp:"RCP",ledger:"Ledger"};
 function implogAdd(kind,total,add,upd,skip){
   try{db.implog=db.implog||[];db.implog.unshift({id:"IL-"+Date.now().toString(36),kind,file:lastImpName||"-",total:total||0,add:add||0,upd:upd||0,skip:skip||0,by:staffName||"",at:new Date().toISOString()});db.implog=db.implog.slice(0,300)}catch(e){console.error("implog",e)}}
 function renderImpHist(){
@@ -6185,9 +6186,9 @@ document.addEventListener("input",e=>{const q=e.target.closest("#ihQ");if(!q)ret
 document.addEventListener("change",e=>{if(e.target.id==="ihT"){ihType=e.target.value;renderImpHist()}});
 
 let impKind="challan";
-const IMPK={challan:{t:"📄 Choose challan PDF",h:"Booking Challan from SmartCargo, saved as PDF. The bilties in it are added to tracking."},delivery:{t:"📄 Choose delivery report PDF",h:"Daily Delivery Report PDF. It marks those bilties Delivered and shows who received them."},outstanding:{t:"📄 Choose outstanding PDF",h:"Customer Outstanding Detail report from SmartCargo (one customer or all customers). Customers see it in My Account and it stays highlighted in red until it is paid."},bilty:{t:"📄 Choose bilty PDF",h:"Bilty (customer copy) PDF. Pick the company account first: the bilties go into that account's ledger, with their details read from the file."}};
-function fillImpAcct(){const el=$("#impAcct");if(!el)return;const cur=el.value;el.innerHTML=`<option value="">Match from the bilty file (account code printed on it)</option>`+(db.clients||[]).map(c=>`<option value="${esc(c.code)}">${esc(c.name)} (${esc(c.code)})</option>`).join("");if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur}
-function setImpKind(k){impKind=k;$$("[data-impkind]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.impkind===k)));const m=IMPK[k];if($("#impDropT"))$("#impDropT").textContent=m.t;if($("#impHint"))$("#impHint").textContent=m.h;if($("#impAcctWrap"))$("#impAcctWrap").hidden=k!=="bilty";if(k==="bilty")fillImpAcct()}
+const IMPK={challan:{t:"📄 Choose challan PDF",h:"Booking Challan from SmartCargo, saved as PDF. The bilties in it are added to tracking."},delivery:{t:"📄 Choose delivery report PDF",h:"Daily Delivery Report PDF. It marks those bilties Delivered and shows who received them."},outstanding:{t:"📄 Choose outstanding PDF",h:"Customer Outstanding Detail report from SmartCargo (one customer or all customers). Customers see it in My Account and it stays highlighted in red until it is paid."},rcp:{t:"📄 Choose RCP PDF",h:"Payment receipt (RCP) from SmartCargo, saved as PDF. Pick the company account first (or let it match from the file): the amount is credited to that account's ledger and its balance goes down."},bilty:{t:"📄 Choose bilty PDF",h:"Bilty (customer copy) PDF. Pick the company account first: the bilties go into that account's ledger, with their details read from the file."}};
+function fillImpAcct(){const el=$("#impAcct");if(!el)return;const cur=el.value;el.innerHTML=`<option value="">Match from the ${impKind==="rcp"?"RCP":"bilty"} file (account code printed on it)</option>`+(db.clients||[]).map(c=>`<option value="${esc(c.code)}">${esc(c.name)} (${esc(c.code)})</option>`).join("");if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur}
+function setImpKind(k){impKind=k;$$("[data-impkind]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.impkind===k)));const m=IMPK[k];if($("#impDropT"))$("#impDropT").textContent=m.t;if($("#impHint"))$("#impHint").textContent=m.h;if($("#impAcctWrap")){$("#impAcctWrap").hidden=k!=="bilty"&&k!=="rcp";const lb=$("#impAcctWrap").firstChild;if(lb&&lb.nodeType===3)lb.nodeValue=k==="rcp"?"Company account for this payment":"Company account for these bilties"}if(k==="bilty"||k==="rcp")fillImpAcct()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-impkind]");if(!b)return;setImpKind(b.dataset.impkind);impData=null;delData=null;invData=null;ledData=null;osData=null;$("#impPreview").innerHTML="";$("#impMsg").textContent="";$("#impFile").value=""});
 async function handleImportFile(f){
   if(!f)return;lastImpName=f.name||"";
@@ -6195,6 +6196,7 @@ async function handleImportFile(f){
   $("#impMsg").textContent="Reading the PDF…";$("#impPreview").innerHTML="";
   try{
     delData=null;const lines=await pdfLines(await f.arrayBuffer());
+    if(impKind==="rcp"){await rcpHandle(lines,f);return}
     {const T=lines.map(l=>l.text).join("\n"),kd=/Customer Outstanding Detail/i.test(T)?"outstanding":/Daily Delivery Report/i.test(T)?"delivery":/LEDGER ACCOUNTING SYSTEM/i.test(T)?"ledger":(/Customer Copy/i.test(T)&&/Bilty No\./i.test(T)&&!/BOOKING CHALLAN/i.test(T))?"bilty":"challan";
       if(kd!=="ledger"&&kd!==impKind){const nm={challan:"Challan",delivery:"Delivery",bilty:"Bilty",outstanding:"Outstanding"};$("#impMsg").innerHTML=`<span style="color:#b42318">This looks like a <b>${nm[kd]}</b> file.</span> Press the <b>${nm[kd]}</b> button above and choose it again.`;$("#impFile").value="";return}}
     if(/Customer Outstanding Detail/i.test(lines.map(l=>l.text).join("\n"))){osData=parseOutstanding(lines);osData.file=f.name;delData=null;ledData=null;invData=null;impData=null;if(!osData.blocks.length)throw new Error("no_rows");$("#impMsg").textContent="";renderOsPreview();return}
@@ -6963,4 +6965,79 @@ const o=window.renderPanel;window.renderPanel=function(){const r=o.apply(this,ar
 <style id="klc-panel-top2">html:not(.fleet-app) #panelBody .kp-head{background:linear-gradient(135deg,#7D1A1F 0%,#4e0f13 100%)!important;border:0!important;border-radius:12px!important;padding:14px 18px!important;margin-bottom:12px!important}html:not(.fleet-app) #panelBody .kp-title{color:#fff!important}html:not(.fleet-app) #panelBody .kp-who,html:not(.fleet-app) #panelBody .kp-date{color:rgba(255,255,255,.82)!important}html:not(.fleet-app) #panelBody .kp-logo{width:42px!important;height:42px!important;background:#fff!important;border-radius:8px!important;padding:3px!important}html:not(.fleet-app) #panelBody .kp-head .btn.ghost{color:#fff!important}html:not(.fleet-app) #panelBody .kp-head .btn.ghost:hover{background:rgba(255,255,255,.14)!important;color:#fff!important}html:not(.fleet-app) #panelBody .kp-head .btn:not(.ghost){background:#fff!important;color:#7D1A1F!important;border:1px solid #fff!important}html:not(.fleet-app) #panelBody .kp-head .btn:not(.ghost):hover{background:#f6e9e9!important}html:not(.fleet-app) #panelBody .kp-bell{color:#fff!important;border-color:rgba(255,255,255,.45)!important}html:not(.fleet-app) #panelBody .kp-bell:hover{background:rgba(255,255,255,.14)!important}html:not(.fleet-app) #panelBody .kp-group:has([data-s^="fleet"]),html:not(.fleet-app) #panelBody .kp-group:not(:has(.chipbtn:not([hidden]))){display:none!important}</style>
 <style id="klc-panel-band">@media(min-width:861px){html:not(.fleet-app) #panelBody .kp-head{background:linear-gradient(90deg,#7D1A1F 0%,#4e0f13 100%) fixed!important;border-radius:12px 12px 0 0!important;margin-bottom:0!important;padding:14px 20px!important}html:not(.fleet-app) #panelBody .kp-layout{margin-top:0!important}html:not(.fleet-app) #panelBody .kp-menu{background:linear-gradient(90deg,#7D1A1F 0%,#4e0f13 100%) fixed!important;border:0!important;border-top:1px solid rgba(255,255,255,.14)!important;border-radius:0!important;margin:0!important;padding:0 14px!important}html:not(.fleet-app) #panelBody .kp-group+.kp-group{border-left-color:rgba(255,255,255,.22)!important}html:not(.fleet-app) #panelBody .kp-menu .chipbtn{color:rgba(255,255,255,.78)!important;min-height:44px!important}html:not(.fleet-app) #panelBody .kp-menu .chipbtn:hover{background:rgba(255,255,255,.09)!important;color:#fff!important}html:not(.fleet-app) #panelBody .kp-menu .chipbtn[aria-pressed="true"]{color:#fff!important;border-bottom-color:#fff!important;background:transparent!important}html:not(.fleet-app) #panelBody .kp-stats{background:linear-gradient(90deg,#7D1A1F 0%,#4e0f13 100%) fixed!important;border:0!important;border-top:1px solid rgba(255,255,255,.14)!important;border-radius:0 0 12px 12px!important;padding:6px 14px 12px!important;margin:0!important;display:grid!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;gap:0!important;overflow:hidden}html:not(.fleet-app) #panelBody .kp-stats .stat{background:transparent!important;box-shadow:none!important;border:0!important;border-left:1px solid rgba(255,255,255,.16)!important;border-radius:0!important;padding:12px 14px!important;color:#fff!important}html:not(.fleet-app) #panelBody .kp-stats .stat:first-child{border-left:0!important}html:not(.fleet-app) #panelBody .kp-stats button.stat:hover{background:rgba(255,255,255,.07)!important}html:not(.fleet-app) #panelBody .kp-stats .stat b{color:#fff!important;font:700 22px/1.15 "Playfair Display",Georgia,serif!important;letter-spacing:0!important}html:not(.fleet-app) #panelBody .kp-stats .stat span{color:rgba(255,255,255,.82)!important}html:not(.fleet-app) #panelBody .kp-stats .stat .stgo{color:#fff!important;font-weight:600!important;text-decoration:underline}}</style>
 <style id="klc-staff-split">#staffTab,[data-go="panel"],[data-v="panel"]{display:none!important}</style><script>try{(function(){var o=window.show;if(typeof o==="function"){window.show=function(v,s){if(v==="panel"){location.replace("/panel");return}return o.apply(this,arguments)}}})()}catch(e){}</script>
-</body></html>
+<script id="klc-rcp-import">
+/* ---------- SmartCargo RCP (payment receipt) import: credits a company ledger ---------- */
+let rcpData=null,rcpFile=null;
+const rcpNum=x=>Math.round(+String(x||"").replace(/,/g,"")||0);
+function parseRcp(lines){
+  const T=lines.map(l=>l.text).join("\n");
+  const g=re=>{const m=T.match(re);return m?String(m[1]).trim():""};
+  const no=g(/\bRCP\s*(?:No\.?|#|Number)?\s*[:\-]?\s*(\d{1,9})\b/i)||g(/(?:Receipt|Voucher)\s*(?:No\.?|#|Number)\s*[:\-]?\s*(\d{1,9})\b/i);
+  const dm=T.match(/(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})/);const date=dm?`${dm[3]}-${dm[2]}-${dm[1]}`:today();
+  let acct=g(/Account\s*(?:Code|No\.?|#)?\s*[:\-]?\s*(\d{2,8})\b/i)||g(/(?:Customer|Party|A\/C)\s*(?:Code|No\.?)\s*[:\-]?\s*(\d{2,8})\b/i);
+  if(!clientOf(acct)){const hits=(db.clients||[]).filter(c=>String(c.code).length>=3&&new RegExp("(^|[^\\d,.])"+String(c.code).replace(/[^\w]/g,"")+"([^\\d,.]|$)").test(T));acct=hits.length===1?hits[0].code:(clientOf(acct)?acct:"")}
+  const pname=g(/(?:Received\s*From|Customer\s*Name|Party\s*Name|Customer|Party)\s*[:\-]\s*([^\n]{3,60})/i);
+  if(!acct&&pname){const c=guessClient(pname);if(c)acct=c.code}
+  let amount=rcpNum(g(/(?:Amount\s*Received|Received\s*Amount|Net\s*Amount|Total\s*Amount|Amount|Total|Credit)\s*(?:Rs\.?|PKR)?\s*[:\-]?\s*(?:Rs\.?|PKR)?\s*([\d,]+(?:\.\d{1,2})?)/i));
+  if(!amount){const ns=(T.match(/\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b/g)||[]).map(rcpNum);if(ns.length)amount=Math.max(...ns)}
+  const disc=rcpNum(g(/Discount\s*(?:Rs\.?)?\s*[:\-]?\s*(?:Rs\.?)?\s*([\d,]+)/i));
+  const tax=rcpNum(g(/(?:W\.?\s*H\.?\s*(?:Tax|T)|Income\s*Tax|Tax\s*Deduct\w*|Tax)\s*(?:Rs\.?)?\s*[:\-]?\s*(?:Rs\.?)?\s*([\d,]+)/i));
+  const chq=g(/Ch(?:e)?q(?:ue)?\s*No\.?\s*[:\-]?\s*([A-Z]{0,3}[-.]?\s*\d{3,})/i).replace(/\s+/g,"");
+  const bank=g(/Bank(?:\s*Name)?\s*[:\-]\s*([A-Za-z][^\n:]{1,40}?)(?=\s{2,}|\s+Ch|\s+Date|\n|$)/i);
+  const method=chq?"Cheque":/\b(online|IBFT|raast|bank\s*transfer|transfer)\b/i.test(T)?"Bank transfer":"Cash";
+  return {no,date,acct,pname,amount,disc,tax,chq,bank,method,raw:T};
+}
+function rcpDup(acct,no){if(!no)return null;return (db.payments||[]).find(p=>p.rcp===no)||(db.lent||[]).find(x=>x.acct===acct&&String(x.ref||"").replace(/\s+/g," ")==="RCP "+no)||null}
+function renderRcpPreview(){
+  const D=rcpData,sel=($("#impAcct")&&$("#impAcct").value)||D.acct||"",ok=!!(D.amount&&clientOf(sel));
+  const opt=(db.clients||[]).map(c=>`<option value="${esc(c.code)}"${c.code===sel?" selected":""}>${esc(c.name)} (${esc(c.code)})</option>`).join("");
+  $("#impPreview").innerHTML=`<div class="panel" style="display:grid;gap:12px" id="rcpBox">
+    <div class="card-head"><h2>RCP ${esc(D.no||"(number not found)")}</h2><span class="pill ${ok?"s4":"s3"}">${ok?"Read from PDF":"Check the details"}</span></div>
+    <p class="hint" style="margin:0">Check the details read from the PDF and correct anything if needed. The total is credited to the company ledger and its balance goes down. The original PDF is kept with the payment.</p>
+    <label>Company account<select id="rcpAcct"><option value="">Choose the company account</option>${opt}</select></label>
+    <div class="row2"><label>RCP number<input id="rcpNo" value="${esc(D.no)}"></label><label>Payment date<input id="rcpDate" type="date" value="${esc(D.date)}" max="${today()}"></label></div>
+    <div class="row2"><label>Amount received (Rs)<input id="rcpAmt" type="number" min="0" step="any" value="${D.amount||""}"></label><label>Payment mode<select id="rcpMode">${MODES.map(m=>`<option${m===D.method?" selected":""}>${m}</option>`).join("")}</select></label></div>
+    <div class="row2"><label>Discount (Rs)<input id="rcpDisc" type="number" min="0" step="any" value="${D.disc||""}" placeholder="0"></label><label>Tax deducted (Rs)<input id="rcpTax" type="number" min="0" step="any" value="${D.tax||""}" placeholder="0"></label></div>
+    <div class="row2"><label>Cheque / txn number<input id="rcpChq" value="${esc(D.chq)}"></label><label>Bank name<input id="rcpBank" value="${esc(D.bank)}"></label></div>
+    <p class="hint" id="rcpWarn" style="margin:0"></p>
+    <details><summary class="hint" style="cursor:pointer">Text read from the PDF</summary><pre style="white-space:pre-wrap;font-size:12px;max-height:220px;overflow:auto;margin:8px 0 0">${esc(D.raw.slice(0,3000))}</pre></details>
+    <div class="inline-actions"><button class="btn" type="button" id="rcpGo"></button><button class="btn ghost" type="button" id="rcpCancel">Cancel</button></div></div>`;
+  rcpRefresh();
+}
+function rcpRefresh(){
+  const b=$("#rcpGo");if(!b)return;const a=rcpNum($("#rcpAmt").value),d=rcpNum($("#rcpDisc").value),t=rcpNum($("#rcpTax").value),ac=$("#rcpAcct").value,no=$("#rcpNo").value.trim(),c=clientOf(ac);
+  b.textContent=`Credit ${rs(a+d+t)} to ledger`;
+  const dup=c&&rcpDup(c.code,no),w=$("#rcpWarn");
+  w.innerHTML=!ac?'<span style="color:#b42318">Choose the company account.</span>':dup?`<span style="color:#b42318">RCP ${esc(no)} is already in the ledger${dup.id?` (${esc(dup.id)})`:""}. It will not be added twice.</span>`:c?`Goes to <b>${esc(c.name)}</b> (${esc(c.code)}).`:"";
+  b.disabled=!c||a+d+t<=0||!!dup;
+}
+function rcpReset(){rcpData=null;rcpFile=null;const p=$("#impPreview");if(p)p.innerHTML="";const f=$("#impFile");if(f)f.value=""}
+async function rcpHandle(lines,f){
+  const T=lines.map(l=>l.text).join("\n");
+  const kd=/Customer Outstanding Detail/i.test(T)?"Outstanding":/Daily Delivery Report/i.test(T)?"Delivery":/BOOKING CHALLAN/i.test(T)?"Challan":(/Customer Copy/i.test(T)&&/Bilty No\./i.test(T))?"Bilty":/LEDGER ACCOUNTING SYSTEM/i.test(T)?"Ledger":"";
+  if(kd){$("#impMsg").innerHTML=`<span style="color:#b42318">This looks like a <b>${kd}</b> file, not an RCP.</span>${kd==="Ledger"?"":` Press the <b>${kd}</b> button above and choose it again.`}`;$("#impFile").value="";return}
+  if(!T.trim())throw new Error("no_rows");
+  rcpData=parseRcp(lines);rcpFile=f;$("#impMsg").textContent="";renderRcpPreview();
+}
+document.addEventListener("input",e=>{if(/^rcp(Amt|Disc|Tax|No)$/.test(e.target.id))rcpRefresh()});
+document.addEventListener("change",e=>{if(e.target.id==="rcpAcct")rcpRefresh();if(e.target.id==="impAcct"&&impKind==="rcp"&&$("#rcpAcct")){$("#rcpAcct").value=e.target.value;rcpRefresh()}});
+document.addEventListener("click",async e=>{
+  if(e.target.closest("[data-impkind]")){rcpReset();return}
+  if(e.target.closest("#rcpCancel")){rcpReset();$("#impMsg").textContent="";return}
+  const go=e.target.closest("#rcpGo");if(!go||!rcpData)return;
+  const c=clientOf($("#rcpAcct").value);if(!c){toast("Choose the company account");return}
+  const amt=rcpNum($("#rcpAmt").value),disc=rcpNum($("#rcpDisc").value),tax=rcpNum($("#rcpTax").value),no=$("#rcpNo").value.trim();
+  if(amt+disc+tax<=0){toast("Enter the amount received");return}
+  if(rcpDup(c.code,no)){toast(`RCP ${no} is already in the ledger`);rcpRefresh();return}
+  go.disabled=true;
+  const m=$("#rcpMode").value,chq=$("#rcpChq").value.trim(),bank=$("#rcpBank").value.trim(),dv=$("#rcpDate").value||today();
+  const pay={acct:c.code,at:new Date().toISOString(),date:new Date(dv+"T12:00:00").toISOString(),amount:amt,method:m,by:staffName||"KLC",note:`SmartCargo RCP${no?" "+no:""}`,rcp:no||undefined,src:"rcp"};
+  if(disc>0)pay.disc=disc;if(tax>0)pay.tax=tax;
+  if(m==="Cheque"){pay.chq=chq;pay.bank=bank;pay.chqStatus="Cleared"}else if(m==="Bank transfer"){pay.bank=bank;pay.txn=chq}else if(m==="Online"){pay.txn=chq}
+  let kept=false;if(rcpFile){const r=await readProof(rcpFile);if(r){pay.file=r.file;pay.fname=r.fname;kept=true}}
+  db.payments=db.payments||[];pay.id=nextNum(db.payments,"RCPT-",1000);db.payments.push(pay);
+  implogAdd("rcp",1,1,0,0);save();rcpReset();
+  $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${rs(amt+disc+tax)} credited to <b>${esc(c.name)}</b> (${esc(c.code)})${disc||tax?` (${rs(amt)} received, ${rs(disc)} discount, ${rs(tax)} tax)`:""}. Receipt ${esc(pay.id)} added to the ledger.${kept?" Original PDF kept with the payment.":""}`;
+  toast(`${rs(amt+disc+tax)} credited to ${c.name}`);try{renderImpHist()}catch(x){}
+});
+</script></body></html>
