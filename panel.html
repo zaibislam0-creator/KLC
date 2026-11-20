@@ -3139,7 +3139,7 @@ function openTrack(){show("track",true);$("#results").innerHTML="";$("#v-track")
 const BILTY_SAY=[(b)=>`Booked at the ${b.from} office. It will leave soon.`,(b)=>`Left ${b.from}. On its way to ${b.to}.`,(b)=>`On the way to ${b.to}.`,(b)=>b.arrival?.place?`Your goods have reached ${b.arrival.place}.`:`Your goods have reached the ${b.to} office.`,(b)=>b.deliv&&b.deliv.name?`Delivered${b.deliv.day?" on "+fmtDay(b.deliv.day):""}. Received by ${b.deliv.name}.`:`Delivered.`];
 const BILTY_IC=["📦","🚚","🚚","🏢","✅"];
 function biltyCard(b){
-  const steps=STATUSES.map((s,i)=>`<div class="step ${i<b.status?"done":i===b.status?"now":""}"><div class="dot"></div>${s}<small>${b.hist[i]?fmt(b.hist[i]):"—"}</small></div>`).join("");
+  const steps=STATUSES.map((s,i)=>`<div class="step ${i<b.status?"done":i===b.status?"now":""}"><div class="dot"></div>${s}<small>${b.hist[i]&&(i>=b.status||b.hist[i]!==b.hist[i+1])?fmt(b.hist[i]):"—"}</small></div>`).join("");
   const a=b.arrival&&b.status>=3?b.arrival:null;
   const ph=a?.phone||"",who=a?.contact||"",wa=ph?`92${ph.slice(1)}`:"923006166561";
   const waText=encodeURIComponent(`Assalam o Alaikum. I am asking about bilty ${b.id} (${b.from} to ${b.to}).`);
@@ -3202,7 +3202,7 @@ async function track(q){
   $("#v-track").classList.add("focus","hasres","resonly");
   const back=`<div class="trackbar"><button class="tb-back" type="button" data-trackback="1" aria-label="Back to tracking">← Back</button><b style="font-family:var(--display);font-size:18px">Tracking result</b></div>`;
   out.innerHTML=back+'<div class="panel empty"><p>Checking…</p></div>';
-  const bl=await trackBilties(q);
+  let bl=await trackBilties(q);{const dq=q.replace(/[^\d]/g,"");if(bl&&!bl.length&&dq.length>=4&&dq!==q)bl=await trackBilties(dq)}
   if(bl===null){out.innerHTML=back+'<div class="panel empty"><h3>Could not check right now</h3><p>No internet, or the server is busy. Try again in a minute, or ask us on WhatsApp: 0300-6166561.</p></div>';return}
   if(!bl.length){out.innerHTML=back+`<div class="panel empty"><h3>No bilty found for "${esc(q)}"</h3><p>Check the number on your bilty slip and try again, for example 151090. Only bilty numbers work here. Still not found? Ask us on WhatsApp.</p><p><a class="btn sm wa" href="https://wa.me/923006166561?text=${encodeURIComponent(`Assalam o Alaikum. I cannot find my bilty ${q} on the website. Please help.`)}" target="_blank" rel="noopener">Ask on WhatsApp</a></p></div>`;return}
   bl.sort((a,b)=>a.status-b.status);
@@ -4033,7 +4033,7 @@ function pFleetDash(){
     const item=x=>`<div class="fl-it ${x.c==="e"?"e":x.c==="w"?"w":"n"}"><div class="fl-it-t"><b>${esc(x.t)}</b><small>${esc(x.s)}</small></div>${act(x)}</div>`;
     const shown=FL.todoAll?todo:todo.slice(0,4);
     const body=todo.length?`<div class="fl-its">${shown.map(item).join("")}</div>${todo.length>4?`<button type="button" class="fl-more" data-fl="todo-all">${FL.todoAll?"Show fewer":"Show all "+todo.length+" alerts"}</button>`:""}`:`<p class="fl-ok"><i></i><b>All good.</b> Nothing is expired, overdue or missing right now.</p>`;
-    return `<section class="fl-strip2"><div class="fl-sh"><div class="fl-st"><h3>Needs attention</h3><small>${todo.length?todoTotal+" item"+(todoTotal===1?"":"s")+" · most urgent first":"Everything is in order"}</small></div><div class="fl-pls">${pill(cE,"overdue","e")}${pill(cW,"due soon","w")}${pill(cN,"to review","n")}</div></div>${body}${FL.todoAll||!todo.length?oldHTML+moreHint:""}</section>`})();
+    return `<section class="fl-strip2"><div class="fl-sh"><div class="fl-st"><h3>Needs attention</h3><small>${todo.length?todoTotal+" item"+(todoTotal===1?"":"s")+" · most urgent first":"Everything is in order"}</small></div><div class="fl-pls">${pill(cE,"urgent","e")}${pill(cW,"due soon","w")}${pill(cN,"to review","n")}</div></div>${body}${FL.todoAll||!todo.length?oldHTML+moreHint:""}</section>`})();
   const vcards=perf.length?perf.map(r=>{const dr=FL.vd.filter(a=>a.vehicle_id===r.v.id&&!a.to_date).map(a=>flDLabel(a.driver_id)).join(", "),sub=[[r.v.name,r.v.category].filter(Boolean).join(" · "),dr].filter(Boolean).join(" · ");
     return `<div class="fl-vc"><div class="fl-vc-h"><div class="fl-vc-n"><b>${esc(r.v.reg_no)}${r.v.archived?" (archived)":""}</b><small class="hint">${esc(sub||"-")}</small></div>${flVStatusBadge(r.v.status)}<div class="fl-vc-s"><small>Trips</small><b>${r.x.n}</b></div><div class="fl-vc-s"><small>Profit</small><b style="color:${r.net<0?"var(--accent)":"var(--teal)"}">${tvM(r.net)}</b></div>${go(r.v.id,"Open")}</div>${r.L&&r.L.length?`<div class="fl-vc-t">${r.L.map(q=>{const pf=tvSum(q.inc)-tvSum(q.exp)-tvMaint(q);return `<span class="fl-tc">${esc(flFmtD(q.date))} · ${esc(q.from||"-")} → ${esc(q.to||"-")} · <b>${tvM(pf)}</b></span>`}).join("")}</div>`:""}</div>`}).join(""):`<p class="hint" style="margin:0">No trip voucher for the chosen month yet. Open a vehicle folder and press New trip voucher.</p>`;
   const mp=`<label class="fl-mp">Month <input type="month" value="${dm}" max="${cm}" onchange="FL.dashMonth=this.value;renderPanel()" style="width:auto"></label>${dm!==cm?` <button type="button" class="btn ghost sm" onclick="FL.dashMonth='';renderPanel()">This month</button>`:""}`;
@@ -4377,7 +4377,7 @@ document.addEventListener("click",async ev=>{
       if(!have){box.insertAdjacentHTML("beforeend",tvRowHTML(k,{l:nm}));const ai=box.lastElementChild.querySelector("[data-tva]");if(ai)ai.focus()}
       hb.outerHTML=tvHeadBox(k);return}
     return}
-  if(a==="drvrep"){FL.drvRep=id;FL.mode.drv="report";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
+  if(a==="drvrep"){FL.drvRep=id;FL.mode.drv="report";if(sub!=="fleetdrv")sub="fleetdrv";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
   if(a==="drvrenew"){const q=FL.docs.find(x=>x.id===id);if(q){FL.edit={...q,renew:true};renderPanel()}return}
   if(a==="drvrenewno"){FL.edit=null;renderPanel();return}
   if(a==="drvtype"){const f=document.querySelector("[data-drvfolder]");if(f){f.elements.doc_type_d.value=b.dataset.t;f.elements.file.focus();f.scrollIntoView({behavior:"smooth",block:"center"})}return}
@@ -4744,7 +4744,7 @@ document.addEventListener("click",async ev=>{
    if(a==="godrv"){FL.vehScan=null;FL.drvScan=null;const m=document.querySelector('.kp-menu [data-s="fleetdrv"]');if(m)m.click();FL.edit=null;FL.mode.drv="form";renderPanel();return}
    if(a==="veh-new"){FL.vehScan=null;FL.drvScan=null;FL.edit=null;FL.mode.veh="form";renderPanel();return}
   if(a==="veh-edit"){FL.vehScan=null;FL.drvScan=null;FL.edit=flVeh(id);FL.mode.veh="form";renderPanel();return}
-  if(a==="veh-folder"){FL.fsec="details";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.edit=null;FL.folder=id;FL.mode.veh="folder";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
+  if(a==="veh-folder"){if(sub!=="fleetveh")sub="fleetveh";FL.fsec="details";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.edit=null;FL.folder=id;FL.mode.veh="folder";renderPanel();window.scrollTo({top:0,behavior:"auto"});return}
   if(a==="folder-renew"){FL.edit={...FL.docs.find(x=>x.id===id),renew:true};renderPanel();return}
   if(a==="folder-back"){FL.edit=null;renderPanel();return}
   if(a==="veh-arch"){FL.ask="v:"+id;renderPanel();return}
@@ -6485,7 +6485,7 @@ async function renderVisits(force){
   const tile=$("#visTile");if(tile)tile.textContent=s.t.v;
 }
 $("#visitsRefresh").addEventListener("click",()=>renderVisits(true));
-const sbGet=()=>{try{return JSON.parse(sessionStorage.getItem("klc-sb")||"null")}catch(e){return null}};
+const sbGet=()=>{try{const s=JSON.parse(sessionStorage.getItem("klc-sb")||"null");if(s&&localStorage.getItem("klc-keep")==="1"){const l=JSON.parse(localStorage.getItem("klc-sb")||"null"),sub=t=>{try{return JSON.parse(atob(String(t).split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).sub}catch(e){return null}};if(l&&l.refresh_token&&sub(l.access_token)&&sub(l.access_token)===sub(s.access_token))return l}return s}catch(e){return null}};
 const sbSet=d=>{try{d?sessionStorage.setItem("klc-sb",JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+(d.expires_in||3600)})):sessionStorage.removeItem("klc-sb")}catch(e){}try{if(!d)localStorage.removeItem("klc-sb");else if(localStorage.getItem("klc-keep")==="1")localStorage.setItem("klc-sb",sessionStorage.getItem("klc-sb"))}catch(e){}};
 async function sbToken(){const x=sbGet();if(!x)return null;if(x.expires_at-60>Date.now()/1000)return x.access_token;
   try{const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:sbH(),body:JSON.stringify({refresh_token:x.refresh_token})});if(!r.ok)return null;const d=await r.json();sbSet(d);return d.access_token}catch(e){return null}}
