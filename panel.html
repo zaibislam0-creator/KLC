@@ -6486,7 +6486,7 @@ async function renderVisits(force){
 }
 $("#visitsRefresh").addEventListener("click",()=>renderVisits(true));
 const sbGet=()=>{try{return JSON.parse(sessionStorage.getItem("klc-sb")||"null")}catch(e){return null}};
-const sbSet=d=>{try{d?sessionStorage.setItem("klc-sb",JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+(d.expires_in||3600)})):sessionStorage.removeItem("klc-sb")}catch(e){}};
+const sbSet=d=>{try{d?sessionStorage.setItem("klc-sb",JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at||Math.floor(Date.now()/1000)+(d.expires_in||3600)})):sessionStorage.removeItem("klc-sb")}catch(e){}try{if(!d)localStorage.removeItem("klc-sb");else if(localStorage.getItem("klc-keep")==="1")localStorage.setItem("klc-sb",sessionStorage.getItem("klc-sb"))}catch(e){}};
 async function sbToken(){const x=sbGet();if(!x)return null;if(x.expires_at-60>Date.now()/1000)return x.access_token;
   try{const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:sbH(),body:JSON.stringify({refresh_token:x.refresh_token})});if(!r.ok)return null;const d=await r.json();sbSet(d);return d.access_token}catch(e){return null}}
 async function sbRecover(email){try{const r=await fetch(SB_URL+"/auth/v1/recover?redirect_to="+encodeURIComponent(location.origin+location.pathname),{method:"POST",headers:sbH(),body:JSON.stringify({email:String(email).trim().toLowerCase()})});return r.ok}catch(e){return false}}
@@ -7065,35 +7065,112 @@ document.addEventListener("click",async e=>{
 const TWO=/^(CNIC|Driving licence|Registration book \/ card)$/i;
 function dcType(f){const ot=f.elements.owner_type&&f.elements.owner_type.value;const s=ot==="vehicle"?f.elements.doc_type_v:f.elements.doc_type_d;return s?s.value:""}
 function loadImg(src){return new Promise((ok,no)=>{const u=typeof src==="string"?src:URL.createObjectURL(src),im=new Image();im.onload=()=>ok(im);im.onerror=()=>no(new Error("img"));im.src=u})}
-/* crop editor: returns a JPEG Blob, or null when cancelled */
-function dcCrop(src){return new Promise(async res=>{
+/* crop editor v2 (20 Nov): 4 free corners straighten a tilted photo, straight-box mode for photos, magnifier, rotate both ways, Clear / B&W look. Returns a JPEG Blob, or null when cancelled */
+function dcCrop(src,opt){opt=opt||{};return new Promise(async res=>{
   let im;try{im=await loadImg(src)}catch(e){toast("This picture could not be opened. Try another one.");res(null);return}
-  let base=document.createElement("canvas");base.width=im.naturalWidth;base.height=im.naturalHeight;base.getContext("2d").drawImage(im,0,0);
-  const ov=document.createElement("div");ov.className="dpe";
-  ov.innerHTML=`<div class="dpe-box dc-box" role="dialog" aria-modal="true" aria-label="Crop picture"><h3>Crop picture</h3><p class="hint">Drag the corners to the edge of the card. Drag inside the box to move it.</p><div class="dc-stage"><canvas></canvas><div class="dc-rect"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div><div class="inline-actions"><button class="btn ghost sm" type="button" data-dc="rot">↻ Rotate</button><button class="btn ghost sm" type="button" data-dc="all">Whole picture</button></div><div class="inline-actions"><button class="btn" type="button" data-dc="ok">Use picture</button><button class="btn ghost" type="button" data-dc="no">Cancel</button></div></div>`;
+  const MAXB=2400;let base=document.createElement("canvas");{const s0=Math.min(1,MAXB/Math.max(im.naturalWidth,im.naturalHeight));base.width=Math.max(1,Math.round(im.naturalWidth*s0));base.height=Math.max(1,Math.round(im.naturalHeight*s0));const x=base.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(im,0,0,base.width,base.height)}
+  let mode=opt.mode==="box"?"box":"doc",look="orig";
+  const ov=document.createElement("div");ov.className="dpe dc-ov";
+  ov.innerHTML=`<div class="dpe-box dc-box" role="dialog" aria-modal="true" aria-label="Crop picture">
+<div class="dc-top"><h3>Crop picture</h3><button class="dc-x" type="button" data-dc="no" aria-label="Close">✕</button></div>
+<div class="dc-seg" role="group" aria-label="Crop type"><button type="button" data-md="doc">◇ Card / paper</button><button type="button" data-md="box">▭ Straight box</button></div>
+<p class="hint dc-tip"></p>
+<div class="dc-stage"><canvas class="dc-img"></canvas><svg class="dc-shade" aria-hidden="true"><path fill-rule="evenodd"/><polygon/></svg>${[0,1,2,3].map(n=>`<i class="dc-h" data-h="${n}" tabindex="0" role="slider" aria-label="${["Top left","Top right","Bottom right","Bottom left"][n]} corner"></i>`).join("")}${[0,1,2,3].map(n=>`<b class="dc-e" data-e="${n}"></b>`).join("")}<canvas class="dc-loupe" width="240" height="240" hidden></canvas></div>
+<div class="dc-tools"><button type="button" class="btn ghost sm" data-dc="rl" aria-label="Rotate left">↺</button><button type="button" class="btn ghost sm" data-dc="rr" aria-label="Rotate right">↻</button><button type="button" class="btn ghost sm" data-dc="all">⛶ Whole picture</button></div>
+<div class="dc-seg dc-look" role="group" aria-label="Look"><button type="button" data-lk="orig">Original</button><button type="button" data-lk="clear">✨ Clear</button><button type="button" data-lk="bw">Black &amp; white</button></div>
+<div class="dc-act"><button class="btn" type="button" data-dc="ok">✓ Use picture</button><button class="btn ghost" type="button" data-dc="no">Cancel</button></div></div>`;
   document.body.appendChild(ov);
-  const st=ov.querySelector(".dc-stage"),cv=st.querySelector("canvas"),rc=st.querySelector(".dc-rect");
-  let k=1,R={x:0,y:0,w:0,h:0},dw=0,dh=0;
-  const lay=()=>{const mw=Math.min(window.innerWidth-72,520),mh=Math.min(window.innerHeight-300,520);k=Math.min(mw/base.width,mh/base.height,1);dw=Math.round(base.width*k);dh=Math.round(base.height*k);cv.width=dw*2;cv.height=dh*2;cv.style.width=dw+"px";cv.style.height=dh+"px";st.style.width=dw+"px";st.style.height=dh+"px";const x=cv.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(base,0,0,cv.width,cv.height);const m=Math.round(Math.min(dw,dh)*.04);R={x:m,y:m,w:dw-2*m,h:dh-2*m};put()};
-  const put=()=>{rc.style.left=R.x+"px";rc.style.top=R.y+"px";rc.style.width=R.w+"px";rc.style.height=R.h+"px"};
-  const MIN=40;let dr=null;
-  st.addEventListener("pointerdown",e=>{const h=e.target.dataset&&e.target.dataset.h;if(!h&&!e.target.closest(".dc-rect"))return;e.preventDefault();dr={h:h||"m",x:e.clientX,y:e.clientY,r:{...R}};try{st.setPointerCapture(e.pointerId)}catch(x){}});
-  st.addEventListener("pointermove",e=>{if(!dr)return;const dx=e.clientX-dr.x,dy=e.clientY-dr.y,o=dr.r;let{x,y,w,h}=o;
-    if(dr.h==="m"){x=Math.max(0,Math.min(dw-w,o.x+dx));y=Math.max(0,Math.min(dh-h,o.y+dy))}
-    else{let L=o.x,T=o.y,Rr=o.x+o.w,B=o.y+o.h;if(/w/.test(dr.h))L=Math.max(0,Math.min(Rr-MIN,o.x+dx));if(/e/.test(dr.h))Rr=Math.min(dw,Math.max(L+MIN,Rr+dx));if(/n/.test(dr.h))T=Math.max(0,Math.min(B-MIN,o.y+dy));if(/s/.test(dr.h))B=Math.min(dh,Math.max(T+MIN,B+dy));x=L;y=T;w=Rr-L;h=B-T}
-    R={x,y,w,h};put()});
-  const up=()=>{dr=null};st.addEventListener("pointerup",up);st.addEventListener("pointercancel",up);
+  const box=ov.querySelector(".dc-box"),st=ov.querySelector(".dc-stage"),cv=st.querySelector(".dc-img"),sv=st.querySelector(".dc-shade"),sp=sv.querySelector("path"),pg=sv.querySelector("polygon"),HS=[...st.querySelectorAll(".dc-h")],ES=[...st.querySelectorAll(".dc-e")],lp=st.querySelector(".dc-loupe"),tip=ov.querySelector(".dc-tip");
+  let k=1,dw=0,dh=0,P=[];/* P = 4 corners in base pixels: TL, TR, BR, BL */
+  const W=()=>base.width,H=()=>base.height;
+  const inset=()=>{const m=Math.round(Math.min(W(),H())*.05);P=[[m,m],[W()-m,m],[W()-m,H()-m],[m,H()-m]]};
+  const seg=()=>{ov.querySelectorAll("[data-md]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.md===mode));ov.querySelectorAll("[data-lk]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lk===look));
+    tip.textContent=mode==="doc"?"Put the 4 round corners on the 4 corners of the card or paper. A tilted photo is made straight by itself.":"Drag the corners or the sides of the box. Drag inside the box to move it."};
+  const toBox=()=>{const xs=P.map(p=>p[0]),ys=P.map(p=>p[1]),l=Math.min(...xs),r=Math.max(...xs),t=Math.min(...ys),b=Math.max(...ys);P=[[l,t],[r,t],[r,b],[l,b]]};
+  const paintImg=()=>{const x=cv.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(base,0,0,cv.width,cv.height);if(look!=="orig"){const d=x.getImageData(0,0,cv.width,cv.height);fx(d,look);x.putImageData(d,0,0)}};
+  const lay=()=>{st.style.width="0px";st.style.height="0px";const cs=getComputedStyle(box),pw=box.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight)-24,extra=box.offsetHeight;
+    const mw=Math.max(160,pw),mh=Math.max(170,window.innerHeight-extra-48);k=Math.min(mw/W(),mh/H());dw=Math.round(W()*k);dh=Math.round(H()*k);
+    const dpr=Math.min(2,window.devicePixelRatio||1);cv.width=Math.round(dw*dpr);cv.height=Math.round(dh*dpr);cv.style.width=dw+"px";cv.style.height=dh+"px";st.style.width=dw+"px";st.style.height=dh+"px";
+    sv.setAttribute("width",dw);sv.setAttribute("height",dh);sv.setAttribute("viewBox",`0 0 ${dw} ${dh}`);paintImg();put()};
+  const put=()=>{const D=P.map(p=>[p[0]*k,p[1]*k]);
+    sp.setAttribute("d",`M0 0H${dw}V${dh}H0Z M${D.map(p=>p.join(" ")).join(" L")}Z`);pg.setAttribute("points",D.map(p=>p.join(",")).join(" "));
+    HS.forEach((h,i)=>{h.style.left=D[i][0]+"px";h.style.top=D[i][1]+"px"});
+    ES.forEach((e,i)=>{const a=D[i],b=D[(i+1)%4];e.style.left=(a[0]+b[0])/2+"px";e.style.top=(a[1]+b[1])/2+"px";e.classList.toggle("v",i%2===1)})};
+  const cl=(v,m)=>Math.max(0,Math.min(m,v));
+  const convex=Q=>{let s=0;for(let i=0;i<4;i++){const a=Q[i],b=Q[(i+1)%4],c=Q[(i+2)%4],z=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);if(Math.abs(z)<1)return false;const g=Math.sign(z);if(s&&g!==s)return false;s=g}return true};
+  const mn=()=>24/Math.max(k,.01);
+  function moveH(i,x,y){x=cl(x,W());y=cl(y,H());
+    if(mode==="box"){const o=(i+2)%4,ox=P[o][0],oy=P[o][1];if(Math.abs(x-ox)<mn()||Math.abs(y-oy)<mn())return;const l=Math.min(x,ox),r=Math.max(x,ox),t=Math.min(y,oy),b=Math.max(y,oy);P=[[l,t],[r,t],[r,b],[l,b]];return}
+    const Q=P.map(p=>p.slice());Q[i]=[x,y];if(convex(Q)&&Math.hypot(x-Q[(i+1)%4][0],y-Q[(i+1)%4][1])>mn()&&Math.hypot(x-Q[(i+3)%4][0],y-Q[(i+3)%4][1])>mn())P=Q}
+  function moveE(i,dx,dy,o){const a=i,b=(i+1)%4;let Q=o.map(p=>p.slice());
+    if(mode==="box"){if(i%2===0)dx=0;else dy=0}
+    Q[a]=[cl(o[a][0]+dx,W()),cl(o[a][1]+dy,H())];Q[b]=[cl(o[b][0]+dx,W()),cl(o[b][1]+dy,H())];if(convex(Q))P=Q}
+  function loupe(cx,cy,show){if(!show){lp.hidden=true;return}lp.hidden=false;const Z=3,S=120,r=S/2/(k*Z),x=lp.getContext("2d");
+    x.save();x.clearRect(0,0,240,240);x.scale(2,2);x.beginPath();x.arc(60,60,58,0,7);x.clip();x.fillStyle="#111";x.fillRect(0,0,S,S);x.imageSmoothingEnabled=true;x.drawImage(base,cx-r,cy-r,2*r,2*r,0,0,S,S);
+    x.strokeStyle="#e53540";x.lineWidth=1.5;x.beginPath();x.moveTo(60,46);x.lineTo(60,74);x.moveTo(46,60);x.lineTo(74,60);x.stroke();x.restore();
+    const px=cx*k,py=cy*k;let lx=px-60,ly=py-150;if(ly<-40)ly=py+40;lx=Math.max(-20,Math.min(dw-100,lx));lp.style.left=lx+"px";lp.style.top=ly+"px"}
+  let dr=null;
+  const pos=e=>{const r=st.getBoundingClientRect();return[(e.clientX-r.left)/k,(e.clientY-r.top)/k]};
+  const inside=(x,y)=>{let c=false;for(let i=0,j=3;i<4;j=i++){const a=P[i],b=P[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c};
+  st.addEventListener("pointerdown",e=>{const t=e.target,[x,y]=pos(e);let d=null;
+    if(t.dataset&&t.dataset.h!==undefined)d={t:"h",i:+t.dataset.h,ox:P[+t.dataset.h][0]-x,oy:P[+t.dataset.h][1]-y};
+    else if(t.dataset&&t.dataset.e!==undefined)d={t:"e",i:+t.dataset.e,x,y,o:P.map(p=>p.slice())};
+    else if(inside(x,y))d={t:"m",x,y,o:P.map(p=>p.slice())};
+    else{/* tap outside the box: pull the nearest corner there */let bi=0,bd=1e9;P.forEach((p,i)=>{const q=Math.hypot(p[0]-x,p[1]-y);if(q<bd){bd=q;bi=i}});d={t:"h",i:bi,ox:0,oy:0};moveH(bi,x,y);put()}
+    e.preventDefault();dr=d;try{st.setPointerCapture(e.pointerId)}catch(_){}
+    if(d.t==="h"){HS[d.i].classList.add("on");loupe(P[d.i][0],P[d.i][1],true)}});
+  st.addEventListener("pointermove",e=>{if(!dr)return;const[x,y]=pos(e);
+    if(dr.t==="h"){moveH(dr.i,x+dr.ox,y+dr.oy);loupe(P[dr.i][0],P[dr.i][1],true)}
+    else if(dr.t==="e")moveE(dr.i,x-dr.x,y-dr.y,dr.o);
+    else{const o=dr.o,xs=o.map(p=>p[0]),ys=o.map(p=>p[1]);const dx=Math.max(-Math.min(...xs),Math.min(W()-Math.max(...xs),x-dr.x)),dy=Math.max(-Math.min(...ys),Math.min(H()-Math.max(...ys),y-dr.y));P=o.map(p=>[p[0]+dx,p[1]+dy])}
+    put()});
+  const up=()=>{if(dr&&dr.t==="h")HS[dr.i].classList.remove("on");dr=null;loupe(0,0,false)};st.addEventListener("pointerup",up);st.addEventListener("pointercancel",up);
+  HS.forEach((h,i)=>h.addEventListener("keydown",e=>{const m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!m)return;e.preventDefault();const s=(e.shiftKey?10:2)/k;moveH(i,P[i][0]+m[0]*s,P[i][1]+m[1]*s);put()}));
   const rz=()=>lay();window.addEventListener("resize",rz);
   const done=v=>{window.removeEventListener("resize",rz);document.removeEventListener("keydown",kd);ov.remove();res(v)};
   const kd=e=>{if(e.key==="Escape")done(null)};document.addEventListener("keydown",kd);
-  ov.addEventListener("click",e=>{const b=e.target.closest("[data-dc]");if(!b)return;const a=b.dataset.dc;
+  const rot=dir=>{const c=document.createElement("canvas");c.width=base.height;c.height=base.width;const x=c.getContext("2d");if(dir>0){x.translate(c.width,0);x.rotate(Math.PI/2)}else{x.translate(0,c.height);x.rotate(-Math.PI/2)}x.drawImage(base,0,0);
+    const ow=base.width,oh=base.height;P=P.map(([px,py])=>dir>0?[oh-py,px]:[py,ow-px]);P=dir>0?[P[3],P[0],P[1],P[2]]:[P[1],P[2],P[3],P[0]];base=c;lay()};
+  ov.addEventListener("click",async e=>{if(e.target===ov){done(null);return}
+    const md=e.target.closest("[data-md]");if(md){mode=md.dataset.md;if(mode==="box")toBox();seg();put();return}
+    const lk=e.target.closest("[data-lk]");if(lk){look=lk.dataset.lk;seg();paintImg();return}
+    const b=e.target.closest("[data-dc]");if(!b)return;const a=b.dataset.dc;
     if(a==="no")done(null);
-    else if(a==="all"){R={x:0,y:0,w:dw,h:dh};put()}
-    else if(a==="rot"){const c=document.createElement("canvas");c.width=base.height;c.height=base.width;const x=c.getContext("2d");x.translate(c.width,0);x.rotate(Math.PI/2);x.drawImage(base,0,0);base=c;lay()}
-    else if(a==="ok"){const sx=R.x/k,sy=R.y/k,sw=R.w/k,sh=R.h/k,M=1600,s=Math.min(1,M/Math.max(sw,sh)),o=document.createElement("canvas");o.width=Math.round(sw*s);o.height=Math.round(sh*s);const x=o.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,o.width,o.height);x.imageSmoothingQuality="high";x.drawImage(base,sx,sy,sw,sh,0,0,o.width,o.height);o.toBlob(bl=>done(bl),"image/jpeg",.86)}
+    else if(a==="all"){P=[[0,0],[W(),0],[W(),H()],[0,H()]];put()}
+    else if(a==="rr"||a==="rl")rot(a==="rr"?1:-1);
+    else if(a==="ok"){b.disabled=true;b.textContent="Preparing…";await new Promise(r=>setTimeout(r,30));
+      try{const o=warp(base,P,mode==="box");if(look!=="orig"){const x=o.getContext("2d"),d=x.getImageData(0,0,o.width,o.height);fx(d,look);x.putImageData(d,0,0)}o.toBlob(bl=>done(bl),"image/jpeg",.88)}
+      catch(err){console.error(err);b.disabled=false;b.textContent="✓ Use picture";toast("The picture could not be prepared. Try again.")}}
   });
-  lay();
+  inset();seg();lay();
 })}
+/* straighten: map the 4 chosen corners onto a flat rectangle (perspective correction) */
+function warp(src,P,isBox){
+  const d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);let w=Math.max(d(P[0],P[1]),d(P[3],P[2])),h=Math.max(d(P[0],P[3]),d(P[1],P[2]));
+  const M=1600,s=Math.min(1,M/Math.max(w,h));const OW=Math.max(1,Math.round(w*s)),OH=Math.max(1,Math.round(h*s));
+  const o=document.createElement("canvas");o.width=OW;o.height=OH;const ox=o.getContext("2d");ox.fillStyle="#fff";ox.fillRect(0,0,OW,OH);ox.imageSmoothingQuality="high";
+  if(isBox){ox.drawImage(src,P[0][0],P[0][1],P[1][0]-P[0][0],P[3][1]-P[0][1],0,0,OW,OH);return o}
+  /* homography from output (u,v) to source (x,y) */
+  const T=[[0,0],[OW,0],[OW,OH],[0,OH]],A=[],B=[];
+  for(let i=0;i<4;i++){const[u,v]=T[i],[x,y]=P[i];A.push([u,v,1,0,0,0,-u*x,-v*x]);B.push(x);A.push([0,0,0,u,v,1,-u*y,-v*y]);B.push(y)}
+  for(let c=0;c<8;c++){let p=c;for(let r=c+1;r<8;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;[A[c],A[p]]=[A[p],A[c]];[B[c],B[p]]=[B[p],B[c]];
+    for(let r=0;r<8;r++){if(r===c)continue;const f=A[r][c]/A[c][c];for(let q=c;q<8;q++)A[r][q]-=f*A[c][q];B[r]-=f*B[c]}}
+  const h8=B.map((b,i)=>b/A[i][i]);const[a1,a2,a3,b1,b2,b3,c1,c2]=h8;
+  const SW=src.width,SH=src.height,sd=src.getContext("2d").getImageData(0,0,SW,SH).data,od=ox.createImageData(OW,OH),q=od.data;
+  for(let v=0;v<OH;v++){const vv=v+.5;for(let u=0;u<OW;u++){const uu=u+.5,z=c1*uu+c2*vv+1,x=(a1*uu+a2*vv+a3)/z-.5,y=(b1*uu+b2*vv+b3)/z-.5;
+    const j=(v*OW+u)*4;let x0=Math.floor(x),y0=Math.floor(y);const fx=x-x0,fy=y-y0;
+    const X0=x0<0?0:x0>=SW?SW-1:x0,X1=x0+1<0?0:x0+1>=SW?SW-1:x0+1,Y0=y0<0?0:y0>=SH?SH-1:y0,Y1=y0+1<0?0:y0+1>=SH?SH-1:y0+1;
+    const i00=(Y0*SW+X0)*4,i10=(Y0*SW+X1)*4,i01=(Y1*SW+X0)*4,i11=(Y1*SW+X1)*4;
+    for(let ch=0;ch<3;ch++){const t=sd[i00+ch]*(1-fx)+sd[i10+ch]*fx,b=sd[i01+ch]*(1-fx)+sd[i11+ch]*fx;q[j+ch]=t*(1-fy)+b*fy}q[j+3]=255}}
+  ox.putImageData(od,0,0);return o}
+/* "Clear": stretch light/dark so text stands out; "B&W": grey, high contrast, white paper */
+function fx(img,look){const d=img.data,n=d.length,hist=new Uint32Array(256);
+  for(let i=0;i<n;i+=16)hist[(d[i]*77+d[i+1]*150+d[i+2]*29)>>8]++;
+  let tot=0;for(let i=0;i<256;i++)tot+=hist[i];let lo=0,hi=255,acc=0;for(let i=0;i<256;i++){acc+=hist[i];if(acc>tot*.02){lo=i;break}}acc=0;for(let i=255;i>=0;i--){acc+=hist[i];if(acc>tot*.02){hi=i;break}}
+  if(hi-lo<30){lo=Math.max(0,lo-15);hi=Math.min(255,hi+15)}const sc=255/(hi-lo||1);
+  const L=new Uint8ClampedArray(256);for(let i=0;i<256;i++){let v=(i-lo)*sc;if(look==="bw"){v=(v-128)*1.35+150}L[i]=v}
+  if(look==="bw"){for(let i=0;i<n;i+=4){const g=L[(d[i]*77+d[i+1]*150+d[i+2]*29)>>8];d[i]=d[i+1]=d[i+2]=g}}
+  else{for(let i=0;i<n;i+=4){d[i]=L[d[i]];d[i+1]=L[d[i+1]];d[i+2]=L[d[i+2]]}}}
 const pick=(cam,acc)=>new Promise(res=>{const i=document.createElement("input");i.type="file";i.accept=acc;if(cam)i.setAttribute("capture","environment");i.style.cssText="position:fixed;left:-99px;opacity:0";document.body.appendChild(i);i.onchange=()=>{const f=i.files[0];i.remove();res(f||null)};i.addEventListener("cancel",()=>{i.remove();res(null)});i.click()});
 async function joinSides(a,b){const A=await loadImg(a),B=await loadImg(b);const W=Math.min(1600,Math.max(A.naturalWidth,B.naturalWidth)),ha=Math.round(A.naturalHeight*W/A.naturalWidth),hb=Math.round(B.naturalHeight*W/B.naturalWidth),g=24,c=document.createElement("canvas");c.width=W;c.height=ha+hb+g;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.imageSmoothingQuality="high";x.drawImage(A,0,0,W,ha);x.drawImage(B,0,ha+g,W,hb);return new Promise(r=>c.toBlob(r,"image/jpeg",.86))}
 async function sync(f){
@@ -7125,7 +7202,7 @@ function deco(f){
       if(/pdf$/i.test(fl.type)||/\.pdf$/i.test(fl.name)){S[key]=fl;delete S.src[key];paint(f);sync(f);return}
       if(!/^image\//.test(fl.type)){toast("Choose a photo or a PDF.");return}src=fl}
     if(!src)return;
-    const out=await dcCrop(src);if(!out){if(a!=="crop"&&!S[key]){S[key]=src;S.src[key]=src;paint(f);sync(f)}return}
+    const out=await dcCrop(src,{mode:/photo|picture/i.test(dcType(f))?"box":"doc"});if(!out){if(a!=="crop"&&!S[key]){S[key]=src;S.src[key]=src;paint(f);sync(f)}return}
     S.src[key]=src;S[key]=out;paint(f);sync(f)});
 }
 const scan=()=>document.querySelectorAll('form[data-flform="doc"]:not([data-dc])').forEach(deco);
@@ -7163,4 +7240,69 @@ function deco(inp){
 const scan=()=>document.querySelectorAll('input.flPdfDrv:not([data-dc]),input.flPdfVeh[data-kind="card"]:not([data-dc])').forEach(deco);
 new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});scan();
 })();
-</script></body></html>
+</script><style id="klc-crop2-css">
+/* crop editor v2 */
+.dc-ov{padding:10px}
+.dc-box{width:min(640px,100%)!important;max-height:calc(100dvh - 20px);overflow:auto;gap:10px!important;padding:16px!important}
+.dc-top{display:flex;align-items:center;justify-content:space-between;width:100%}
+.dc-top h3{margin:0}
+.dc-x{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:16px;cursor:pointer}
+.dc-seg{display:flex;width:100%;border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px;background:var(--surface)}
+.dc-seg button{flex:1;min-height:36px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0 8px}
+.dc-seg button[aria-pressed=true]{background:var(--accent);color:#fff}
+.dc-tip{margin:0;text-align:center;font-size:12.5px}
+.dc-stage{position:relative;overflow:visible!important;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:6px;background:#111;margin:12px auto}
+.dc-stage .dc-img{display:block;border-radius:6px}
+.dc-shade{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.dc-shade path{fill:rgba(20,20,22,.6)}
+.dc-shade polygon{fill:none;stroke:#fff;stroke-width:2;stroke-linejoin:round}
+.dc-h{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;cursor:grab;touch-action:none;z-index:2;outline:none}
+.dc-h::after{content:"";position:absolute;inset:11px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.4);transition:transform .12s}
+.dc-h.on::after,.dc-h:focus-visible::after{transform:scale(1.25)}
+.dc-e{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;cursor:move;touch-action:none;z-index:1}
+.dc-e::after{content:"";position:absolute;left:5px;right:5px;top:14px;height:6px;border-radius:3px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.45)}
+.dc-e.v::after{left:14px;right:auto;width:6px;top:5px;bottom:5px;height:auto}
+.dc-loupe{position:absolute;width:120px;height:120px;border-radius:50%;pointer-events:none;z-index:3;box-shadow:0 0 0 3px #fff,0 6px 18px rgba(0,0,0,.45)}
+.dc-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.dc-tools .btn{min-height:38px}
+.dc-act{display:flex;gap:8px;width:100%}
+.dc-act .btn{flex:1;min-height:46px}
+@media(max-width:520px){.dc-box{border-radius:14px!important}.dc-seg button{font-size:12px}}
+</style>
+<script id="klc-nav-top">
+/* 20 Nov: opening any section of the KLC Panel / Fleet starts it fresh from the top (no old profile, form or scroll position left open) */
+(function(){
+document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#subtabs .chipbtn[data-s]");if(!b)return;
+  try{if(typeof flBack==="function")flBack();if(typeof FL==="object"&&FL){FL.tripPick=false;FL.drvRep=""}}catch(_){}
+  try{document.querySelectorAll("#panelBody details[open]").forEach(function(d){d.open=false})}catch(_){}
+  setTimeout(function(){window.scrollTo({top:0,behavior:"auto"});try{document.querySelectorAll("#panelBody .kp-body,#panelBody .tablewrap,#panelBody .tw").forEach(function(x){x.scrollTop=0;x.scrollLeft=0})}catch(_){}},40);
+},true);
+})();
+</script>
+<style id="klc-keep-css">.kp-keep{display:flex!important;align-items:center;gap:8px;font-weight:500;cursor:pointer}.kp-keep input{width:18px;height:18px;margin:0;accent-color:var(--accent)}</style>
+<script id="klc-keep">
+/* 20 Nov: "Keep me signed in on this device" for the KLC Panel. The Supabase session is kept in localStorage only when the box is ticked; Sign out removes it. */
+(function(){
+var f=document.getElementById("lockForm");if(!f)return;
+var btn=f.querySelector("button[type=submit]");
+if(btn&&!document.getElementById("staffKeep")){var l=document.createElement("label");l.className="kp-keep";l.innerHTML='<input type="checkbox" id="staffKeep"> Keep me signed in on this device';btn.insertAdjacentElement("beforebegin",l);
+  var kb=document.getElementById("staffKeep");try{kb.checked=localStorage.getItem("klc-keep")!=="0"}catch(_){kb.checked=true}}
+f.addEventListener("submit",function(){try{var on=document.getElementById("staffKeep").checked;localStorage.setItem("klc-keep",on?"1":"0");if(!on)localStorage.removeItem("klc-sb")}catch(_){}},true);
+document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("#lockBtn")){try{localStorage.removeItem("klc-sb")}catch(_){}}},true);
+/* come back signed in */
+var kept=null;try{if(localStorage.getItem("klc-keep")==="1")kept=localStorage.getItem("klc-sb")}catch(_){}
+if(!kept||staffOK||(typeof sbGet==="function"&&sbGet()))return;
+try{sessionStorage.setItem("klc-sb",kept)}catch(_){return}
+var h=f.querySelector("h2"),h0=h?h.textContent:"";if(h)h.textContent="Signing you in…";if(btn)btn.disabled=true;
+var fail=function(msg){try{sessionStorage.removeItem("klc-sb");localStorage.removeItem("klc-sb")}catch(_){}if(h)h.textContent=h0;if(btn)btn.disabled=false;if(msg)toast(msg)};
+(async function(){try{
+  var tok=await sbToken();if(!tok){fail("Please sign in again.");return}
+  var r=await fetch(SB_URL+"/auth/v1/user",{headers:sbH(tok)});if(!r.ok){fail("Please sign in again.");return}
+  var u=await r.json();if(!u||!u.email){fail("Please sign in again.");return}
+  var ok=await syncPull(false);if(!ok){if(h)h.textContent=h0;if(btn)btn.disabled=false;try{sessionStorage.removeItem("klc-sb")}catch(_){}toast("No internet. Try again.");return}
+  if(staffEnter(u.email)){try{show("panel")}catch(_){}}else fail("")
+}catch(err){if(h)h.textContent=h0;if(btn)btn.disabled=false;try{sessionStorage.removeItem("klc-sb")}catch(_){}}})();
+})();
+</script>
+
+</body></html>
