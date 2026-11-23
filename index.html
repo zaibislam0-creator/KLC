@@ -3615,7 +3615,7 @@ let xkMode="all",xkParty="",xkPF="all";
 function xkFindBlock(c){
   const own=b=>(b.acct&&b.acct===c.code)||b.code===c.code||(db.outstanding||[]).some(o=>o.code===b.code&&o.acct===c.code)||(!b.acct&&!clientOf(b.code)&&guessClient(b.name)===c);
   if(xkSrc){const b=xkSrc.blocks.find(own);if(b)return{b,src:xkSrc.kind==="file"?"Report: "+(xkSrc.name||"PDF"):"Saved statement",to:b.to||xkSrc.to||""}}
-  const o=osOf(c.code);if(o)return{b:{code:o.code,name:o.name,rows:o.rows||[],total:o.total},src:"Saved statement, uploaded "+fmtDay(o.upAt),to:o.to||""};
+  const o=osOf(c.code);if(o)return{b:{code:o.code,name:o.name,rows:o.rows||[],total:o.total},src:"Saved statement, uploaded "+fmtDay(String(o.upAt||"").slice(0,10)),to:o.to||""};
   return null}
 function xkPartyHTML(){
   if(!xkParty&&xkSrc&&xkSrc.blocks.length===1){const b=xkSrc.blocks[0],c=(b.acct&&clientOf(b.acct))||clientOf(b.code)||guessClient(b.name);if(c)xkParty=c.code}
