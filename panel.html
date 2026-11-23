@@ -3607,9 +3607,55 @@ document.addEventListener("change",async e=>{
     const lines=await pdfLines(await f.arrayBuffer());
     if(!/Customer Outstanding Detail/i.test(lines.map(l=>l.text).join("\n"))){$("#xkMsg").innerHTML='<span style="color:#b42318">This is not a SmartCargo Customer Outstanding Detail report.</span> Print that report from SmartCargo as PDF and choose it again.';return}
     const D=parseOutstanding(lines);if(!D.blocks.length)throw new Error("no_rows");
-    xkSrc={kind:"file",name:f.name,from:D.from,to:D.to,blocks:D.blocks.map(b=>Object.assign({},b,{to:D.to}))};xkF="all";xkQ="";$("#xkMsg").textContent="";pXchk()
+    xkSrc={kind:"file",name:f.name,from:D.from,to:D.to,blocks:D.blocks.map(b=>Object.assign({},b,{to:D.to}))};xkF="all";xkQ="";if(D.blocks.length===1)xkParty="";$("#xkMsg").textContent="";pXchk()
   }catch(err){$("#xkMsg").innerHTML='<span style="color:#b42318">Could not read this PDF.</span> Save the SmartCargo outstanding report as PDF again and retry.'}
 });
+/* Party-wise cross-check (23 Nov 2026): one company, bilty by bilty, SmartCargo outstanding vs this site */
+let xkMode="all",xkParty="",xkPF="all";
+function xkFindBlock(c){
+  const own=b=>(b.acct&&b.acct===c.code)||b.code===c.code||(db.outstanding||[]).some(o=>o.code===b.code&&o.acct===c.code)||(!b.acct&&!clientOf(b.code)&&guessClient(b.name)===c);
+  if(xkSrc){const b=xkSrc.blocks.find(own);if(b)return{b,src:xkSrc.kind==="file"?"Report: "+(xkSrc.name||"PDF"):"Saved statement",to:b.to||xkSrc.to||""}}
+  const o=osOf(c.code);if(o)return{b:{code:o.code,name:o.name,rows:o.rows||[],total:o.total},src:"Saved statement, uploaded "+fmtDay(o.upAt),to:o.to||""};
+  return null}
+function xkPartyHTML(){
+  if(!xkParty&&xkSrc&&xkSrc.blocks.length===1){const b=xkSrc.blocks[0],c=(b.acct&&clientOf(b.acct))||clientOf(b.code)||guessClient(b.name);if(c)xkParty=c.code}
+  const cl=[...(db.clients||[])].sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const pick=`<div class="panel" style="display:grid;gap:10px"><label>Company / party<select id="xkParty"><option value="">Choose the party to check</option>${cl.map(c=>`<option value="${esc(c.code)}"${c.code===xkParty?" selected":""}>${esc(c.name)} (${esc(c.code)})</option>`).join("")}</select></label><p class="hint" style="margin:0">Uses the PDF you chose above (all customers or this party only). If no PDF is chosen, this party's saved outstanding statement is used.</p></div>`;
+  const c=clientOf(xkParty);if(!c)return pick;
+  const F=xkFindBlock(c);
+  if(!F)return pick+`<div class="panel"><p class="empty" style="margin:0">No SmartCargo outstanding found for <b>${esc(c.name)}</b>. Press <b>Choose outstanding PDF</b> and pick the SmartCargo Customer Outstanding Detail report (all customers or only this party).</p></div>`;
+  const{b,src,to}=F,L=ledger(c.code,to?{to}:undefined),site=new Map();
+  L.rows.forEach(x=>{if((x.type==="Bilty"||x.type==="BOK")&&x.dr){const k=bnum(x.ref);if(!k)return;const s=site.get(k)||{dr:0,d:x.d,ref:x.ref};s.dr+=x.dr;site.set(k,s)}});
+  const seen=new Set(),rows=b.rows.map(r=>{const k=bnum(r.bn),s=site.get(k);seen.add(k);const dif=s?Math.round((s.dr-(+r.amt||0))*100)/100:0;return{r,s,dif,st:!s?"miss":Math.abs(dif)>=1?"amt":"ok"}});
+  const extra=[...site.entries()].filter(([k])=>!seen.has(k)).map(([k,s])=>s).sort((a,b)=>String(b.d).localeCompare(String(a.d)));
+  const n=k=>rows.filter(x=>x.st===k).length,sc=+b.total||0,bal=Math.round(L.bal*100)/100,diff=Math.round((bal-sc)*100)/100,good=Math.abs(diff)<1&&!n("miss")&&!n("amt");
+  const shown=rows.filter(x=>xkPF==="all"||(xkPF==="bad"?x.st!=="ok":x.st===xkPF)).sort((a,b)=>(a.st==="ok")-(b.st==="ok"));
+  const FL=[["all","All",rows.length],["bad","Problems",rows.length-n("ok")],["ok","Tally",n("ok")]];
+  const pill=x=>x.st==="ok"?'<span class="pill s4">✅ Tally</span>':x.st==="amt"?'<span class="pill s3">⚠ Amount differs</span>':'<span class="tag" style="color:#b42318">Not on this site</span>';
+  const sgn=v=>v===0?'<span class="ok">0</span>':`<span class="due">${v>0?"+":"−"}${rs(Math.abs(v))}</span>`;
+  return pick+`<div class="panel" style="display:grid;gap:14px">
+    <div class="card-head"><h2>${esc(c.name)} <span class="mono" style="font-size:13px;font-weight:400">${esc(c.code)}</span></h2><span class="pill ${good?"s4":"s3"}">${good?"✅ Tally":"⚠ Check"}</span></div>
+    <p class="hint" style="margin:0">${esc(src)}${to?` · up to ${esc(fmtDay(to))}`:""}</p>
+    <div class="ledger-sum"><div><span>SmartCargo outstanding</span><b>${rs(sc)}</b></div><div><span>Balance on this site</span><b>${rs(bal)}</b></div><div><span>Difference</span><b>${sgn(diff)}</b></div><div><span>Bilties</span><b><span class="ok">${n("ok")}</span> tally${n("amt")?` · <span class="due">${n("amt")}</span> differ`:""}${n("miss")?` · <span class="due">${n("miss")}</span> missing`:""}</b></div></div>
+    <div class="filters" role="tablist" aria-label="Filter bilties">${FL.map(f=>`<button type="button" class="chipbtn" role="tab" data-xkpf="${f[0]}" aria-pressed="${xkPF===f[0]}">${f[1]} (${f[2]})</button>`).join("")}</div>
+    <div class="tbl-wrap"><table class="os-tbl"><thead><tr><th>Bilty</th><th>Date</th><th class="num">SmartCargo amount</th><th class="num">This site</th><th class="num">Difference</th><th class="num">Outstanding</th><th>Result</th></tr></thead><tbody>${shown.length?shown.map(x=>`<tr><td class="mono">${esc(x.r.bn)}</td><td>${esc(fmtDay(x.r.d))}</td><td class="num">${rs(x.r.amt)}</td><td class="num">${x.s?rs(x.s.dr):"—"}</td><td class="num">${x.s?sgn(x.dif):"—"}</td><td class="num">${rs(x.r.out)}</td><td>${pill(x)}</td></tr>`).join(""):`<tr><td colspan="7" class="empty">Nothing here.</td></tr>`}</tbody></table></div>
+    ${extra.length?`<details><summary><b>${extra.length} bilt${extra.length===1?"y":"ies"} on this site that ${extra.length===1?"is":"are"} not in the SmartCargo outstanding</b> <span class="hint">(usually already paid in SmartCargo)</span></summary><div class="tbl-wrap"><table class="os-tbl"><thead><tr><th>Bilty</th><th>Date</th><th class="num">Amount here</th></tr></thead><tbody>${extra.map(s=>`<tr><td class="mono">${esc(s.ref)}</td><td>${esc(fmtDay(s.d))}</td><td class="num">${rs(s.dr)}</td></tr>`).join("")}</tbody></table></div></details>`:""}
+    <p class="hint" style="margin:0">Difference = this site minus SmartCargo. "Amount differs": the bilty amount here is not the same as SmartCargo; replace that bilty. "Not on this site": upload that bilty. Balance difference with all bilties tallying usually means a payment (RCP), discount or opening balance is missing or extra here.</p>
+    <div class="inline-actions"><button class="btn ghost sm" type="button" data-olopen="${esc(c.code)}">Open ledger</button></div>
+  </div>`}
+const pXchkAll=pXchk;
+pXchk=function(){
+  const out=$("#xkOut");if(!out)return;
+  const tabs=`<div class="filters" role="tablist" aria-label="Cross-check type" style="margin:0 0 14px"><button type="button" class="chipbtn" role="tab" data-xkmode="all" aria-pressed="${xkMode==="all"}">👥 All customers</button><button type="button" class="chipbtn" role="tab" data-xkmode="party" aria-pressed="${xkMode==="party"}">🔎 Party wise</button></div>`;
+  if(xkMode==="party"){out.innerHTML=tabs+`<div style="display:grid;gap:14px">${xkPartyHTML()}</div>`;return}
+  pXchkAll();out.insertAdjacentHTML("afterbegin",tabs);
+  out.querySelectorAll("[data-olopen]").forEach(bt=>{const tr=bt.closest("tr");if(tr&&tr.closest(".os-tbl")&&!bt.closest("details")&&!tr.querySelector("[data-xkparty]"))bt.insertAdjacentHTML("beforebegin",`<button class="btn ghost sm" type="button" data-xkparty="${esc(bt.dataset.olopen)}" style="margin-right:6px">Check bilties</button>`)});
+};
+document.addEventListener("click",e=>{const t=e.target;if(!t.closest)return;
+  const m=t.closest("[data-xkmode]");if(m){xkMode=m.dataset.xkmode;xkPF="all";pXchk();return}
+  const p=t.closest("[data-xkparty]");if(p){xkMode="party";xkParty=p.dataset.xkparty;xkPF="all";pXchk();window.scrollTo({top:0});return}
+  const f=t.closest("[data-xkpf]");if(f){xkPF=f.dataset.xkpf;pXchk()}});
+document.addEventListener("change",e=>{if(e.target&&e.target.id==="xkParty"){xkParty=e.target.value;xkPF="all";pXchk()}});
 function pOs(){
   const L=(db.outstanding||[]).slice().sort((a,b)=>String(b.upAt).localeCompare(String(a.upAt)));
   $("#osRows").innerHTML=L.length?L.map(o=>{const s=osState(o),c=clientOf(o.acct);return `<tr><td><b>${esc(c?c.name:o.name)}</b><br><span class="mono" style="font-size:12px">${esc(o.acct)}</span></td><td>${esc(fmtDay(o.from))} to ${esc(fmtDay(o.to))}<br><span class="hint">uploaded ${esc(fmtD(o.upAt))}</span></td><td class="num">${rs(o.total)}</td><td class="num">${s.done?'<span class="ok">0</span>':`<span class="due">${rs(s.rem)}</span>`}</td><td>${s.done?'<span class="tag port">Cleared</span>':`<span class="tag" style="color:#b42318">Due · ${s.days} day${s.days===1?"":"s"}</span>`}</td><td><div class="inline-actions"><button class="btn ghost sm" type="button" data-oscl="${esc(o.id)}">${o.cleared?"Reopen":"Mark cleared"}</button><button class="btn ghost sm" type="button" data-osdel="${esc(o.id)}">Delete</button></div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">No outstanding statements yet. Press Outstanding above and choose the SmartCargo PDF.</td></tr>`}
@@ -6970,23 +7016,47 @@ const o=window.renderPanel;window.renderPanel=function(){const r=o.apply(this,ar
 /* ---------- SmartCargo RCP (payment receipt) import: credits a company ledger ---------- */
 let rcpData=null,rcpFile=null;
 const rcpNum=x=>Math.round(+String(x||"").replace(/,/g,"")||0);
+/* RCP amounts (fix 23 Nov): read Receipt Amount / Discount / Total Received from the "*** Total ***" row, never the Year column */
+function rcpSigned(s){s=String(s||"").trim();if(!/\d/.test(s))return NaN;const neg=/^\(.*\)$/.test(s)||/^-/.test(s)||/-$/.test(s);const v=+s.replace(/[(),\s-]/g,"");return isNaN(v)?NaN:Math.round(neg?-v:v)}
+function rcpTokens(line){const out=[];(line.items||[{x:0,w:0,t:line.text}]).forEach(it=>{const parts=String(it.t).trim().split(/\s+/),n=parts.length;parts.forEach((p,i)=>{if(/^\(?-?\d[\d,]*(?:\.\d+)?\)?-?$/.test(p)){const v=rcpSigned(p);if(!isNaN(v))out.push({v,x:it.x+(it.w||0)*((i+.5)/n),r:it.x+(it.w||0)*((i+1)/n)})}})});return out}
+function rcpTotals(lines){
+  const tl=[...lines].reverse().find(l=>/\*+\s*Total\s*\*+/i.test(l.text));if(!tl)return null;
+  const nums=rcpTokens(tl);if(nums.length<3)return null;
+  let a,d,t;
+  /* 1) match by column position, using the table header (last header above the total row) */
+  const hi=lines.indexOf(tl),hdr=lines.slice(0,hi).reverse().find(l=>/Receipt/i.test(l.text)&&/Discount/i.test(l.text));
+  if(hdr&&hdr.items&&tl.items){
+    const col=re=>{const it=hdr.items.filter(i=>re.test(i.t)).pop();return it?it.x+(it.w||0)/2:null};
+    const cR=col(/Receipt/i),cD=col(/Discount/i),cT=(()=>{const it=hdr.items.filter(i=>/Total/i.test(i.t)).pop();return it&&it.x>(cD||0)?it.x+(it.w||0)/2:null})();
+    const near=c=>c==null?null:nums.reduce((b,n)=>!b||Math.abs(n.x-c)<Math.abs(b.x-c)?n:b,null);
+    const R=near(cR),Dn=near(cD),Tn=near(cT);
+    if(R&&Dn&&Tn&&R!==Dn&&Dn!==Tn&&R!==Tn&&R.v+Dn.v===Tn.v){a=R.v;d=Dn.v;t=Tn.v}
+  }
+  /* 2) fallback: the last three numbers are Receipt Amount, Discount, Total Received */
+  if(a==null){const k=nums.slice(-3);a=k[0].v;d=k[1].v;t=k[2].v}
+  return {a,d,t};
+}
 function parseRcp(lines){
   const T=lines.map(l=>l.text).join("\n");
   const g=re=>{const m=T.match(re);return m?String(m[1]).trim():""};
   const no=g(/\bRCP\s*(?:No\.?|#|Number)?\s*[:\-]?\s*(\d{1,9})\b/i)||g(/(?:Receipt|Voucher)\s*(?:No\.?|#|Number)\s*[:\-]?\s*(\d{1,9})\b/i);
-  const dm=T.match(/(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})/);const date=dm?`${dm[3]}-${dm[2]}-${dm[1]}`:today();
-  let acct=g(/Account\s*(?:Code|No\.?|#)?\s*[:\-]?\s*(\d{2,8})\b/i)||g(/(?:Customer|Party|A\/C)\s*(?:Code|No\.?)\s*[:\-]?\s*(\d{2,8})\b/i);
+  const dm=T.match(/(?:RCP|Receipt|Voucher)\s*Date\s*[:\-]?\s*(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})/i)||T.match(/(?:^|\n)\s*Date\s*[:\-]?\s*(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})/i)||T.match(/(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})/);const date=dm?`${dm[3]}-${dm[2]}-${dm[1]}`:today();
+  const deb=T.match(/debit(?:ed)?\s+to\s+(\d{2,12})\s*[-–]\s*([^,\n]{2,60}?)\s*,?\s*a\s+sum/i);
+  let acct=g(/Account\s*(?:Code|No\.?|#)?\s*[:\-]?\s*(\d{2,8})\b/i)||g(/(?:Customer|Party|A\/C)\s*(?:Code|No\.?)\s*[:\-]?\s*(\d{2,8})\b/i)||(deb?deb[1]:"");
   if(!clientOf(acct)){const hits=(db.clients||[]).filter(c=>String(c.code).length>=3&&new RegExp("(^|[^\\d,.])"+String(c.code).replace(/[^\w]/g,"")+"([^\\d,.]|$)").test(T));acct=hits.length===1?hits[0].code:(clientOf(acct)?acct:"")}
-  const pname=g(/(?:Received\s*From|Customer\s*Name|Party\s*Name|Customer|Party)\s*[:\-]\s*([^\n]{3,60})/i);
+  const pname=(deb?deb[2].trim():"")||g(/(?:Received\s*From|Customer\s*Name|Party\s*Name|Customer|Party)\s*[:\-]\s*([^\n]{3,60})/i);
   if(!acct&&pname){const c=guessClient(pname);if(c)acct=c.code}
-  let amount=rcpNum(g(/(?:Amount\s*Received|Received\s*Amount|Net\s*Amount|Total\s*Amount|Amount|Total|Credit)\s*(?:Rs\.?|PKR)?\s*[:\-]?\s*(?:Rs\.?|PKR)?\s*([\d,]+(?:\.\d{1,2})?)/i));
-  if(!amount){const ns=(T.match(/\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b/g)||[]).map(rcpNum);if(ns.length)amount=Math.max(...ns)}
-  const disc=rcpNum(g(/Discount\s*(?:Rs\.?)?\s*[:\-]?\s*(?:Rs\.?)?\s*([\d,]+)/i));
-  const tax=rcpNum(g(/(?:W\.?\s*H\.?\s*(?:Tax|T)|Income\s*Tax|Tax\s*Deduct\w*|Tax)\s*(?:Rs\.?)?\s*[:\-]?\s*(?:Rs\.?)?\s*([\d,]+)/i));
+  const sm=T.match(/sum\s+of\s+Rup(?:ees|ee|s)?\.?\s*[:\-]?\s*(\(?-?[\d,]+(?:\.\d+)?\)?-?)/i);const sum=sm?rcpSigned(sm[1]):NaN;
+  const tot=rcpTotals(lines);
+  let amount=0,disc=0,src="";
+  if(tot){amount=tot.a;disc=tot.d;src="total"}
+  else if(!isNaN(sum)){amount=sum;src="sum"}
+  else{amount=rcpNum(g(/(?:Amount\s*Received|Received\s*Amount|Net\s*Amount)\s*(?:Rs\.?|PKR)?\s*[:\-]?\s*(?:Rs\.?|PKR)?\s*([\d,]+(?:\.\d{1,2})?)/i));src=amount?"label":""}
+  const tax=rcpNum(g(/(?:W\.?\s*H\.?\s*(?:Tax|T)|Income\s*Tax|Tax\s*Deduct\w*)\s*(?:Rs\.?)?\s*[:\-]?\s*(?:Rs\.?)?\s*([\d,]+)/i));
   const chq=g(/Ch(?:e)?q(?:ue)?\s*No\.?\s*[:\-]?\s*([A-Z]{0,3}[-.]?\s*\d{3,})/i).replace(/\s+/g,"");
   const bank=g(/Bank(?:\s*Name)?\s*[:\-]\s*([A-Za-z][^\n:]{1,40}?)(?=\s{2,}|\s+Ch|\s+Date|\n|$)/i);
   const method=chq?"Cheque":/\b(online|IBFT|raast|bank\s*transfer|transfer)\b/i.test(T)?"Bank transfer":"Cash";
-  return {no,date,acct,pname,amount,disc,tax,chq,bank,method,raw:T};
+  return {no,date,acct,pname,amount,disc,tax,chq,bank,method,sum:isNaN(sum)?null:sum,src,raw:T};
 }
 function rcpDup(acct,no){if(!no)return null;return (db.payments||[]).find(p=>p.rcp===no)||(db.lent||[]).find(x=>x.acct===acct&&String(x.ref||"").replace(/\s+/g," ")==="RCP "+no)||null}
 function renderRcpPreview(){
@@ -6997,8 +7067,8 @@ function renderRcpPreview(){
     <p class="hint" style="margin:0">Check the details read from the PDF and correct anything if needed. The total is credited to the company ledger and its balance goes down. The original PDF is kept with the payment.</p>
     <label>Company account<select id="rcpAcct"><option value="">Choose the company account</option>${opt}</select></label>
     <div class="row2"><label>RCP number<input id="rcpNo" value="${esc(D.no)}"></label><label>Payment date<input id="rcpDate" type="date" value="${esc(D.date)}" max="${today()}"></label></div>
-    <div class="row2"><label>Amount received (Rs)<input id="rcpAmt" type="number" min="0" step="any" value="${D.amount||""}"></label><label>Payment mode<select id="rcpMode">${MODES.map(m=>`<option${m===D.method?" selected":""}>${m}</option>`).join("")}</select></label></div>
-    <div class="row2"><label>Discount (Rs)<input id="rcpDisc" type="number" min="0" step="any" value="${D.disc||""}" placeholder="0"></label><label>Tax deducted (Rs)<input id="rcpTax" type="number" min="0" step="any" value="${D.tax||""}" placeholder="0"></label></div>
+    <div class="row2"><label>Amount received (Rs)<input id="rcpAmt" type="number" step="any" value="${D.amount||""}"></label><label>Payment mode<select id="rcpMode">${MODES.map(m=>`<option${m===D.method?" selected":""}>${m}</option>`).join("")}</select></label></div>
+    <div class="row2"><label>Discount (Rs)<input id="rcpDisc" type="number" step="any" value="${D.disc||""}" placeholder="0"></label><label>Tax deducted (Rs)<input id="rcpTax" type="number" min="0" step="any" value="${D.tax||""}" placeholder="0"></label></div>
     <div class="row2"><label>Cheque / txn number<input id="rcpChq" value="${esc(D.chq)}"></label><label>Bank name<input id="rcpBank" value="${esc(D.bank)}"></label></div>
     <p class="hint" id="rcpWarn" style="margin:0"></p>
     <details><summary class="hint" style="cursor:pointer">Text read from the PDF</summary><pre style="white-space:pre-wrap;font-size:12px;max-height:220px;overflow:auto;margin:8px 0 0">${esc(D.raw.slice(0,3000))}</pre></details>
@@ -7008,8 +7078,9 @@ function renderRcpPreview(){
 function rcpRefresh(){
   const b=$("#rcpGo");if(!b)return;const a=rcpNum($("#rcpAmt").value),d=rcpNum($("#rcpDisc").value),t=rcpNum($("#rcpTax").value),ac=$("#rcpAcct").value,no=$("#rcpNo").value.trim(),c=clientOf(ac);
   b.textContent=`Credit ${rs(a+d+t)} to ledger`;
-  const dup=c&&rcpDup(c.code,no),w=$("#rcpWarn");
-  w.innerHTML=!ac?'<span style="color:#b42318">Choose the company account.</span>':dup?`<span style="color:#b42318">RCP ${esc(no)} is already in the ledger${dup.id?` (${esc(dup.id)})`:""}. It will not be added twice.</span>`:c?`Goes to <b>${esc(c.name)}</b> (${esc(c.code)}).`:"";
+  const dup=c&&rcpDup(c.code,no),w=$("#rcpWarn"),S=rcpData&&rcpData.sum;
+  const chk=S==null?'<span style="color:#b42318">⚠ "a sum of Rupees" total was not found in the PDF. Check the amount and discount against the RCP.</span><br>':(a+d+t!==S?`<span style="color:#b42318">⚠ Amount + Discount${t?" + Tax":""} = ${rs(a+d+t)}, but the RCP says "a sum of Rupees" ${rs(S)}. Check the figures before crediting.</span><br>`:`<span class="ok">✓ Amount + Discount = ${rs(S)}, matches the RCP total.</span><br>`)+(rcpData&&rcpData.src==="sum"?'<span style="color:#b42318">⚠ "*** Total ***" row not found, so the full sum is put in Amount with no discount.</span><br>':"");
+  w.innerHTML=chk+(!ac?'<span style="color:#b42318">Choose the company account.</span>':dup?`<span style="color:#b42318">RCP ${esc(no)} is already in the ledger${dup.id?` (${esc(dup.id)})`:""}. It will not be added twice.</span>`:c?`Goes to <b>${esc(c.name)}</b> (${esc(c.code)}).`:"");
   b.disabled=!c||a+d+t<=0||!!dup;
 }
 function rcpReset(){rcpData=null;rcpFile=null;const p=$("#impPreview");if(p)p.innerHTML="";const f=$("#impFile");if(f)f.value=""}
