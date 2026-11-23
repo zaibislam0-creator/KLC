@@ -6422,10 +6422,10 @@ function runDueTimers(){
 }
 function tickCountdowns(){$$("[data-countdown]").forEach(e=>{e.textContent=fmtLeft(e.dataset.countdown)})}
 setInterval(()=>{runDueTimers();tickCountdowns()},30000);
-$("#impFile").addEventListener("change",e=>handleImportFile(e.target.files[0]));
+$("#impFile").addEventListener("change",e=>impHandleFiles(e.target.files));
 ["dragenter","dragover"].forEach(ev=>$("#impDrop").addEventListener(ev,e=>{e.preventDefault();$("#impDrop").classList.add("over")}));
 ["dragleave","drop"].forEach(ev=>$("#impDrop").addEventListener(ev,e=>{e.preventDefault();$("#impDrop").classList.remove("over")}));
-$("#impDrop").addEventListener("drop",e=>handleImportFile(e.dataTransfer.files[0]));
+$("#impDrop").addEventListener("drop",e=>impHandleFiles(e.dataTransfer.files));
 
 
 /* ---------- shared click actions ---------- */
@@ -7111,7 +7111,68 @@ document.addEventListener("click",async e=>{
   $("#impMsg").innerHTML=`<span class="ok">Done.</span> ${rs(amt+disc+tax)} credited to <b>${esc(c.name)}</b> (${esc(c.code)})${disc||tax?` (${rs(amt)} received, ${rs(disc)} discount, ${rs(tax)} tax)`:""}. Receipt ${esc(pay.id)} added to the ledger.${kept?" Original PDF kept with the payment.":""}`;
   toast(`${rs(amt+disc+tax)} credited to ${c.name}`);try{renderImpHist()}catch(x){}
 });
-</script><style id="klc-doc-capture-css">
+</script><script id="klc-imp-multi">
+/* ---------- SmartCargo Import: many PDFs at once (23 Nov 2026). Each file is recognised (Challan / Delivery / Bilty / Outstanding / RCP / Ledger), the right tab is picked by itself, and the files open one after another for checking ---------- */
+let impQ=null,impPLCache=null;
+const impPL0=pdfLines;pdfLines=async function(buf){if(impPLCache){const c=impPLCache;impPLCache=null;return c}return impPL0(buf)};
+const IMPQ_NM={challan:"Challan",delivery:"Delivery",bilty:"Bilty",outstanding:"Outstanding",rcp:"RCP",ledger:"Ledger"};
+function impDetect(T){return /Customer Outstanding Detail/i.test(T)?"outstanding":/Daily Delivery Report/i.test(T)?"delivery":/LEDGER ACCOUNTING SYSTEM/i.test(T)?"ledger":/BOOKING CHALLAN/i.test(T)?"challan":(/Customer Copy/i.test(T)&&/Bilty No\./i.test(T))?"bilty":(/sum\s+of\s+Rup/i.test(T)||/\bRCP\b/i.test(T)||/Receipt\s*(?:No|Voucher)/i.test(T))?"rcp":""}
+function impQBox(){let b=$("#impQBar");if(!b){const p=$("#impPreview");if(!p)return null;b=document.createElement("div");b.id="impQBar";b.className="panel";b.style.cssText="display:grid;gap:10px";p.parentNode.insertBefore(b,p)}return b}
+function impQBar(){
+  const b=impQBox();if(!b)return;
+  if(!impQ||impQ.single){b.hidden=true;b.innerHTML="";return}
+  const n=impQ.files.length,i=Math.min(impQ.i,n-1),c=impQ.cur||{};
+  b.hidden=false;
+  b.innerHTML=`<div class="card-head"><h2>File ${i+1} of ${n}</h2><span class="pill s3">${impQ.busy?"Reading…":c.kind?esc(IMPQ_NM[c.kind]||c.kind):"Check"}</span></div>
+    <p class="hint" style="margin:0"><b>${esc(c.name||"")}</b>${c.kind?` · recognised as <b>${esc(IMPQ_NM[c.kind])}</b>`:""}. Check it below and save it; the next file then opens by itself.</p>
+    <div style="height:6px;border-radius:3px;background:var(--line);overflow:hidden"><div style="height:100%;width:${Math.round(impQ.i/n*100)}%;background:var(--accent)"></div></div>
+    <div class="inline-actions"><button class="btn ghost sm" type="button" id="impQSkip"${impQ.busy?" disabled":""}>Skip this file</button><button class="btn ghost sm" type="button" id="impQStop">Stop</button></div>`}
+function impQSummary(){
+  const b=impQBox();if(!b||!impQ)return;const R=impQ.res,ok=R.filter(r=>r.st==="ok").length;
+  impQ=null;
+  b.hidden=false;
+  b.innerHTML=`<div class="card-head"><h2>${R.length} files done</h2><span class="pill ${ok===R.length?"s4":"s3"}">${ok} saved</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Type</th><th>Result</th></tr></thead><tbody>${R.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.kind?esc(IMPQ_NM[r.kind]||r.kind):"—"}</td><td>${r.st==="ok"?`<span class="ok">✓ Saved</span>`:r.st==="err"?`<span style="color:#b42318">✕ ${esc(r.msg||"Not read")}</span>`:`<span class="hint">${esc(r.msg||"Skipped")}</span>`}</td></tr>`).join("")}</tbody></table></div>
+    <div class="inline-actions"><button class="btn ghost sm" type="button" id="impQClose">Close</button></div>`;
+  $("#impMsg").innerHTML=ok?`<span class="ok">Done.</span> ${ok} of ${R.length} files saved. See the list above.`:"No file was saved. See the list above.";
+  try{renderImpHist()}catch(e){}}
+async function impRunNext(){
+  if(!impQ)return;
+  if(impQ.i>=impQ.files.length){if(impQ.single){impQ=null;impQBar()}else impQSummary();return}
+  const f=impQ.files[impQ.i];impQ.busy=true;impQ.cur={name:f.name,kind:""};impQBar();
+  let kind="",lines=null;
+  if(/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name)){$("#impMsg").textContent="Reading the PDF…";try{lines=await impPL0(await f.arrayBuffer());kind=impDetect(lines.map(l=>l.text).join("\n"))}catch(e){lines=null}}
+  if(!impQ)return;
+  impQ.cur.kind=kind;
+  if(!kind&&!impQ.single){impQ.busy=false;impQ.res.push({name:f.name,kind:"",st:"err",msg:lines?"Not a SmartCargo file this page knows":"Could not read this PDF"});impQ.i++;return impRunNext()}
+  if(kind&&kind!=="ledger"&&kind!==impKind)setImpKind(kind);else if(kind==="ledger"&&impKind==="rcp")setImpKind("challan");
+  impPLCache=lines;try{await handleImportFile(f)}finally{impPLCache=null}
+  if(!impQ)return;
+  impQ.busy=false;
+  if(!$("#impPreview").children.length){impQ.res.push({name:f.name,kind,st:"err",msg:($("#impMsg").textContent||"").trim()||"Could not read this PDF"});impQ.i++;return impRunNext()}
+  if(kind&&impQ.single&&kind!==impQ.k0)$("#impMsg").innerHTML=`Recognised as a <b>${esc(IMPQ_NM[kind])}</b> file, so the ${esc(IMPQ_NM[kind])} tab was picked.`;
+  impQBar()}
+function impHandleFiles(list){
+  const files=[...(list||[])].filter(Boolean);if(!files.length)return;
+  if(impQ&&!impQ.single){toast("Finish or stop the current files first");return}
+  impQ={files,i:0,res:[],busy:false,single:files.length===1,k0:impKind};impRunNext()}
+function impClearData(){impData=null;delData=null;invData=null;ledData=null;osData=null;try{rcpReset()}catch(e){}$("#impPreview").innerHTML=""}
+function impQStop(note){if(!impQ)return;const q=impQ;if(q.single){impQ=null;impQBar();return}
+  if(q.i<q.files.length){q.res.push({name:q.files[q.i].name,kind:q.cur&&q.cur.kind,st:"skip",msg:note||"Stopped"});for(let j=q.i+1;j<q.files.length;j++)q.res.push({name:q.files[j].name,kind:"",st:"skip",msg:"Not opened"})}
+  q.i=q.files.length;impQSummary();impClearData()}
+new MutationObserver(()=>{
+  if(!impQ||impQ.busy||$("#impPreview").children.length)return;
+  const m=($("#impMsg").textContent||"").trim(),ok=/^Done\./.test(m);
+  impQ.res.push({name:impQ.cur.name,kind:impQ.cur.kind,st:ok?"ok":"skip",msg:ok?"":"Skipped"});impQ.i++;setTimeout(impRunNext,60)
+}).observe($("#impPreview"),{childList:true});
+document.addEventListener("click",e=>{if(!e.target.closest)return;
+  if(e.target.closest("#impQSkip")){if(impQ&&!impQ.busy)impClearData();return}
+  if(e.target.closest("#impQStop")){impQStop("Stopped");return}
+  if(e.target.closest("#impQClose")){const b=$("#impQBar");if(b){b.hidden=true;b.innerHTML=""}return}
+  if(e.target.closest("[data-impkind]")&&impQ){impQStop("Stopped (tab changed)")}},true);
+{const fi=$("#impFile");if(fi)fi.multiple=true;const s=document.querySelector("#impDrop .hint");if(s)s.textContent="or drag files here · several at once is fine, each is recognised by itself"}
+</script>
+<style id="klc-doc-capture-css">
 .dc{display:grid;gap:8px;grid-column:1/-1}
 .dc-lab input[type=file]{display:none}
 .dc-slot{display:flex;gap:12px;align-items:center;padding:10px;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface)}
