@@ -7628,4 +7628,71 @@ try{if(typeof sub!=="undefined"&&sub==="today"&&document.getElementById("p-today
 try{tdBadge()}catch(e){}
 })();
 </script>
+<script id="klc-robot">
+/* KLC robot door: the SmartCargo robot (Zia Islam's Chrome) sends parsed rows here.
+   window.klcRobot.delivery(rows,{dry})  -> marks bilties Delivered (same as the Daily Delivery import)
+   window.klcRobot.challan(ch,{dry})     -> adds a Sialkot challan as In Transit + 26 h timer + station from Remarks
+   Both are safe to repeat: delivered bilties and already-updated challans are skipped. dry:true changes nothing. */
+(function(){
+  const HRS=26;
+  const log=(kind,sum)=>{try{db.robotLog=db.robotLog||[];db.robotLog.unshift({at:new Date().toISOString(),kind,...sum});db.robotLog=db.robotLog.slice(0,60)}catch(e){console.error(e)}};
+  function station(remarks){
+    const R=String(remarks||""),S=db.stations||[],by=re=>S.find(x=>re.test((x.name||"")+" "+(x.place||"")));
+    if(/cant/i.test(R))return by(/cant/i)||null;
+    if(/kpt/i.test(R))return by(/kpt/i)||null;
+    if(/port\s*qa[sz]?[ao]m|\bp\.?q\b/i.test(R))return by(/qa[sz]?[ao]m/i)||null;
+    if(/gujj?ra?t\s*cargo/i.test(R))return by(/cant/i)||null;
+    return null;
+  }
+  function delivery(rows,o){
+    o=o||{};const now=new Date().toISOString();db.delrec=db.delrec||[];
+    let upd=0,already=0,skipped=0;const todo=[],notFound=[];
+    rows=(rows||[]).filter(r=>String(r.book||"").trim().toLowerCase()==="sialkot");/* Gujranwala etc. are never looked at */
+    rows.forEach(r=>{
+      const b=delFind(r);
+      if(!b){notFound.push(r.id);skipped++;return}
+      if(b.status===4&&b.deliv){already++;return}
+      todo.push(r.id);
+      if(o.dry)return;
+      const dIso=new Date(r.date+"T09:00:00").toISOString();
+      for(let i=1;i<=4;i++){if(!b.hist[i])b.hist[i]=dIso}
+      b.hist=b.hist.slice(0,5);b.hist[4]=dIso;b.status=4;b.deliv={name:r.name,day:r.date,date:dIso};
+      const rec={id:b.id,bill:r.billNo,name:r.raw,cons:r.cons,phone:r.phone,nic:r.nic,kg:r.kg,city:r.city,date:dIso,at:now,by:"Robot"};
+      const k=db.delrec.findIndex(x=>x.id===b.id);k>=0?db.delrec[k]=rec:db.delrec.push(rec);upd++;
+    });
+    const out={dry:!!o.dry,read:(rows||[]).length,updated:o.dry?0:upd,wouldUpdate:todo.length,alreadyDelivered:already,notOnSite:notFound.length,notFound};
+    if(!o.dry){lastImpName="Robot delivery";implogAdd("delivery",(rows||[]).length,0,upd,skipped);log("delivery",{read:out.read,updated:upd,already,notOnSite:notFound.length});save();try{renderPanel()}catch(e){}}
+    return out;
+  }
+  function challan(ch,o){
+    o=o||{};const from=ch.from||"Sialkot";
+    if(String(from).toLowerCase()!=="sialkot")return{ok:false,skip:"not Sialkot"};
+    const prev=(db.challans||[]).find(c=>String(c.no)===String(ch.no)&&String(c.from).toLowerCase()===from.toLowerCase());
+    if(prev)return{ok:true,skip:"already on site ("+prev.status+")",no:ch.no};
+    const st=station(ch.remarks);
+    if(!st)return{ok:false,needsYou:true,no:ch.no,reason:"Remarks has no Cant / KPT / Port Qasim / Gujrat Cargo: \""+(ch.remarks||"")+"\""};
+    const rows=ch.rows||[];
+    const out={ok:true,dry:!!o.dry,no:ch.no,station:st.name,bilties:rows.length,timerHours:HRS};
+    if(o.dry)return out;
+    const now=new Date().toISOString(),chDate=dmyToIso(ch.date),at=new Date(Date.now()+HRS*3600000).toISOString();
+    const challan={no:ch.no,date:ch.date,vehicle:ch.vehicle||"",transporter:ch.transporter||""};
+    let added=0,updated=0;
+    rows.forEach(r=>{
+      let b=db.bilties.find(x=>x.id===r.id)||db.bilties.find(x=>x.src==="Delivery"&&biltyMatch(x.id,r.id)&&String(x.from).toLowerCase()===from.toLowerCase());
+      if(b&&b.id!==r.id)b.id=r.id;
+      if(!b){b={id:r.id,from:from,to:ch.to||"Karachi",sender:"",sphone:"",recv:"",phone:"",items:"",pcs:"",kg:"",status:0,hist:[dmyToIso(r.date||ch.date)],acct:"",freight:0,labour:0,pay:"",paid:0,src:"SmartCargo"};db.bilties.push(b);added++}else updated++;
+      b.challan=challan;
+      if(2>=b.status){for(let i=1;i<=2;i++){if(!b.hist[i])b.hist[i]=i<2?chDate:now}b.hist=b.hist.slice(0,3);b.status=2}
+      b.arrival={place:st.place||st.name,contact:st.contact||"",phone:st.phone||""};
+      b.eta=at;
+    });
+    db.challans=db.challans||[];
+    db.challans.push({no:ch.no,date:ch.date,from:from,to:ch.to||"Karachi",vehicle:ch.vehicle||"",count:rows.length,status:STATUSES[2],at:now,by:"Robot",auto:{at:at,to:3,hrs:HRS,arrival:{place:st.place||st.name,contact:st.contact||"",phone:st.phone||""}}});
+    lastImpName="Robot challan "+ch.no;implogAdd("challan",rows.length,added,updated,0);log("challan",{no:ch.no,station:st.name,added,updated});
+    save();try{renderPanel()}catch(e){}
+    return out;
+  }
+  window.klcRobot={delivery,challan,station,hours:HRS};
+})();
+</script>
 </body></html>
