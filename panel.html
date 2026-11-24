@@ -7421,6 +7421,54 @@ document.addEventListener("click",function(e){var b=e.target.closest&&e.target.c
 },true);
 })();
 </script>
+<script id="klc-fresh-section">
+/* 24 Nov: every time staff open a section of the KLC Panel / Fleet by hand, that section starts completely fresh:
+   no old search text, no company/account picked earlier, no filter, no open profile, no half-done upload.
+   (Shortcuts inside the app, like "Upload for this account", set their own values and are not touched.) */
+(function(){
+function set(f){try{f()}catch(_){}}
+var RESET={
+ imp:function(){impKind="challan";upTarget="";impData=null;delData=null;invData=null;ledData=null;osData=null;rcpData=null;rcpFile=null;impTStation="";stEdit="";ihType="all";ihQ="";ihLim=5;
+   set(function(){impQ=null});set(function(){stKind="";stCap=100;stQ=""});
+   set(function(){["#impPreview","#impMsg"].forEach(function(q){var e=document.querySelector(q);if(e)e.innerHTML=""})})},
+ bilty:function(){set(function(){ordQ=""});set(function(){upTarget=""});set(function(){coCap=100})},
+ rates:function(){rateAcct=null},
+ xchk:function(){xkSrc=null;xkF="all";xkQ="";xkMode="all";xkParty="";xkPF="all"},
+ acct:function(){acctTab="ledger";acctOpen="";acctShow=false;acQ="";accClient=null;set(function(){coCap=100});set(function(){obOpen=""});set(function(){acDpData=""});set(function(){lentAsk="";invAsk=""})},
+ news:function(){newsF="all";nwImgData=""},
+ dir:function(){dirT="all"},
+ partners:function(){pnCat="cargo";pnVeh="all"},
+ inbox:function(){set(function(){kCityF=""})},
+ fleetdash:function(){FLclr()},fleetveh:function(){FLclr()},fleetdrv:function(){FLclr()},fleetdoc:function(){FLclr()}
+};
+function FLclr(){
+  if(typeof flBack==="function")flBack();
+  if(typeof FL!=="object"||!FL)return;
+  FL.q={veh:"",drv:"",doc:""};FL.st="all";FL.sd="all";FL.bk="all";FL.old=false;FL.tripPick=false;FL.drvRep="";FL.folder="";FL.todoAll=false;FL.todoOld=false;FL.pendingMsg="";
+}
+/* clear every box in the section: text, search, number, date, notes go back to empty, dropdowns go back to their first choice */
+function wipe(id){
+  var box=document.getElementById("p-"+id);if(!box)return;
+  box.querySelectorAll("input,select,textarea").forEach(function(el){
+    var t=(el.type||"").toLowerCase();
+    if(t==="file"||t==="hidden"||t==="button"||t==="submit")return;
+    if(t==="checkbox"||t==="radio"){el.checked=el.defaultChecked;return}
+    if(el.tagName==="SELECT"){var d=-1;for(var i=0;i<el.options.length;i++)if(el.options[i].defaultSelected){d=i;break}el.selectedIndex=d>=0?d:(el.options.length?0:-1);return}
+    el.value=el.defaultValue||"";
+  });
+  box.querySelectorAll("input[type=file]").forEach(function(el){try{el.value=""}catch(_){}});
+}
+document.addEventListener("click",function(e){
+  if(!e.isTrusted)return;
+  var b=e.target.closest&&e.target.closest("#subtabs .chipbtn[data-s]");if(!b)return;
+  var id=b.dataset.s;
+  set(RESET[id]||function(){});
+  set(function(){wipe(id)});
+  /* close an open "Are you sure?" or form from another visit */
+  set(function(){var c=document.querySelectorAll("#panelBody .modal.open,#panelBody [data-fresh-close]");c.forEach(function(x){x.hidden=true})});
+},true);
+})();
+</script>
 <style id="klc-keep-css">.kp-keep{display:flex!important;align-items:center;gap:8px;font-weight:500;cursor:pointer}.kp-keep input{width:18px;height:18px;margin:0;accent-color:var(--accent)}</style>
 <script id="klc-keep">
 /* 20 Nov: "Keep me signed in on this device" for the KLC Panel. The Supabase session is kept in localStorage only when the box is ticked; Sign out removes it. */
