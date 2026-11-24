@@ -7640,7 +7640,8 @@ try{tdBadge()}catch(e){}
     const R=String(remarks||""),S=db.stations||[],by=re=>S.find(x=>re.test((x.name||"")+" "+(x.place||"")));
     if(/cant/i.test(R))return by(/cant/i)||null;
     if(/kpt/i.test(R))return by(/kpt/i)||null;
-    if(/port\s*qa[sz]?[ao]m|\bp\.?q\b/i.test(R))return by(/qa[sz]?[ao]m/i)||null;
+    if(/\bqfs\b/i.test(R))return by(/qfs/i)||null;
+    if(/port\s*qa[sz]?[ao]m|\bp\.?q\b/i.test(R))return by(/qa[sz]?[ao]m|qfs/i)||null;
     if(/gujj?ra?t\s*cargo/i.test(R))return by(/cant/i)||null;
     return null;
   }
@@ -7670,7 +7671,7 @@ try{tdBadge()}catch(e){}
     const prev=(db.challans||[]).find(c=>String(c.no)===String(ch.no)&&String(c.from).toLowerCase()===from.toLowerCase());
     if(prev)return{ok:true,skip:"already on site ("+prev.status+")",no:ch.no};
     const st=station(ch.remarks);
-    if(!st)return{ok:false,needsYou:true,no:ch.no,reason:"Remarks has no Cant / KPT / Port Qasim / Gujrat Cargo: \""+(ch.remarks||"")+"\""};
+    if(!st)return{ok:false,needsYou:true,no:ch.no,reason:"Remarks has no Cant / KPT / QFS / Port Qasim / Gujrat Cargo: \""+(ch.remarks||"")+"\""};
     const rows=ch.rows||[];
     const out={ok:true,dry:!!o.dry,no:ch.no,station:st.name,bilties:rows.length,timerHours:HRS};
     if(o.dry)return out;
