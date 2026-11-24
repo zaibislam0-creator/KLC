@@ -7667,6 +7667,12 @@ try{tdBadge()}catch(e){}
     if(!o.dry){lastImpName="Robot delivery";implogAdd("delivery",(rows||[]).length,0,upd,skipped);log("delivery",{read:out.read,updated:upd,already,notOnSite:notFound.length});save();try{renderPanel()}catch(e){}}
     return out;
   }
+  /* timer counts from 8:30 am Karachi time: a late robot run gets that much less time (26 h from 8:30) */
+  function robotDue(from){
+    const t=Date.now();let base=from?new Date(from).getTime():NaN;
+    if(isNaN(base)){const pk=new Date(t+5*3600000);base=Date.UTC(pk.getUTCFullYear(),pk.getUTCMonth(),pk.getUTCDate(),3,30);if(base>t)base=t}
+    return new Date(Math.max(base+HRS*3600000,t)).toISOString();
+  }
   function challan(ch,o){
     o=o||{};const from=ch.from||"Sialkot";
     if(String(from).toLowerCase()!=="sialkot")return{ok:false,skip:"not Sialkot"};
@@ -7677,7 +7683,7 @@ try{tdBadge()}catch(e){}
     const rows=ch.rows||[];
     const out={ok:true,dry:!!o.dry,no:ch.no,station:st.name,bilties:rows.length,timerHours:HRS};
     if(o.dry)return out;
-    const now=new Date().toISOString(),chDate=dmyToIso(ch.date),at=new Date(Date.now()+HRS*3600000).toISOString();
+    const now=new Date().toISOString(),chDate=dmyToIso(ch.date),at=robotDue(o.from);
     const challan={no:ch.no,date:ch.date,vehicle:ch.vehicle||"",transporter:ch.transporter||""};
     let added=0,updated=0;
     rows.forEach(r=>{
@@ -7695,7 +7701,7 @@ try{tdBadge()}catch(e){}
     save();try{renderPanel()}catch(e){}
     return out;
   }
-  window.klcRobot={delivery,challan,station,hours:HRS};
+  window.klcRobot={delivery,challan,station,hours:HRS,due:robotDue};
 })();
 </script>
 </body></html>
