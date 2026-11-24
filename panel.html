@@ -2425,6 +2425,7 @@ body:has(#v-track.resonly:not([hidden])) .footer,body:has(#v-track.resonly:not([
       <p class="hint" style="margin:-6px 0 0">Leave empty only for a customer who is not in SmartCargo. A KLC code like KLC-C03 is then made.</p>
       <label>Company name<input id="acName" required></label>
       <label>Registered mobile<input id="acPhone" required inputmode="tel" placeholder="03xx-xxxxxxx"></label>
+      <label>Accounts department WhatsApp (optional)<input id="acWa" inputmode="tel" placeholder="03xx-xxxxxxx" autocomplete="off"></label><p class="hint" style="margin:-6px 0 0">Payment reminders on the Today page go to this number. Leave empty to use the registered mobile.</p>
       <label>Company logo or photo (optional)<input id="acDp" type="file" accept="image/*"></label><p class="hint" id="acDpNote" style="margin:-6px 0 0"></p>
       <button class="btn" type="submit">Create account</button>
     </form>
@@ -4891,7 +4892,7 @@ function acFiltered(){const q=acNorm(acQ);if(!q)return db.clients;return db.clie
 function acRowsRender(){
   const acList=acFiltered(),tot=db.clients.length;
   {const n=$("#acCount");if(n)n.textContent=acQ.trim()?`${acList.length} of ${tot} accounts`:`${tot} accounts`}
-  $("#acctRows").innerHTML=acList.length?acList.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td><div style="display:flex;gap:10px;align-items:flex-start">${dpHTML(c,true)}<div>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span><br><span style="font-size:12px">${c.pwh?`<b>Own password set</b>`:`PIN: <b class="mono">${esc(c.pin||"not set")}</b>`} <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin||c.pwh?"New PIN":"Make PIN"}</button></span><br><span style="font-size:12px"><button class="btn ghost sm" type="button" data-dpset="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.dp?"Change photo":"Add photo"}</button>${c.dp?` <button class="btn ghost sm" type="button" data-dprm="${esc(c.code)}" style="padding:2px 8px;font-size:11px">Remove</button>`:""}</span></div></div></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button><div class="inline-actions" style="margin-top:6px;gap:6px"><button class="btn ghost sm" type="button" data-acedit="${esc(c.code)}">Edit</button><button class="btn ghost sm" type="button" data-acdel="${esc(c.code)}">Delete</button></div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">${tot?"No account matches your search.":"No company accounts yet."}</td></tr>`;
+  $("#acctRows").innerHTML=acList.length?acList.map(c=>{const L=ledger(c.code);return `<tr><td class="mono"><b>${esc(c.code)}</b></td><td><div style="display:flex;gap:10px;align-items:flex-start">${dpHTML(c,true)}<div>${esc(c.name)}<br><span class="phone" style="font-size:12px">${esc(fmtPhone(c.phone))}</span>${c.wa?`<br><span style="font-size:12px;color:var(--muted)">Accounts WhatsApp: <span class="phone" style="font-size:12px">${esc(fmtPhone(c.wa))}</span></span>`:""}<br><span style="font-size:12px">${c.pwh?`<b>Own password set</b>`:`PIN: <b class="mono">${esc(c.pin||"not set")}</b>`} <button class="btn ghost sm" type="button" data-newpin="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.pin||c.pwh?"New PIN":"Make PIN"}</button></span><br><span style="font-size:12px"><button class="btn ghost sm" type="button" data-dpset="${esc(c.code)}" style="padding:2px 8px;font-size:11px">${c.dp?"Change photo":"Add photo"}</button>${c.dp?` <button class="btn ghost sm" type="button" data-dprm="${esc(c.code)}" style="padding:2px 8px;font-size:11px">Remove</button>`:""}</span></div></div></td><td class="num">${rs(L.dr)}</td><td class="num">${rs(L.cr)}</td><td class="num">${balTxt(L.bal)}</td><td><button class="btn ghost sm" data-ledger="${esc(c.code)}">Ledger</button><div class="inline-actions" style="margin-top:6px;gap:6px"><button class="btn ghost sm" type="button" data-acedit="${esc(c.code)}">Edit</button><button class="btn ghost sm" type="button" data-acdel="${esc(c.code)}">Delete</button></div></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">${tot?"No account matches your search.":"No company accounts yet."}</td></tr>`;
 }
 function pAcct(){
   acRowsRender();
@@ -4899,6 +4900,7 @@ function pAcct(){
     eb.innerHTML=ec?`<div class="panel f"><div class="card-head"><h2>Edit account ${esc(ec.code)}</h2><button class="btn ghost sm" type="button" data-aecancel="1">Close</button></div>
       <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${dpHTML(ec)}<div class="inline-actions"><button class="btn ghost sm" type="button" data-dpset="${esc(ec.code)}">${ec.dp?"Change photo":"Add photo"}</button>${ec.dp?`<button class="btn ghost sm" type="button" data-dpadj="${esc(ec.code)}">Adjust photo</button><button class="btn ghost sm" type="button" data-dprm="${esc(ec.code)}">Remove photo</button>`:""}</div></div>
       <div class="row2"><label>SmartCargo account code<input id="aeCode" value="${esc(ec.code)}" autocomplete="off"></label><label>Company name<input id="aeName" value="${esc(ec.name)}" autocomplete="off"></label><label>Registered mobile<input id="aePhone" inputmode="tel" value="${esc(fmtPhone(ec.phone))}" autocomplete="off"></label></div>
+      <div class="row2"><label>Accounts department WhatsApp (optional)<input id="aeWa" inputmode="tel" placeholder="03xx-xxxxxxx" value="${esc(ec.wa?fmtPhone(ec.wa):"")}" autocomplete="off"></label><p class="hint" style="margin:0;align-self:end">Payment reminders on the Today page go to this number. Empty = registered mobile.</p></div>
       <p class="hint" style="margin:0">The code must be the same as the account code in SmartCargo (for example 03010195), otherwise the ledger and invoices will not show for this customer. If you change it, tell the customer the new code. A new PIN can be made from the list.</p>
       <div class="inline-actions"><button class="btn" type="button" data-aesave="${esc(ec.code)}">Save changes</button><button class="btn ghost" type="button" data-aecancel="1">Cancel</button></div></div>`:""}
   const c=clientOf(ledgerCode),box=$("#ledgerBox");
@@ -4923,12 +4925,13 @@ function acctClick(e){
     const nm=$("#aeName").value.trim(),ph=normPhone($("#aePhone").value);
     if(!nm){toast("Type the company name");return}
     if(!validMob(ph)){toast("Enter a valid mobile number, like 0300-1234567");return}
+    const wa=normPhone(($("#aeWa")||{}).value||"");if(wa&&!validMob(wa)){toast("Enter a valid Accounts WhatsApp number, like 0300-1234567");return}
     const nc=($("#aeCode").value||"").trim().toUpperCase();
     if(nc&&nc!==c.code){
       if(!/^[A-Z0-9-]{3,12}$/.test(nc)){toast("The code can only have letters, numbers and a dash");return}
       if(clientOf(nc)){toast(`Code ${nc} already has an account`);return}
     }
-    c.name=nm;c.phone=ph;let moved="";if(nc&&nc!==c.code){const old=c.code;if(renameAcct(old,nc))moved=` Code changed from ${old} to ${nc}.`}
+    c.name=nm;c.phone=ph;if(wa)c.wa=wa;else delete c.wa;let moved="";if(nc&&nc!==c.code){const old=c.code;if(renameAcct(old,nc))moved=` Code changed from ${old} to ${nc}.`}
     save();acEditCode="";pAcct();toast("Account saved."+moved);return}
   const dl=e.target.closest("[data-acdel]");if(dl){
     const code=dl.dataset.acdel,c=clientOf(code);if(!c)return;
@@ -4979,12 +4982,13 @@ $("#acDp").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;
 $("#acctForm").addEventListener("submit",e=>{
   e.preventDefault();
   const aph=normPhone($("#acPhone").value);if(!validMob(aph)){toast("Enter a valid mobile number, like 0300-1234567");return}
+  const awa=normPhone(($("#acWa")||{}).value||"");if(awa&&!validMob(awa)){toast("Enter a valid Accounts WhatsApp number, like 0300-1234567");return}
   let code=$("#acCode").value.trim().toUpperCase().replace(/\s/g,"");
   if(code){
     if(!/^[A-Z0-9-]{3,12}$/.test(code)){toast("The code can only have letters, numbers and a dash");return}
     if(clientOf(code)){toast(`Code ${code} already has an account`);return}
   }else{let n=db.clients.length+1;do{code="KLC-C"+String(n++).padStart(2,"0")}while(db.clients.some(c=>c.code===code))}
-  const pin=genPin();const nc={code,name:$("#acName").value.trim(),phone:aph,pin,src:/^\d+$/.test(code)?"SmartCargo":""};db.clients.push(nc);
+  const pin=genPin();const nc={code,name:$("#acName").value.trim(),phone:aph,pin,src:/^\d+$/.test(code)?"SmartCargo":""};if(awa)nc.wa=awa;db.clients.push(nc);
   if(acDpData)nc.dp=acDpData;acDpData="";$("#acDpNote").textContent="";
   save();e.target.reset();acView="list";pAcct();toast(`Account ${code} created. PIN: ${pin}. Send the code and PIN to the customer on WhatsApp.`);
 });
@@ -7616,9 +7620,9 @@ window.pToday=function(){
       <button type="button" class="td-k red" data-outlist="1"><b>${rs(tot)}</b><span>Total outstanding</span><small>${o60>0?rs(o60)+" over 60 days":"&nbsp;"}</small></button>`;
     const R=db.remind||{};
     pay=`<section class="td-card" aria-labelledby="tdPayH"><div class="td-ch"><h3 id="tdPayH">Collect payments</h3><button type="button" class="td-link" data-outlist="1">All outstanding →</button></div>
-      ${rows.length?rows.slice(0,6).map(({c,a})=>{const ph=tdPhone(c.phone),rd=R[c.code],rda=rd?ago(rd):null,cls=a.days>60?"":a.days>30?" y":" g";
+      ${rows.length?rows.slice(0,6).map(({c,a})=>{const ph=tdPhone(c.wa||c.phone),rd=R[c.code],rda=rd?ago(rd):null,cls=a.days>60?"":a.days>30?" y":" g";
         const href=ph?`https://wa.me/${ph}?text=${encodeURIComponent(tdMsg(c,a))}`:"";
-        return `<div class="td-it td-pay"><div class="td-tx"><b>${esc(c.name)}</b><span>${a.n?pl(a.n,"bilty","bilties")+" · ":""}oldest ${pl(a.days,"day")}<span class="td-age${cls}">${a.days>60?"60+ days":a.days>30?"30+ days":"recent"}</span>${rd?` · reminded ${rda===0?"today":pl(rda,"day")+" ago"}`:""}</span></div>
+        return `<div class="td-it td-pay"><div class="td-tx"><b>${esc(c.name)}</b><span>${a.n?pl(a.n,"bilty","bilties")+" · ":""}oldest ${pl(a.days,"day")}<span class="td-age${cls}">${a.days>60?"60+ days":a.days>30?"30+ days":"recent"}</span>${rd?` · reminded ${rda===0?"today":pl(rda,"day")+" ago"}`:""}${c.wa&&ph?" · to Accounts WhatsApp":""}</span></div>
           <div class="td-amt">${rs(a.bal)}</div>
           ${ph?`<a class="td-wa${rd&&rda!==null&&rda<3?" again":""}" href="${href}" target="_blank" rel="noopener" data-tdrem="${esc(c.code)}">${rd&&rda!==null&&rda<3?"Remind again":"WhatsApp reminder"}</a>`:`<a class="td-wa" aria-disabled="true" title="Add a mobile number to this account first">No mobile number</a>`}
           <button type="button" class="td-go" data-olopen="${esc(c.code)}">Ledger</button></div>`}).join(""):'<p class="td-ok">✓ No customer owes money right now.</p>'}
