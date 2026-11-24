@@ -7528,9 +7528,9 @@ function tdNeeds(){
   const out=[],B=db.bilties||[];
   try{const th=(typeof kVisible==="function"?kVisible():[]).filter(x=>x.unreadKlc&&!x.done);
     if(th.length){const nm=th.map(x=>x.name||x.phone||"Customer");out.push({ic:"💬",c:"amb",t:pl(th.length,"customer chat")+" waiting for a reply",s:nm.slice(0,2).join(", ")+(nm.length>2?`, ${nm.length-2} more`:""),go:"inbox",b:"Reply"})}}catch(e){}
-  const stuck=B.filter(b=>b.status===3&&b.hist&&b.hist[3]&&(ago(b.hist[3])||0)>=3&&(ago(b.hist[3])||0)<=60);
+  const stuck=B.filter(b=>b.status===3&&b.hist&&b.hist[3]&&(ago(b.hist[3])||0)>=3&&(ago(b.hist[3])||0)<=7);
   if(stuck.length){const st={};stuck.forEach(b=>{const k=b.to||"-";st[k]=(st[k]||0)+1});const top=Object.entries(st).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+" "+v).join(" · ");
-    out.push({ic:"⏱",c:"amb",t:pl(stuck.length,"bilty","bilties")+' "Arrived" for 3+ days, not delivered',s:top+" · check with the receiver",go:"bilty",b:"Bilties",list:stuck.sort((a,b)=>String(a.hist[3]).localeCompare(String(b.hist[3]))).map(b=>`${b.id} · ${b.to||""} · ${ago(b.hist[3])} days`)})}
+    out.push({ic:"⏱",c:"amb",t:pl(stuck.length,"bilty","bilties")+' "Arrived" 3 to 7 days ago, not delivered',s:top+" · check with the receiver",go:"bilty",b:"Bilties",list:stuck.sort((a,b)=>String(a.hist[3]).localeCompare(String(b.hist[3]))).map(b=>`${b.id} · ${b.to||""} · ${ago(b.hist[3])} days`)})}
   if(can("acct")){
     const t=TODAY();
     const chq=(db.payments||[]).filter(p=>p.method==="Cheque"&&(p.chqStatus||"Pending")==="Pending"&&(!p.chqDate||p.chqDate<=t));
