@@ -88,6 +88,7 @@ section.view{padding-top:26px;display:grid;gap:22px}
 input,select,textarea{font:500 15px var(--body);color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
 textarea{min-height:80px;resize:vertical}
 .search input{flex:1 1 260px;width:auto;font-size:17px;padding:13px 14px}
+.ih-more{display:flex;gap:8px;justify-content:center;margin-top:10px}.ih-more .btn{width:auto;margin:0}
 .btn{font:700 15px var(--body);border:0;border-radius:8px;padding:12px 18px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
 .btn.ghost{background:var(--chip);color:var(--ink)}
 .btn.sm{padding:7px 12px;font-size:13px}
@@ -6225,19 +6226,20 @@ $("#impPreview").addEventListener("click",async e=>{
 });
 const dmyToIso=d=>{const [dd,mm,yy]=d.split("/");return new Date(`${yy}-${mm}-${dd}T09:00:00`).toISOString()};
 /* ---------- import history (shown under the upload boxes in the KLC panel) ---------- */
-let lastImpName="",ihType="all",ihQ="";
+let lastImpName="",ihType="all",ihQ="",ihLim=5;
 const IH_KIND={challan:"Challan",delivery:"Delivery",bilty:"Bilty",outstanding:"Outstanding",rcp:"RCP",ledger:"Ledger"};
 function implogAdd(kind,total,add,upd,skip){
   try{db.implog=db.implog||[];db.implog.unshift({id:"IL-"+Date.now().toString(36),kind,file:lastImpName||"-",total:total||0,add:add||0,upd:upd||0,skip:skip||0,by:staffName||"",at:new Date().toISOString()});db.implog=db.implog.slice(0,300)}catch(e){console.error("implog",e)}}
 function renderImpHist(){
   const box=$("#impHistBox");if(!box)return;
   const q=ihQ.toLowerCase();
-  const rows=(db.implog||[]).filter(r=>(ihType==="all"||r.kind===ihType)&&(!q||String(r.file).toLowerCase().includes(q))).slice(0,50);
+  const allRows=(db.implog||[]).filter(r=>(ihType==="all"||r.kind===ihType)&&(!q||String(r.file).toLowerCase().includes(q))).slice(0,50);const rows=allRows.slice(0,ihLim),ihLeft=allRows.length-rows.length;
   box.innerHTML=`<h2 style="margin-bottom:4px">Recent import history</h2><p class="hint" style="margin:0 0 6px">Every upload saved from this page, newest first.</p>
   <div class="ih-tb"><input id="ihQ" placeholder="Search file name" value="${esc(ihQ)}" aria-label="Search imports"><select id="ihT" aria-label="Import type"><option value="all">All types</option>${Object.entries(IH_KIND).map(([k,l])=>`<option value="${k}"${ihType===k?" selected":""}>${l}</option>`).join("")}</select></div>
-  <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Type</th><th class="num">Total</th><th class="num">New</th><th class="num">Updated</th><th class="num">Skipped</th><th>By</th><th>Date and time</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.file)}</td><td><span class="ih-ty ${esc(r.kind)}">${esc(IH_KIND[r.kind]||r.kind)}</span></td><td class="num">${r.total}</td><td class="num">${r.add}</td><td class="num">${r.upd}</td><td class="num">${r.skip}</td><td>${esc(r.by)}</td><td>${fmt(r.at)}</td></tr>`).join("")||`<tr><td colspan="8" class="hint">${(db.implog||[]).length?"No import matches.":"No imports recorded yet. New uploads will appear here."}</td></tr>`}</tbody></table></div>`}
-document.addEventListener("input",e=>{const q=e.target.closest("#ihQ");if(!q)return;ihQ=q.value;const p=q.selectionStart;renderImpHist();const n=$("#ihQ");if(n){n.focus();try{n.setSelectionRange(p,p)}catch(x){}}});
-document.addEventListener("change",e=>{if(e.target.id==="ihT"){ihType=e.target.value;renderImpHist()}});
+  <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Type</th><th class="num">Total</th><th class="num">New</th><th class="num">Updated</th><th class="num">Skipped</th><th>By</th><th>Date and time</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.file)}</td><td><span class="ih-ty ${esc(r.kind)}">${esc(IH_KIND[r.kind]||r.kind)}</span></td><td class="num">${r.total}</td><td class="num">${r.add}</td><td class="num">${r.upd}</td><td class="num">${r.skip}</td><td>${esc(r.by)}</td><td>${fmt(r.at)}</td></tr>`).join("")||`<tr><td colspan="8" class="hint">${(db.implog||[]).length?"No import matches.":"No imports recorded yet. New uploads will appear here."}</td></tr>`}</tbody></table></div>${ihLeft>0||ihLim>5?`<div class="ih-more">${ihLeft>0?`<button type="button" class="btn ghost sm" data-ihmore="more">Show more (${ihLeft})</button>`:""}${ihLim>5?`<button type="button" class="btn ghost sm" data-ihmore="less">Show less</button>`:""}</div>`:""}`}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-ihmore]");if(!b)return;ihLim=b.dataset.ihmore==="more"?ihLim+20:5;renderImpHist();if(b.dataset.ihmore==="less"){const h=$("#impHistBox");if(h)h.scrollIntoView({block:"start"})}});
+document.addEventListener("input",e=>{const q=e.target.closest("#ihQ");if(!q)return;ihQ=q.value;ihLim=5;const p=q.selectionStart;renderImpHist();const n=$("#ihQ");if(n){n.focus();try{n.setSelectionRange(p,p)}catch(x){}}});
+document.addEventListener("change",e=>{if(e.target.id==="ihT"){ihType=e.target.value;ihLim=5;renderImpHist()}});
 
 let impKind="challan";
 const IMPK={challan:{t:"📄 Choose challan PDF",h:"Booking Challan from SmartCargo, saved as PDF. The bilties in it are added to tracking."},delivery:{t:"📄 Choose delivery report PDF",h:"Daily Delivery Report PDF. It marks those bilties Delivered and shows who received them."},outstanding:{t:"📄 Choose outstanding PDF",h:"Customer Outstanding Detail report from SmartCargo (one customer or all customers). Customers see it in My Account and it stays highlighted in red until it is paid."},rcp:{t:"📄 Choose RCP PDF",h:"Payment receipt (RCP) from SmartCargo, saved as PDF. Pick the company account first (or let it match from the file): the amount is credited to that account's ledger and its balance goes down."},bilty:{t:"📄 Choose bilty PDF",h:"Bilty (customer copy) PDF. Pick the company account first: the bilties go into that account's ledger, with their details read from the file."}};
