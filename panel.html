@@ -4095,7 +4095,7 @@ function pFleetDash(){
   const vsec=`<section class="panel"><div class="fl-vh"><h3 style="margin:0">Vehicles ${dm===cm?"this month":"in "+dmL}</h3><div>${mp}</div></div><div class="fl-vl">${vcards}</div></section>`;
   const side=sec("Last 6 months","Green is money earned, red is money spent plus repairs.",chart)+sec("Diesel average","Kilometres per litre each month. Higher is better.",fchart);
   const det=`<details class="fl-det"><summary>All figures and status</summary>${tiles?tiles.outerHTML:""}${pMonth?pMonth.outerHTML:""}${pRep?pRep.outerHTML:""}</details>`;
-  el.innerHTML=(syncOK?"":'<p class="hint">Trip figures are still loading…</p>')+flHero(A,net(A),cnt("on_trip"),cnt("maintenance"),todoTotal,now)+(typeof flTripPick==="function"?flTripPick():"")+strip+`<div class="fl-two2"><div class="fl-colL">${vsec}</div><div class="fl-colR">${side}</div></div>`+det;
+  el.innerHTML=(syncOK?"":'<p class="hint">Trip figures are still loading…</p>')+flHero(A,net(A),cnt("on_trip"),cnt("maintenance"),todoTotal,now)+(typeof tvPendHTML==="function"?tvPendHTML():"")+(typeof flTripPick==="function"?flTripPick():"")+strip+`<div class="fl-two2"><div class="fl-colL">${vsec}</div><div class="fl-colR">${side}</div></div>`+det;
 
 }
 
@@ -4208,7 +4208,7 @@ function flVehForm(){
 function flRentToggle(){const f=document.querySelector('[data-flform="veh"]');if(!f)return;const upd=()=>{f.querySelectorAll(".fl-own").forEach(d=>d.hidden=d.dataset.own!==f.elements.ownership.value)};f.elements.ownership.addEventListener("change",upd);upd()}
 
 /* ----- trip vouchers (income, expenses, bills, challan and bilty per trip) ----- */
-const TV_EXP=["Diesel","Toll","Driver Salary","Trip","Labour","Motorway Challan","Adjustment / Misc","Oil","Air (Hawa) / Cleaning","Karachi Police","Food Expense (Tea & Water)"];
+const TV_EXP=["Diesel","Toll","Driver Salary","Trip","Donation","Tip","Excise","Customs","Labour","Motorway Challan","Adjustment / Misc","Oil","Air (Hawa) / Cleaning","Karachi Police","Food Expense (Tea & Water)"];
 const TV_INC=["Karachi Freight (Karaya)","Sialkot Freight (Karaya)"];
 const tvLo=x=>String(x).toLowerCase(),tvHid=k=>((db.tvHide||{})[k]||[]).map(tvLo);
 const tvHeads=k=>{const B=k==="inc"?TV_INC:TV_EXP,C=((db.tvHeads||{})[k]||[]),H=tvHid(k);return [...B.filter(x=>!H.includes(tvLo(x))),...C.filter(h=>!B.some(x=>tvLo(x)===tvLo(h)))]};
@@ -4242,8 +4242,8 @@ const TV_GROUPS=[["inc","Freight / Income",true,"Freight name"],["exp","Expenses
 function tvRowHTML(kind,r){r=r||{};const amt=kind!=="chl"&&kind!=="blt",ph=(TV_GROUPS.find(g=>g[0]===kind)||[])[3]||"Name";
   return `<div class="tv-row" data-f="${esc(r.f||"")}" data-fn="${esc(r.fn||"")}" style="border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px;display:grid;gap:6px;background:var(--surface)">
   <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><input data-tvl value="${esc(r.l||"")}" placeholder="${ph}" aria-label="${ph}"${kind==="inc"||kind==="exp"?` list="tvdl_${kind}"`:""} style="flex:1 1 180px;min-width:0">${amt?`<input data-tva type="number" min="0" step="any" value="${r.a?esc(r.a):""}" placeholder="Amount" aria-label="Amount" style="flex:1 0 110px;max-width:150px;min-width:0">`:""}<button type="button" class="btn ghost sm" data-tv="rm" aria-label="Remove line">✕</button></div>
-  ${kind==="mnt"?`<div style="display:flex;gap:8px;flex-wrap:wrap"><select data-tvc aria-label="Category" style="flex:1 1 180px">${(TV_MC.includes(r.c)||!r.c?TV_MC:[...TV_MC,r.c]).map(c=>`<option${(r.c||"Other")===c?" selected":""}>${esc(c)}</option>`).join("")}</select><input data-tvk type="number" min="0" step="any" value="${r.k?esc(r.k):""}" placeholder="Odometer km (optional)" aria-label="Odometer km" style="flex:1 1 170px"></div><input data-tvw value="${esc(r.w||"")}" placeholder="Done by (mechanic / workshop / head)" aria-label="Done by"><div style="display:flex;gap:8px;flex-wrap:wrap"><label class="hint" style="flex:1 1 170px;display:grid;gap:2px">Next due on (date)<input data-tvnd type="date" value="${esc(r.nd||"")}"></label><label class="hint" style="flex:1 1 170px;display:grid;gap:2px">Next due at (km)<input data-tvnk type="number" min="0" step="any" value="${r.nk?esc(r.nk):""}"></label></div>`:""}<input data-tvd value="${esc(r.d||"")}" placeholder="Details (optional)" aria-label="Details">
-  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" data-tvf accept="application/pdf,image/*" aria-label="Original bill" style="max-width:270px">${r.f?`<span class="hint">📎 ${esc(r.fn||"Bill")} <button type="button" class="btn ghost sm" data-tv="file" data-path="${esc(r.f)}">View</button> (choose a new file to replace)</span>`:'<span class="hint">Attach the original bill (PDF or photo)</span>'}</div></div>`}
+  ${kind==="mnt"?`<div style="display:flex;gap:8px;flex-wrap:wrap"><select data-tvc aria-label="Category" style="flex:1 1 180px">${(TV_MC.includes(r.c)||!r.c?TV_MC:[...TV_MC,r.c]).map(c=>`<option${(r.c||"Other")===c?" selected":""}>${esc(c)}</option>`).join("")}</select><input data-tvk type="number" min="0" step="any" value="${r.k?esc(r.k):""}" placeholder="Odometer km (optional)" aria-label="Odometer km" style="flex:1 1 170px"></div><input data-tvw value="${esc(r.w||"")}" placeholder="Done by (mechanic / workshop / head)" aria-label="Done by"><div style="display:flex;gap:8px;flex-wrap:wrap"><label class="hint" style="flex:1 1 170px;display:grid;gap:2px">Next due on (date)<input data-tvnd type="date" value="${esc(r.nd||"")}"></label><label class="hint" style="flex:1 1 170px;display:grid;gap:2px">Next due at (km)<input data-tvnk type="number" min="0" step="any" value="${r.nk?esc(r.nk):""}"></label></div>`:""}${kind==="mnt"?"":`<details class="tv-more"${r.d||r.f?" open":""}><summary>Details / bill</summary>`}<input data-tvd value="${esc(r.d||"")}" placeholder="Details (optional)" aria-label="Details">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" data-tvf accept="application/pdf,image/*" aria-label="Original bill" style="max-width:270px">${r.f?`<span class="hint">📎 ${esc(r.fn||"Bill")} <button type="button" class="btn ghost sm" data-tv="file" data-path="${esc(r.f)}">View</button> (choose a new file to replace)</span>`:'<span class="hint">Attach the original bill (PDF or photo)</span>'}</div>${kind==="mnt"?"":"</details>"}</div>`}
 function tvDetailHTML(t){
   return TV_GROUPS.map(([k,lab,amt])=>{const L=(t[k]||[]).filter(r=>r.l||r.a||r.d||r.f);if(!L.length)return"";
     return `<div style="margin:6px 0"><b>${lab}</b>${L.map(r=>`<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)"><span style="flex:1 1 180px">${r.c?`<span class="fl-bg n">${esc(r.c)}</span> `:""}${esc(r.l||"-")}${r.d||r.k||r.w?`<br><small class="hint">${r.w?"By "+esc(r.w)+(r.d||r.k?" · ":""):""}${esc(r.d||"")}${r.k?" · at "+Number(r.k).toLocaleString("en-PK")+" km":""}</small>`:""}</span>${amt?`<b>${tvM(tvN(r.a))}</b>`:""}${r.f?`<button type="button" class="btn ghost sm" data-tv="file" data-path="${esc(r.f)}">📎 View bill</button>`:""}</div>`).join("")}</div>`}).join("")+(tvN(t.maint)?`<div style="margin:6px 0"><b>Vehicle maintenance (no details)</b> ${tvM(tvN(t.maint))}</div>`:"")+(tvTripKm(t)?`<p class="hint">Distance ${tvTripKm(t).toLocaleString("en-PK")} km${tvN(t.lt)?` · diesel ${t.lt} L · ${(tvTripKm(t)/tvN(t.lt)).toFixed(2)} km/L`:""}</p>`:"")+(t.note?`<p class="hint">Note: ${esc(t.note)}</p>`:"")}
@@ -4255,14 +4255,14 @@ function flTripVoucherHTML(v){
   if(FL.tvMode){const e=FL.tvMode==="new"?null:db.tripv.find(t=>t.id===FL.tvMode);
     const t=e||{date:today(),from:"Sialkot",to:"Karachi",inc:tvHeads("inc").map(l=>({l})),exp:tvHeads("exp").map(l=>({l})),mnt:[],chl:[{}],blt:[{}]};
     const dr=FL.vd.filter(x=>x.vehicle_id===v.id).map(x=>flDrv(x.driver_id)).filter(Boolean);
-    form=`<div class="stform" id="tvForm" data-id="${e?esc(e.id):""}" style="display:grid;gap:12px;padding:12px;border:1.5px solid var(--accent);border-radius:12px;margin:10px 0">
-    <h3 style="margin:0">${e?"Edit":"New"} trip voucher · ${esc(v.reg_no)}</h3>
-    <div class="fl-fm">${flIn("tv_date","Trip date",t.date,"date")}${flIn("tv_from","From",t.from)}${flIn("tv_to","To",t.to)}<label>Driver<select name="tv_driver"><option value="">-</option>${[...new Set(dr.map(d=>d.full_name))].map(n=>`<option${t.driver===n?" selected":""}>${esc(n)}</option>`).join("")}</select></label>${flIn("tv_km0","Odometer at start (km)",t.km0,"number",'min="0" step="any"')}${flIn("tv_km1","Odometer at end (km)",t.km1,"number",'min="0" step="any"')}${flIn("tv_lt","Diesel filled (litres)",t.lt,"number",'min="0" step="any"')}</div>
-    ${TV_GROUPS.map(([k,lab,amt])=>`<div><h3 style="margin:0 0 6px">${lab}</h3><div id="tv_${k}">${(t[k]||[]).map(r=>tvRowHTML(k,r)).join("")}</div><button type="button" class="btn ghost sm" data-tv="add" data-k="${k}">+ Add ${k==="inc"?"income":k==="exp"?"expense":k==="mnt"?"maintenance":k==="chl"?"challan":"bilty"} line</button>${k==="inc"||k==="exp"?tvHeadBox(k):""}</div>`).join("")}
-    ${tvN(t.maint)?`<p class="hint">Older maintenance amount without details: ${tvM(tvN(t.maint))}</p>`:""}
-    ${flIn("tv_note","Note",t.note)}
-    <div id="tvTot" style="font-weight:700;display:grid;gap:2px"></div>
-    <div class="fl-btns"><button type="button" class="btn" data-tv="save" id="tvSave">Save voucher</button><button type="button" class="btn ghost" data-tv="cancel">Cancel</button></div></div>`}
+    const vs=FL.veh.filter(x=>!x.archived||x.id===v.id),pd=e?[]:tvPendAll().filter(x=>x.v.id===v.id),pre=(!e&&FL.tvPre)||{};
+    if(!e&&pre.date){t.date=pre.date;t.from=pre.from||t.from;t.to=pre.to||t.to;if(pre.chl)t.chl=[{l:pre.chl}]}
+    const grp=k=>{const g=TV_GROUPS.find(x=>x[0]===k);return `<div class="tvb-g"><h3>${g[1]}</h3><div id="tv_${k}">${(t[k]||[]).map(r=>tvRowHTML(k,r)).join("")}</div><button type="button" class="btn ghost sm" data-tv="add" data-k="${k}">+ Add ${k==="inc"?"income":k==="exp"?"expense":k==="mnt"?"maintenance":k==="chl"?"challan":"bilty"} line</button>${k==="inc"||k==="exp"?tvHeadBox(k):""}</div>`};
+    form=`<div class="stform tvb" id="tvForm" data-id="${e?esc(e.id):""}">
+    <div class="tvb-band"><div><small>${e?"Edit":"New"} trip voucher</small>${e?`<b>${esc(v.reg_no)}</b>`:`<select id="tvVehSel" aria-label="Vehicle for this trip">${vs.map(x=>`<option value="${esc(x.id)}"${x.id===v.id?" selected":""}>${esc(x.reg_no)}</option>`).join("")}</select>`}</div><div class="tvb-act"><button type="button" class="btn ghost sm tvb-w" data-tv="cancel">Cancel</button>${e?"":`<button type="button" class="btn ghost sm tvb-w" data-tv="save" data-next="1">Save and add next trip</button>`}<button type="button" class="btn sm tvb-s" data-tv="save" id="tvSave">Save voucher</button></div></div>
+    ${pd.length?`<div class="tvb-box"><h4>Start from an imported challan (no trip yet)</h4><div class="tvb-picks">${pd.map(x=>`<button type="button" class="tvb-pick${pre.chl===String(x.c.no)?" on":""}" data-tvpick="${esc(x.c.no)}" data-iso="${esc(x.iso)}" data-from="${esc(x.c.from)}" data-to="${esc(x.c.to)}"><b>Challan ${esc(x.c.no)}</b><span>${esc(flFmtD(x.iso))} · ${esc(x.c.from)} → ${esc(x.c.to)}</span></button>`).join("")}</div></div>`:""}
+    <div class="fl-fm tvb-top">${flIn("tv_date","Trip date",t.date,"date")}${flIn("tv_from","From",t.from)}${flIn("tv_to","To",t.to)}<label>Driver<select name="tv_driver"><option value="">-</option>${[...new Set(dr.map(d=>d.full_name))].map(n=>`<option${t.driver===n?" selected":""}>${esc(n)}</option>`).join("")}</select></label>${flIn("tv_km0","Odometer at start (km)",t.km0,"number",'min="0" step="any"')}${flIn("tv_km1","Odometer at end (km)",t.km1,"number",'min="0" step="any"')}${flIn("tv_lt","Diesel filled (litres)",t.lt,"number",'min="0" step="any"')}</div>
+    <div class="tvb-main"><div class="tvb-left">${grp("inc")}${grp("exp")}${grp("mnt")}</div><div class="tvb-side"><div id="tvTot" class="tvb-tot"></div>${grp("chl")}${grp("blt")}${tvN(t.maint)?`<p class="hint">Older maintenance amount without details: ${tvM(tvN(t.maint))}</p>`:""}${flIn("tv_note","Note",t.note)}</div></div></div>`}
   const miAll=tvMaintItems(L),cb=[];L.forEach(t=>{[["Challan",t.chl],["Bilty",t.blt]].forEach(([ty,A])=>(A||[]).filter(r=>r.l||r.d||r.f).forEach(r=>cb.push({t,r,ty})))});
   const cats=tvByCat(miAll),mi=FL.mc?miAll.filter(x=>x.c===FL.mc):miAll,miTot=mi.reduce((x,y)=>x+tvN(y.r.a),0);
   const svcForm=()=>FL.svcOpen==="*"?"":`<button type="button" class="btn sm" data-tv="svcnew" data-c="*">+ Add maintenance</button>`;
@@ -4454,9 +4454,9 @@ document.addEventListener("click",async ev=>{
     db.tripv.push({id:sid,veh:FL.folder,date,svc:true,driver:"",inc:[],exp:[],mnt:[r],chl:[],blt:[],by:staffName||"",at:new Date().toISOString()});
     FL.tvBusy=false;FL.svcOpen="";save();renderPanel();toast(FL.odoWarn?"Record saved, but the vehicle odometer could not be updated":"Record saved");FL.odoWarn=0;return}
   if(a==="view"){FL.tvView=FL.tvView===id?"":id;renderPanel();return}
-  if(a==="new"){FL.tvMode="new";FL.tvAsk="";renderPanel();tvTotals();return}
+  if(a==="new"){FL.tvMode="new";FL.tvAsk="";FL.tvPre=null;renderPanel();tvTotals();return}
   if(a==="edit"){FL.tvMode=id;FL.tvAsk="";renderPanel();tvTotals();return}
-  if(a==="cancel"){FL.tvMode=null;renderPanel();return}
+  if(a==="cancel"){FL.tvMode=null;FL.tvPre=null;renderPanel();return}
   if(a==="del"){FL.tvAsk=id;renderPanel();return}
   if(a==="delno"){FL.tvAsk="";renderPanel();return}
   if(a==="delyes"){const sv=(db.tripv.find(t=>t.id===id)||{}).svc;db.tripv=db.tripv.filter(t=>t.id!==id);FL.tvAsk="";save();renderPanel();toast(sv?"Record deleted":"Trip voucher deleted");return}
@@ -4472,7 +4472,7 @@ document.addEventListener("click",async ev=>{
     {const vv=flVeh(FL.folder);if(vv&&d.km1&&d.km1>tvN(vv.odometer)){try{await flReq("fleet_vehicles?id=eq."+encodeURIComponent(vv.id),{method:"PATCH",body:{odometer:d.km1,updated_by:me()?.user||null}});vv.odometer=d.km1}catch(e){FL.odoWarn=1}}}
     if(eid){const t=db.tripv.find(x=>x.id===eid);if(t)Object.assign(t,d,{upd:new Date().toISOString(),updBy:staffName||""})}
     else db.tripv.push({id:vid,veh:FL.folder,...d,by:staffName||"",at:new Date().toISOString()});
-    FL.tvBusy=false;FL.tvMode=null;save();renderPanel();toast(FL.odoWarn?"Trip voucher saved, but the vehicle odometer could not be updated":"Trip voucher saved");FL.odoWarn=0;return}
+    const nx=b.dataset.next==="1"&&!eid;FL.tvBusy=false;FL.tvMode=nx?"new":null;FL.tvPre=nx?{date:d.date,from:d.from,to:d.to}:null;save();renderPanel();if(nx){tvTotals();window.scrollTo({top:0,behavior:"auto"})}toast(FL.odoWarn?"Trip voucher saved, but the vehicle odometer could not be updated":nx?"Saved. A new trip form is ready":"Trip voucher saved");FL.odoWarn=0;return}
   }catch(er){FL.tvBusy=false;toast(er.message||"Something went wrong")}});
 document.addEventListener("input",ev=>{if(ev.target.closest("#tvForm"))tvTotals()});
 document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.matches&&ev.target.matches("[data-tvh]")){ev.preventDefault();const s=ev.target.closest(".tv-hform").querySelector('[data-tv="hsave"]');if(s)s.click()}});
@@ -4779,7 +4779,7 @@ async function flSaveDoc(f){
 function flPrimaryClash(vid,did,role){if(role!=="primary")return "";const live=FL.vd.filter(x=>!x.to_date&&x.role==="primary");
   const a=live.find(x=>x.vehicle_id===vid&&x.driver_id!==did&&flDrv(x.driver_id)&&!flDrv(x.driver_id).archived);if(a)return flDLabel(a.driver_id)+" is already the primary driver of this vehicle. End that first, or choose Secondary.";
   const b=live.find(x=>x.driver_id===did&&x.vehicle_id!==vid&&flVeh(x.vehicle_id)&&!flVeh(x.vehicle_id).archived);if(b)return "This driver is already primary on "+flVLabel(b.vehicle_id)+". End that first, or choose Secondary.";return ""}
-function flBack(){FL.vehScan=null;FL.drvScan=null;FL.fsec="";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.tvView="";FL.mode={veh:"list",drv:"list",doc:"list"};FL.edit=null;FL.ask="";FL.busy=false}
+function flBack(){FL.tvPre=null;FL.vehScan=null;FL.drvScan=null;FL.fsec="";FL.svcOpen="";FL.mc="";FL.tvMode=null;FL.tvAsk="";FL.tvView="";FL.mode={veh:"list",drv:"list",doc:"list"};FL.edit=null;FL.ask="";FL.busy=false}
 document.addEventListener("click",async ev=>{
   const b=ev.target.closest("[data-fl]");if(!b)return;const a=b.dataset.fl,id=b.dataset.id;
   try{
@@ -7425,6 +7425,78 @@ document.addEventListener("click",function(e){var b=e.target.closest&&e.target.c
 },true);
 })();
 </script>
+<style id="klc-tvb-css">
+#tvForm.tvb{padding:0!important;gap:0!important;overflow:hidden;border:1px solid var(--line)!important;border-radius:12px!important}
+.tvb-band{background:var(--burgundy,#7D1A1F);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tvb-band small{display:block;font-size:12px;opacity:.85}.tvb-band b{font-size:19px}
+.tvb-band select{height:38px;min-width:170px;font-size:17px;font-weight:700;border-radius:8px;border:0;padding:0 10px;color:#141414}
+.tvb-act{display:flex;gap:8px;flex-wrap:wrap}
+html #panelBody .tvb-band .tvb-act .btn.tvb-w{background:transparent!important;color:#fff!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.65)!important}
+html #panelBody .tvb-band .tvb-act .btn.tvb-s{background:#fff!important;color:var(--burgundy,#7D1A1F)!important;font-weight:700}
+.tvb-box{padding:12px 16px 0}.tvb-box h4{margin:0 0 8px;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--burgundy,#7D1A1F)}
+.tvb-picks{display:flex;gap:8px;flex-wrap:wrap}
+.tvb-pick{display:grid;gap:2px;text-align:left;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.tvb-pick span{font-size:12.5px;color:var(--muted)}.tvb-pick.on{border-color:var(--burgundy,#7D1A1F);background:#fbf3f3}
+.tvb-top{padding:12px 16px 0;grid-template-columns:repeat(auto-fit,minmax(135px,1fr))!important}
+.tvb-main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;padding:12px 16px 16px;align-items:start}
+.tvb-left,.tvb-side{display:grid;gap:12px;min-width:0}
+.tvb-g h3{margin:0 0 6px;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--burgundy,#7D1A1F)}
+#tvForm.tvb #tv_inc,#tvForm.tvb #tv_exp{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-bottom:8px}
+#tvForm.tvb #tv_inc .tv-row,#tvForm.tvb #tv_exp .tv-row{margin:0!important;padding:8px 10px!important;gap:4px!important;align-content:start}
+#tvForm.tvb #tv_inc .tv-row>div:first-child,#tvForm.tvb #tv_exp .tv-row>div:first-child{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:4px 6px}
+#tvForm.tvb .tv-row [data-tvl]{grid-column:1;min-width:0;font-size:12.5px;font-weight:600;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;padding:2px 0!important;height:26px;background:transparent}
+#tvForm.tvb .tv-row [data-tva]{grid-column:1/-1;grid-row:2;max-width:none!important;width:100%;font-size:15px;text-align:right}
+#tvForm.tvb .tv-row [data-tv="rm"]{grid-column:2;grid-row:1;padding:0 6px;min-height:24px;height:24px}
+.tv-more{font-size:12px}.tv-more summary{cursor:pointer;color:var(--muted)}.tv-more[open]{display:grid;gap:6px;margin-top:4px}
+.tvb-tot{background:var(--burgundy,#7D1A1F);color:#fff;border-radius:12px;padding:12px 14px;display:grid;gap:4px;font-size:14px}
+.tvb-tot span{color:#fff!important}
+.tvp-r{display:grid;grid-template-columns:110px 120px 110px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+@media(max-width:900px){.tvb-main{grid-template-columns:1fr}.tvp-r{grid-template-columns:1fr auto}.tvp-r span:nth-of-type(n+2){grid-column:1}}
+@media(max-width:520px){#tvForm.tvb #tv_inc,#tvForm.tvb #tv_exp{grid-template-columns:1fr 1fr}.tvb-act .btn{flex:1 1 auto}}
+</style>
+<script id="klc-tvb">
+/* 24 Nov: trip voucher in the Option B layout, "Save and add next trip", and challans that still have no trip */
+(function(){
+var norm=function(s){return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"")};
+window.tvPendAll=function(){
+  if(typeof FL!=="object"||!FL.loaded||!db)return[];
+  var map={};FL.veh.filter(function(v){return !v.archived}).forEach(function(v){map[norm(v.reg_no)]=v});
+  var used={},byVD={};
+  (db.tripv||[]).forEach(function(t){if(t.svc)return;(t.chl||[]).forEach(function(r){if(r&&r.l)used[String(r.l).trim()]=1});if(t.challan)used[String(t.challan).trim()]=1;var k=t.veh+"|"+t.date;(byVD[k]=byVD[k]||[]).push(t)});
+  var out=[],sk=db.tvSkip||{};
+  (db.challans||[]).forEach(function(c){var v=map[norm(c.vehicle)];if(!v)return;
+    var m=String(c.date||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m)return;
+    var iso=m[3]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[1]).slice(-2);
+    if(iso<"2026-11-24"||sk[String(c.no)])return;
+    if(used[String(c.no).trim()])return;
+    if((byVD[v.id+"|"+iso]||[]).some(function(t){return !(t.chl||[]).some(function(r){return r&&r.l})&&!t.challan}))return;
+    out.push({c:c,v:v,iso:iso})});
+  return out.sort(function(a,b){return a.iso<b.iso?-1:a.iso>b.iso?1:0})};
+window.tvPendHTML=function(){var P=tvPendAll();if(!P.length)return"";
+  return '<div class="panel"><div class="ph"><h3>Trips still to add ('+P.length+')</h3><span class="hint">Challans from SmartCargo (from 24 Nov) with no trip voucher yet</span></div>'+P.slice(0,12).map(function(x){return '<div class="tvp-r"><b>Challan '+esc(x.c.no)+'</b><span>'+esc(flFmtD(x.iso))+'</span><span>'+esc(x.v.reg_no)+'</span><span>'+esc(x.c.from)+' → '+esc(x.c.to)+'</span><span style="display:flex;gap:6px"><button class="btn sm" type="button" data-tvpend="'+esc(x.c.no)+'|'+esc(x.v.id)+'">Add trip</button><button class="btn ghost sm" type="button" data-tvskip="'+esc(x.c.no)+'" title="No trip needed for this challan">Skip</button></span></div>'}).join("")+(P.length>12?'<p class="hint">and '+(P.length-12)+' more</p>':"")+'</div>'};
+document.addEventListener("click",function(e){
+  var sx=e.target.closest&&e.target.closest("[data-tvskip]");
+  if(sx){db.tvSkip=db.tvSkip||{};db.tvSkip[sx.dataset.tvskip]=1;save();renderPanel();return}
+  var b=e.target.closest&&e.target.closest("[data-tvpend]");
+  if(b){var a=b.dataset.tvpend.split("|"),p=tvPendAll().filter(function(x){return String(x.c.no)===a[0]&&x.v.id===a[1]})[0];if(!p)return;
+    var m=document.querySelector('.kp-menu [data-s="fleetveh"]');if(m)m.click();
+    FL.tripPick=false;FL.vehScan=null;FL.drvScan=null;FL.edit=null;FL.ask="";FL.svcOpen="";FL.mc="";FL.tvAsk="";FL.tvView="";FL.folder=p.v.id;FL.mode.veh="folder";FL.fsec="vouch";FL.tvMode="new";FL.tvPre={date:p.iso,from:p.c.from,to:p.c.to,chl:String(p.c.no)};sub="fleetveh";
+    renderPanel();tvTotals();window.scrollTo({top:0,behavior:"auto"});return}
+  var k=e.target.closest&&e.target.closest("[data-tvpick]");
+  if(k){var f=document.getElementById("tvForm");if(!f)return;
+    f.querySelector('[name="tv_date"]').value=k.dataset.iso;f.querySelector('[name="tv_from"]').value=k.dataset.from;f.querySelector('[name="tv_to"]').value=k.dataset.to;
+    var rows=[].slice.call(f.querySelectorAll("#tv_chl .tv-row")),row=rows.filter(function(r){return !r.querySelector("[data-tvl]").value.trim()})[0];
+    if(!row){var ad=f.querySelector('[data-tv="add"][data-k="chl"]');if(ad)ad.click();rows=[].slice.call(f.querySelectorAll("#tv_chl .tv-row"));row=rows[rows.length-1]}
+    if(row)row.querySelector("[data-tvl]").value=k.dataset.tvpick;
+    f.querySelectorAll("[data-tvpick]").forEach(function(x){x.classList.toggle("on",x===k)});}
+},false);
+document.addEventListener("change",function(e){
+  if(!e.target||e.target.id!=="tvVehSel")return;
+  var f=document.getElementById("tvForm"),g=function(n){var i=f&&f.querySelector('[name="'+n+'"]');return i?i.value:""};
+  FL.tvPre={date:g("tv_date"),from:g("tv_from"),to:g("tv_to")};FL.folder=e.target.value;FL.mode.veh="folder";FL.fsec="vouch";FL.tvMode="new";
+  renderPanel();tvTotals()});
+})();
+</script>
 <script id="klc-fresh-section">
 /* 24 Nov: every time staff open a section of the KLC Panel / Fleet by hand, that section starts completely fresh:
    no old search text, no company/account picked earlier, no filter, no open profile, no half-done upload.
@@ -7594,6 +7666,7 @@ function tdNeeds(){
     if(FL.loaded){try{const ex=flItems().map(i=>({i,b:flBucket(i.exp)})).filter(x=>x.b.k==="expired"||x.b.k==="7");
       if(ex.length){const exp=ex.filter(x=>x.b.k==="expired").length;out.push({ic:"🚚",c:"",t:exp?`${pl(exp,"fleet document")} expired${ex.length>exp?`, ${ex.length-exp} more this week`:""}`:pl(ex.length,"fleet document")+(ex.length===1?" expires":" expire")+" this week",s:ex.slice(0,2).map(x=>x.i.who+" "+String(x.i.type).toLowerCase()).join(" · ")+(ex.length>2?` · ${ex.length-2} more`:""),go:"fleet",b:"Fleet"})}}catch(e){}}
     else if(!FL.loading&&!FL.tried){try{flLoad().then(()=>{if(sub==="today")window.pToday()})}catch(e){}}
+    try{const tp=typeof tvPendAll==="function"?tvPendAll():[];if(tp.length)out.push({ic:"🚚",c:"amb",t:pl(tp.length,"challan")+" without a trip yet",s:tp.slice(0,3).map(x=>x.v.reg_no+" challan "+x.c.no).join(" · ")+(tp.length>3?" · "+(tp.length-3)+" more":""),go:"fleetdash",b:"Add trips"})}catch(e){}
   }
   return out;
 }
