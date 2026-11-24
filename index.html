@@ -3105,7 +3105,8 @@ addEventListener("popstate",e=>{
       while(navCount()>want&&guard-->0){const ms=document.querySelectorAll("body > .modal");
         if(ms.length){const m=ms[ms.length-1],c=m.querySelector("[data-closemodal]");if(c)c.click();if(m.isConnected)m.remove()}
         else closeChat()}
-    }else if(s.v!==curView){show(s.v,true);if(s.v==="track")endTrack();window.scrollTo({top:0})}
+    }else if(s.v==="track"&&!s.res&&curView==="track"&&$("#v-track").classList.contains("hasres")){$("#q").value="";endTrack();window.scrollTo({top:0})}
+    else if(s.v!==curView){show(s.v,true);if(s.v==="track")endTrack();window.scrollTo({top:0})}
   }finally{navPop=false}
 });
 /* a popup or the chat opening adds one history step, so back closes it first */
@@ -3200,6 +3201,7 @@ async function trackBilties(q){
 async function track(q){
   q=q.trim();const out=$("#results");if(!q){endTrack();return}
   $("#v-track").classList.add("focus","hasres","resonly");
+  try{const st=history.state;if(!(st&&st.klc&&st.res))history.pushState({klc:1,v:"track",o:0,res:1},"")}catch(x){}
   const back=`<div class="trackbar"><button class="tb-back" type="button" data-trackback="1" aria-label="Back to tracking">← Back</button><b style="font-family:var(--display);font-size:18px">Tracking result</b></div>`;
   out.innerHTML=back+'<div class="panel empty"><p>Checking…</p></div>';
   let bl=await trackBilties(q);{const dq=q.replace(/[^\d]/g,"");if(bl&&!bl.length&&dq.length>=4&&dq!==q)bl=await trackBilties(dq)}
@@ -3213,7 +3215,7 @@ async function track(q){
 $("#trackForm").addEventListener("submit",e=>{e.preventDefault();track($("#q").value)});
 $("#sideTrack").addEventListener("submit",e=>{e.preventDefault();const v=$("#sq").value;if(!v.trim()){$("#sq").focus();return}show("track",true);$("#q").value=v;track(v);$("#sq").value=""});
 document.addEventListener("click",e=>{if(e.target.closest("[data-endtrack]")){$("#q").value="";endTrack();window.scrollTo({top:0})}});
-document.addEventListener("click",e=>{if(!e.target.closest("[data-trackback]"))return;const v=$("#v-track");v.classList.remove("hasres","resonly");$("#results").innerHTML="";$("#q").value="";window.scrollTo({top:0});setTimeout(()=>{$("#q").focus({preventScroll:true})},60)});
+document.addEventListener("click",e=>{if(!e.target.closest("[data-trackback]"))return;/* Back from a tracking result goes straight to Home (no middle search screen) */try{const st=history.state;if(st&&st.klc&&st.res){history.back();return}}catch(x){}$("#q").value="";endTrack();window.scrollTo({top:0})});
 $$("[data-q]").forEach(c=>c.addEventListener("click",()=>{$("#q").value=c.dataset.q;track(c.dataset.q)}));
 function goTrack(id){$("#q").value=id;show("track");track(id)}
 
