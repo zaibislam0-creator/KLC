@@ -7701,7 +7701,38 @@ try{tdBadge()}catch(e){}
     save();try{renderPanel()}catch(e){}
     return out;
   }
-  window.klcRobot={delivery,challan,station,hours:HRS,due:robotDue};
+  /* bilty Customer Copy from SmartCargo (raw record of one bilty, as SmartCargo's report returns it, plus q.pdf).
+     Only bilties whose Debit account code is a KLC company account are saved, with the original Customer Copy PDF. */
+  function fromSC(q){
+    const T=x=>String(x??"").trim(),N=x=>Number(String(x??"").replace(/,/g,""))||0;
+    const its=[];let qs=0;for(let i=1;i<=8;i++){const d=T(q["ItemDesc"+i]);if(d)its.push(d);qs+=N(q["Qty"+i])}
+    const ch=[["Railway Freight",q.RwFreight],["Freight",q.Freight],["Labour",q.Labour],["Advance Expenses",q.AdvanceExp],["Documentation",q.DocumentChg],["Port Delv. Chrgs",q.MicsChg],[T(q.OtherTxt1)||"Other",q.OtherAmount1],[T(q.OtherTxt2)||"Other",q.OtherAmount2],[T(q.OtherTxt3)||"Other",q.OtherAmount3]].map(([n,a])=>({n,a:N(a)})).filter(c=>c.a>0);
+    const addr=k=>[1,2,3,4].map(i=>T(q[k+i])).filter(Boolean).join(" ");
+    const date=T(q.BiltyDate),id=T(q.BiltyTxt||("K-"+String(T(q.BiltyNo)).padStart(7,"0"))).toUpperCase();
+    return{id,date,iso:date?dmyToIso(date):"",from:titleCase(q.CityFrom),to:titleCase(q.CityTo),sender:T(q.SenderName),recv:T(q.ReceiverName),items:its.join(", "),qty:N(q.Qty)||qs,kg:N(q.GrossWt)||N(q.Weight),vol:N(q.Weight),saddr:addr("SenderAddress"),raddr:addr("ReceiverAddress"),by:T(q.addby),byAt:T(q.LockBy).replace(/^Dated:\s*/i,""),acct:T(q.DebitCode),acctName:T(q.DebitName),charges:ch,total:N(q.BiltyTotal)||ch.reduce((a,c)=>a+c.a,0),received:N(q.AdvanceRcv),status:/^paid$/i.test(T(q.ToPay))?"Paid":"To Pay"};
+  }
+  async function bilty(list,o){
+    o=o||{};db.invoices=db.invoices||[];
+    const out={dry:!!o.dry,read:0,added:[],updated:[],same:[],notAccount:[],notSialkot:0,pdfFailed:[]};
+    for(const q of (list||[])){
+      if(String(q.Void||"").trim().toUpperCase()==="Y")continue;
+      const r=fromSC(q);if(!r.id||!r.date)continue;out.read++;
+      if(r.from.toLowerCase()!=="sialkot"){out.notSialkot++;continue}
+      if(!r.acct||!clientOf(r.acct)){out.notAccount.push(r.id+(r.acct?" "+r.acct+" "+r.acctName:""));continue}
+      const old=db.invoices.find(x=>x.id===r.id);
+      if(old&&invSame(old,r)){out.same.push(r.id);continue}
+      (old?out.updated:out.added).push(r.id+" "+r.acctName);
+      if(o.dry)continue;
+      let pdf=null;/* q.pdf = the SmartCargo Customer Copy itself as a PDF data URI (made by the robot from SmartCargo's own page) */
+      try{const m=String(q.pdf||"").match(/^data:application\/pdf[^,]*;base64,(.+)$/);if(m){const bin=atob(m[1]),u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);pdf=await uploadOriginal(new Blob([u],{type:"application/pdf"}))}}catch(e){console.error("robot bilty pdf",e)}
+      const v={...r,pg:1,rev:old?(old.rev||1)+1:1,upAt:new Date().toISOString()};
+      if(pdf)v.pdf=pdf;else{out.pdfFailed.push(r.id);if(old&&old.pdf){v.pdf=old.pdf;v.pg=old.pg}else delete v.pg}
+      const i=db.invoices.findIndex(x=>x.id===v.id);i>=0?db.invoices[i]=v:db.invoices.push(v);
+    }
+    if(!o.dry&&(out.added.length||out.updated.length)){lastImpName="Robot bilty";implogAdd("bilty",out.read,out.added.length,out.updated.length,out.same.length);log("bilty",{read:out.read,added:out.added.length,updated:out.updated.length});save();try{renderPanel()}catch(e){}}
+    return out;
+  }
+  window.klcRobot={delivery,challan,bilty,fromSC,station,hours:HRS,due:robotDue};
 })();
 </script>
 </body></html>
