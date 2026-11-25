@@ -4836,7 +4836,7 @@ document.addEventListener("input",ev=>{const q=ev.target.closest("[data-flq]");i
 document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="flSt"){if(sub==="fleetdrv")FL.sd=t.value;else FL.st=t.value;renderPanel()}if(t.id==="flOld"){FL.old=t.checked;renderPanel()}});
 const flRenderHook=()=>{if(sub==="fleetdoc")flDocOwnerToggle()};
 
-let coCap=100;
+let coCap=10;
 function pBilty(){
   const sel=$("#bpAcct"),cur=sel.value;
   sel.innerHTML=`<option value="">Choose the account…</option>`+db.clients.map(c=>`<option value="${esc(c.code)}" ${c.code===cur?"selected":""}>${esc(c.name)} (${esc(c.code)})</option>`).join("");
@@ -4846,14 +4846,14 @@ function pBilty(){
     <td>${esc(b.recv||"—")}${b.phone?`<br><span class="mono" style="color:var(--muted);font-size:12px">${esc(fmtPhone(b.phone))}</span>`:""}${c?`<br><span class="tag">${esc(c.name)}</span>`:""}</td>
     <td class="num">${t?rs(t):"—"}${b.pay?`<br><span style="color:var(--muted);font-size:12px">${esc(b.pay)}</span>`:""}</td>
     <td class="num">${!t?"—":b.acct?`<span style="color:var(--muted);font-size:12px">On account</span>`:d>0?`<span class="due">${rs(d)}</span><br><button class="btn ghost sm" data-collect="${esc(b.id)}">Mark paid</button>`:`<span class="ok">Paid</span>`}</td>
-    <td><select data-bid="${esc(b.id)}" aria-label="Status ${esc(b.id)}">${STATUSES.map((s,i)=>`<option value="${i}" ${i===b.status?"selected":""}>${s}</option>`).join("")}</select>${b.deliv&&b.deliv.name?`<br><span style="font-size:11px;color:var(--muted)">Received by ${esc(b.deliv.name)}</span>`:""}</td></tr>`}).join("")+(allB.length>rows.length?`<tr><td colspan="6" style="text-align:center;padding:14px"><button class="btn ghost sm" type="button" data-comore="1">Show 100 more (${allB.length-rows.length} older bilties)</button></td></tr>`:""):`<tr><td colspan="6" class="empty">No bilties yet. Upload a SmartCargo challan or bilty PDF.</td></tr>`;
+    <td><select data-bid="${esc(b.id)}" aria-label="Status ${esc(b.id)}">${STATUSES.map((s,i)=>`<option value="${i}" ${i===b.status?"selected":""}>${s}</option>`).join("")}</select>${b.deliv&&b.deliv.name?`<br><span style="font-size:11px;color:var(--muted)">Received by ${esc(b.deliv.name)}</span>`:""}</td></tr>`}).join("")+(allB.length>10?'<tr><td colspan="6" style="text-align:center;padding:14px"><div class="inline-actions" style="justify-content:center">'+(allB.length>rows.length?'<button class="btn ghost sm" type="button" data-coall="1">Show all ('+allB.length+')</button>':'')+(coCap>10?'<button class="btn ghost sm" type="button" data-coless="1">Show less</button>':'')+'</div></td></tr>':""):`<tr><td colspan="6" class="empty">No bilties yet. Upload a SmartCargo challan or bilty PDF.</td></tr>`;
   $$("#coRows select").forEach(sel=>sel.addEventListener("change",()=>{
     const b=db.bilties.find(x=>x.id===sel.dataset.bid),n=+sel.value;
     b.hist=b.hist.slice(0,Math.min(n,b.hist.length));while(b.hist.length<=n)b.hist.push(new Date().toISOString());
     b.status=n;save();renderPanel();toast(n===4&&!b.acct&&due(b)>0?`${b.id} delivered, but ${rs(due(b))} is still due. Collect it and press Mark paid.`:`${b.id}: ${STATUSES[n]}. Customers see the new status when they track this bilty.`);
   }));
 }
-$("#coRows").addEventListener("click",e=>{if(e.target.closest("[data-comore]")){coCap+=100;pBilty()}});
+$("#coRows").addEventListener("click",e=>{if(e.target.closest("[data-coall]")){coCap=1e9;pBilty();return}if(e.target.closest("[data-coless]")){coCap=10;pBilty();return}if(e.target.closest("[data-comore]")){coCap+=100;pBilty()}});
 $("#bpGo").addEventListener("click",()=>{const a=$("#bpAcct").value;if(!a){toast("Choose the company account first");return}
   if(!canSub("imp")){toast("Your role cannot upload. Ask the admin.");return}
   upTarget=a;sub="imp";renderPanel();setImpKind("bilty");if($("#impAcct"))$("#impAcct").value=a;window.scrollTo({top:0});const f=$("#impFile");if(f)f.click()});
@@ -6242,8 +6242,8 @@ function renderImpHist(){
   const allRows=(db.implog||[]).filter(r=>(ihType==="all"||r.kind===ihType)&&(!q||String(r.file).toLowerCase().includes(q))).slice(0,50);const rows=allRows.slice(0,ihLim),ihLeft=allRows.length-rows.length;
   box.innerHTML=`<h2 style="margin-bottom:4px">Recent import history</h2><p class="hint" style="margin:0 0 6px">Every upload saved from this page, newest first.</p>
   <div class="ih-tb"><input id="ihQ" placeholder="Search file name" value="${esc(ihQ)}" aria-label="Search imports"><select id="ihT" aria-label="Import type"><option value="all">All types</option>${Object.entries(IH_KIND).map(([k,l])=>`<option value="${k}"${ihType===k?" selected":""}>${l}</option>`).join("")}</select></div>
-  <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Type</th><th class="num">Total</th><th class="num">New</th><th class="num">Updated</th><th class="num">Skipped</th><th>By</th><th>Date and time</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.file)}</td><td><span class="ih-ty ${esc(r.kind)}">${esc(IH_KIND[r.kind]||r.kind)}</span></td><td class="num">${r.total}</td><td class="num">${r.add}</td><td class="num">${r.upd}</td><td class="num">${r.skip}</td><td>${esc(r.by)}</td><td>${fmt(r.at)}</td></tr>`).join("")||`<tr><td colspan="8" class="hint">${(db.implog||[]).length?"No import matches.":"No imports recorded yet. New uploads will appear here."}</td></tr>`}</tbody></table></div>${ihLeft>0||ihLim>5?`<div class="ih-more">${ihLeft>0?`<button type="button" class="btn ghost sm" data-ihmore="more">Show more (${ihLeft})</button>`:""}${ihLim>5?`<button type="button" class="btn ghost sm" data-ihmore="less">Show less</button>`:""}</div>`:""}`}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-ihmore]");if(!b)return;ihLim=b.dataset.ihmore==="more"?ihLim+20:5;renderImpHist();if(b.dataset.ihmore==="less"){const h=$("#impHistBox");if(h)h.scrollIntoView({block:"start"})}});
+  <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Type</th><th class="num">Total</th><th class="num">New</th><th class="num">Updated</th><th class="num">Skipped</th><th>By</th><th>Date and time</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.file)}</td><td><span class="ih-ty ${esc(r.kind)}">${esc(IH_KIND[r.kind]||r.kind)}</span></td><td class="num">${r.total}</td><td class="num">${r.add}</td><td class="num">${r.upd}</td><td class="num">${r.skip}</td><td>${esc(r.by)}</td><td>${fmt(r.at)}</td></tr>`).join("")||`<tr><td colspan="8" class="hint">${(db.implog||[]).length?"No import matches.":"No imports recorded yet. New uploads will appear here."}</td></tr>`}</tbody></table></div>${ihLeft>0||ihLim>5?`<div class="ih-more">${ihLeft>0?`<button type="button" class="btn ghost sm" data-ihmore="more">Show more (${ihLeft})</button><button type="button" class="btn ghost sm" data-ihmore="all">Show all</button>`:""}${ihLim>5?`<button type="button" class="btn ghost sm" data-ihmore="less">Show less</button>`:""}</div>`:""}`}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-ihmore]");if(!b)return;ihLim=b.dataset.ihmore==="more"?ihLim+20:b.dataset.ihmore==="all"?1e9:5;renderImpHist();if(b.dataset.ihmore==="less"){const h=$("#impHistBox");if(h)h.scrollIntoView({block:"start"})}});
 document.addEventListener("input",e=>{const q=e.target.closest("#ihQ");if(!q)return;ihQ=q.value;ihLim=5;const p=q.selectionStart;renderImpHist();const n=$("#ihQ");if(n){n.focus();try{n.setSelectionRange(p,p)}catch(x){}}});
 document.addEventListener("change",e=>{if(e.target.id==="ihT"){ihType=e.target.value;ihLim=5;renderImpHist()}});
 
@@ -7648,10 +7648,10 @@ var RESET={
  imp:function(){impKind="challan";upTarget="";impData=null;delData=null;invData=null;ledData=null;osData=null;rcpData=null;rcpFile=null;impTStation="";stEdit="";ihType="all";ihQ="";ihLim=5;
    set(function(){impQ=null});set(function(){stKind="";stCap=100;stQ=""});
    set(function(){["#impPreview","#impMsg"].forEach(function(q){var e=document.querySelector(q);if(e)e.innerHTML=""})})},
- bilty:function(){set(function(){ordQ=""});set(function(){upTarget=""});set(function(){coCap=100})},
+ bilty:function(){set(function(){ordQ=""});set(function(){upTarget=""});set(function(){coCap=10})},
  rates:function(){rateAcct=null},
  xchk:function(){xkSrc=null;xkF="all";xkQ="";xkMode="all";xkParty="";xkPF="all"},
- acct:function(){acctTab="ledger";acctOpen="";acctShow=false;acQ="";accClient=null;set(function(){coCap=100});set(function(){obOpen=""});set(function(){acDpData=""});set(function(){lentAsk="";invAsk=""})},
+ acct:function(){acctTab="ledger";acctOpen="";acctShow=false;acQ="";accClient=null;set(function(){coCap=10});set(function(){obOpen=""});set(function(){acDpData=""});set(function(){lentAsk="";invAsk=""})},
  news:function(){newsF="all";nwImgData=""},
  dir:function(){dirT="all"},
  partners:function(){pnCat="cargo";pnVeh="all"},
