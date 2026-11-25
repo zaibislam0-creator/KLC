@@ -7633,6 +7633,24 @@ document.addEventListener("click",function(e){var t=e.target.closest&&e.target.c
 var st=document.createElement("style");st.textContent="#panelBody .kp-menu .chipbtn[data-s=\"reports\"] .ti{--ic:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E\")}";document.head.appendChild(st);
 })();
 </script>
+<script id="klc-fleet-back">
+(function(){
+  var st=document.createElement("style");st.textContent=".flBackBar{position:sticky;top:0;z-index:20;padding:8px 0;margin:0 0 6px;background:var(--bg,#FBF9F5)}.flBackBar .btn{font-size:15px;padding:10px 18px}";document.head.appendChild(st);
+  var busy=false;
+  function sync(){if(busy)return;busy=true;try{
+    document.querySelectorAll('[id^="p-fleet"]').forEach(function(p){
+      var bar=null,i,k=p.children;for(i=0;i<k.length;i++)if(k[i].classList.contains("flBackBar")){bar=k[i];break}
+      var c=null,all=p.querySelectorAll('[data-fl="cancel"]');for(i=0;i<all.length;i++){if(!all[i].closest(".flBackBar")){if(!c||/^\s*←/.test(all[i].textContent))c=all[i]}}
+      if(!c){if(bar)bar.remove();return}
+      var t=/^\s*←/.test(c.textContent)?"← Back to "+c.textContent.replace(/^\s*←\s*/,"").replace(/^All\s+/i,"all ").trim():"← Back";
+      if(!bar){bar=document.createElement("div");bar.className="flBackBar";bar.innerHTML='<button type="button" class="btn"></button>';p.insertBefore(bar,p.firstChild)}
+      var b=bar.firstChild;if(b.textContent!==t)b.textContent=t;
+      b.onclick=function(){var x=p.querySelector('[data-fl="cancel"]:not(.flBackBar *)');if(x)x.click()}
+    })}finally{busy=false}}
+  var q=0;function later(){if(q)return;q=requestAnimationFrame(function(){q=0;sync()})}
+  var pb=document.getElementById("panelBody")||document.body;new MutationObserver(later).observe(pb,{childList:true,subtree:true});sync()
+})();
+</script>
 <script id="klc-acct-search">
 /* 25 Nov: company-account picker like SmartCargo: A-Z list, click opens a search box + list */
 (function(){
