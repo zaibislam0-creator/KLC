@@ -1514,6 +1514,17 @@ header.top{background:var(--white)!important;border-bottom:1px solid var(--borde
 #acctViewTabs{gap:8px}
 </style>
 
+<style id="klc-tints">
+/* section tints: each section gets its own soft colour + coloured top bar, easier to read */
+[id^="p-"]>.panel,[id^="p-"]>details.panel{border-top:4px solid var(--sec,#7D1A1F);background:var(--sect,#fff)}
+[id^="p-"]>.panel:nth-child(4n+1){--sec:#7D1A1F;--sect:#FFF7F5}
+[id^="p-"]>.panel:nth-child(4n+2){--sec:#2F6A8E;--sect:#F2F8FC}
+[id^="p-"]>.panel:nth-child(4n+3){--sec:#3C7A50;--sect:#F2FAF4}
+[id^="p-"]>.panel:nth-child(4n+4){--sec:#A8741A;--sect:#FFF9EE}
+[id^="p-"]>.panel .hint,[id^="p-"]>.panel th{color:#453F3B}
+[id^="p-"]>.panel tbody tr:nth-child(even) td{background:rgba(31,27,26,.035)}
+[id^="p-"]>.panel h2,[id^="p-"]>.panel h3{color:var(--sec,#7D1A1F)}
+</style>
 </head><body>
 <header class="top">
   <div class="bar">
