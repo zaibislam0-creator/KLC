@@ -7498,31 +7498,52 @@ document.addEventListener("change",function(e){
 })();
 </script>
 <script id="klc-acct-search">
-/* 25 Nov: company-account pickers (bilty/RCP upload, cross-check): A-Z order + search box */
+/* 25 Nov: company-account picker like SmartCargo: A-Z list, click opens a search box + list */
 (function(){
-var IDS=["bpAcct","impAcct","rcpAcct","xkParty"],tm=0;
+var IDS=["bpAcct","impAcct","rcpAcct","xkParty"],tm=0,pop=null,cur=null,hi=0,vis=[];
 function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"")}
-function box(sel){var p=sel.parentNode,i=p.querySelector("input.acq");
-  if(!i){i=document.createElement("input");i.type="search";i.className="acq";i.placeholder="Search company name or code";i.setAttribute("aria-label","Search company account");i.autocomplete="off";i.style.cssText="width:100%;box-sizing:border-box;margin:4px 0 6px";p.insertBefore(i,sel)}
-  return i}
-function render(sel,inp,cur){var A=sel._all,q=norm(inp.value),h=[];
-  A.fixed.forEach(function(o){h.push(o)});
-  A.items.forEach(function(o){if(!q||o.v===cur||norm(o.t).indexOf(q)>-1)h.push(o)});
-  sel.innerHTML="";
-  h.forEach(function(o){var e=document.createElement("option");e.value=o.v;e.textContent=o.t;sel.appendChild(e)});
-  sel.value=cur;if(sel.value!==cur)sel.selectedIndex=0;
-  sel._mine=sel.innerHTML;sel._qv=inp.value}
-function pass(sel){var inp=box(sel),cur;
-  if(!sel._all||sel._mine!==sel.innerHTML){cur=sel.value;var f=[],it=[];
-    [].forEach.call(sel.options,function(o){(o.value===""?f:it).push({v:o.value,t:o.text})});
-    it.sort(function(a,b){return a.t.localeCompare(b.t,undefined,{sensitivity:"base",numeric:true})});
-    sel._all={fixed:f,items:it};render(sel,inp,cur);return}
-  if(sel._qv!==inp.value)render(sel,inp,sel.value)}
-function all(){IDS.forEach(function(i){var s=document.getElementById(i);if(s&&s.tagName==="SELECT")try{pass(s)}catch(e){}})}
-document.addEventListener("input",function(e){var t=e.target;if(t.classList&&t.classList.contains("acq")){var s=t.parentNode.querySelector("select");if(s)pass(s)}});
-document.addEventListener("keydown",function(e){var t=e.target;if(e.key!=="Enter"||!t.classList||!t.classList.contains("acq"))return;e.preventDefault();
-  var s=t.parentNode.querySelector("select");if(!s||!s._all)return;var q=norm(t.value),m=s._all.items.filter(function(o){return norm(o.t).indexOf(q)>-1})[0];if(!m)return;
-  t.value="";render(s,t,m.v);s.dispatchEvent(new Event("change",{bubbles:true}))});
+function mk(t,c){var e=document.createElement(t);if(c)e.className=c;return e}
+var st=document.createElement("style");st.textContent=".acb{position:relative}.acb-b{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;cursor:pointer;box-sizing:border-box}.acb-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.acb-pop{position:fixed;z-index:9999;background:#fff;border:1px solid var(--line,#ddd);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:8px;display:none;box-sizing:border-box}.acb-pop input{width:100%;box-sizing:border-box;margin:0 0 6px}.acb-l{overflow:auto;overscroll-behavior:contain}.acb-o{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--ink,#222)}.acb-o.hi{background:var(--burgundy,#7D1A1F);color:#fff}.acb-o.on{font-weight:700}.acb-n{padding:10px;color:var(--muted,#6b6b6b);font-size:14px}";document.head.appendChild(st);
+var CHEV='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+function sortSel(sel){if(sel._sorted&&sel._mine===sel.innerHTML)return;
+  var c=sel.value,f=[],it=[];[].forEach.call(sel.options,function(o){(o.value===""?f:it).push({v:o.value,t:o.text})});
+  it.sort(function(a,b){return a.t.localeCompare(b.t,undefined,{sensitivity:"base",numeric:true})});
+  sel.innerHTML="";f.concat(it).forEach(function(o){var e=mk("option");e.value=o.v;e.textContent=o.t;sel.appendChild(e)});
+  sel.value=c;if(sel.value!==c)sel.selectedIndex=0;sel._mine=sel.innerHTML;sel._sorted=1}
+function wrapOf(sel){var w=sel._w;if(w&&w.isConnected&&w.previousSibling===sel)return w;
+  if(w&&w.parentNode)w.parentNode.removeChild(w);
+  var cs=getComputedStyle(sel);w=mk("div","acb");var b=mk("button","acb-b");b.type="button";b.setAttribute("aria-haspopup","listbox");
+  ["fontSize","fontFamily","fontWeight","lineHeight","paddingTop","paddingRight","paddingBottom","paddingLeft","borderRadius","backgroundColor","color"].forEach(function(k){b.style[k]=cs[k]});
+  b.style.border=cs.borderTopWidth+" "+cs.borderTopStyle+" "+cs.borderTopColor;
+  var t=mk("span","acb-t");b.appendChild(t);b.insertAdjacentHTML("beforeend",CHEV);w.appendChild(b);
+  sel.style.display="none";sel.parentNode.insertBefore(w,sel.nextSibling);sel._w=w;
+  w.addEventListener("click",function(e){e.preventDefault()});
+  b.addEventListener("click",function(){if(pop&&pop.style.display==="block"&&cur===sel)closeP();else openP(sel)});
+  return w}
+function sync(sel){var w=wrapOf(sel),o=sel.options[sel.selectedIndex];w.querySelector(".acb-t").textContent=o?o.text:""}
+function ensurePop(){if(pop)return;pop=mk("div","acb-pop");var i=mk("input");i.type="search";i.className="acq";i.placeholder="Search company name or code";i.autocomplete="off";i.setAttribute("aria-label","Search company account");var l=mk("div","acb-l");l.setAttribute("role","listbox");pop.appendChild(i);pop.appendChild(l);document.body.appendChild(pop);
+  i.addEventListener("input",function(){hi=0;draw()});
+  i.addEventListener("keydown",function(e){if(e.key==="ArrowDown"){hi=Math.min(vis.length-1,hi+1);mark();e.preventDefault()}else if(e.key==="ArrowUp"){hi=Math.max(0,hi-1);mark();e.preventDefault()}else if(e.key==="Enter"){e.preventDefault();if(vis.length)pick(vis[hi])}else if(e.key==="Escape"){closeP()}});
+  l.addEventListener("click",function(e){var d=e.target.closest(".acb-o");if(d)pick(+d.dataset.i)});
+  pop.addEventListener("mousedown",function(e){if(e.target.tagName!=="INPUT")e.preventDefault()})}
+function draw(init){var q=norm(pop.firstChild.value),l=pop.lastChild;l.textContent="";vis=[];
+  [].forEach.call(cur.options,function(o,i){if(q?(o.value!==""&&norm(o.text).indexOf(q)>-1):true)vis.push(i)});
+  if(!vis.length){var n=mk("div","acb-n");n.textContent="No company found";l.appendChild(n);return}
+  if(init&&!q)hi=Math.max(0,vis.indexOf(cur.selectedIndex));if(hi>=vis.length)hi=0;
+  vis.forEach(function(i,k){var d=mk("div","acb-o"+(k===hi?" hi":"")+(i===cur.selectedIndex?" on":""));d.dataset.i=i;d.setAttribute("role","option");d.textContent=cur.options[i].text;l.appendChild(d)});
+  if(init){var h=l.children[hi];if(h)l.scrollTop=Math.max(0,h.offsetTop-60)}}
+function mark(){[].forEach.call(pop.lastChild.children,function(d,k){d.classList.toggle("hi",k===hi);if(k===hi)d.scrollIntoView({block:"nearest"})})}
+function place(){var b=cur._w.querySelector(".acb-b").getBoundingClientRect(),vh=innerHeight,below=vh-b.bottom-12,above=b.top-12,up=below<240&&above>below,sp=Math.max(150,up?above:below);
+  pop.style.left=b.left+"px";pop.style.width=b.width+"px";pop.lastChild.style.maxHeight=Math.min(320,sp-64)+"px";
+  if(up){pop.style.top="auto";pop.style.bottom=(vh-b.top+4)+"px"}else{pop.style.bottom="auto";pop.style.top=(b.bottom+4)+"px"}}
+function openP(sel){ensurePop();cur=sel;pop.firstChild.value="";pop.style.display="block";draw(true);place();pop.firstChild.focus()}
+function closeP(){if(pop)pop.style.display="none"}
+function pick(i){cur.selectedIndex=i;cur.dispatchEvent(new Event("change",{bubbles:true}));closeP();sync(cur)}
+function all(){IDS.forEach(function(i){var s=document.getElementById(i);if(s&&s.tagName==="SELECT")try{sortSel(s);sync(s)}catch(e){}});
+  if(pop&&pop.style.display==="block"&&(!cur||!cur._w||!cur._w.isConnected))closeP()}
+document.addEventListener("mousedown",function(e){if(pop&&pop.style.display==="block"&&!pop.contains(e.target)&&!(cur&&cur._w&&cur._w.contains(e.target)))closeP()});
+window.addEventListener("resize",function(){if(pop&&pop.style.display==="block")place()});
+window.addEventListener("scroll",function(e){if(pop&&pop.style.display==="block"&&!pop.contains(e.target)){if(cur&&cur._w&&cur._w.isConnected)place();else closeP()}},true);
 setInterval(all,600);
 new MutationObserver(function(){clearTimeout(tm);tm=setTimeout(all,30)}).observe(document.documentElement,{childList:true,subtree:true});
 all()})();
