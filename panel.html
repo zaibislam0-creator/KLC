@@ -7566,7 +7566,7 @@ function payModel(){var r=range(),ac=V("rpAcct"),me=V("rpMeth"),R=[],a=0,ds=0;
 function cell(x,n){return n&&x!==""?nf(x):x}
 function tableHTML(m){var cap=m.rows.length>RP.cap,rows=cap?m.rows.slice(0,RP.cap):m.rows,cols=m.head.length+(m.act?1:0);
   var h='<div class="ledger-sum">'+m.tiles.map(function(t){return '<div><span>'+E(t[0])+'</span><b>'+E(t[1])+'</b></div>'}).join("")+'</div>';
-  h+='<p class="hint" style="margin:0">'+E(m.sub)+(cap?" | showing the first "+RP.cap+" rows, Download Excel has all of them":"")+'</p>';
+  h+='<p class="hint" style="margin:0">'+E(m.sub)+(cap?" | showing the first "+RP.cap+" rows, Download PDF has all of them":"")+'</p>';
   h+='<div class="tbl-wrap"><table class="os-tbl"><thead><tr>'+m.head.map(function(x,i){return '<th'+(m.num[i]?' class="num"':'')+'>'+E(x)+'</th>'}).join("")+(m.act?'<th></th>':'')+'</tr></thead><tbody>';
   h+=rows.length?rows.map(function(r,k){return '<tr>'+r.map(function(x,i){return '<td'+(m.num[i]?' class="num"':'')+'>'+E(cell(x,m.num[i]))+'</td>'}).join("")+(m.act?'<td><button class="btn ghost sm" type="button" data-olopen="'+E(m.act[k])+'">Open</button></td>':'')+'</tr>'}).join(""):'<tr><td colspan="'+cols+'" class="empty">Nothing found for these filters.</td></tr>';
   h+='</tbody>'+(m.foot&&rows.length?'<tfoot><tr>'+m.foot.map(function(x,i){return '<td'+(m.num[i]?' class="num"':'')+'><b>'+E(cell(x,m.num[i]))+'</b></td>'}).join("")+(m.act?'<td></td>':'')+'</tr></tfoot>':'')+'</table></div>';
@@ -7577,6 +7577,40 @@ function printM(m){var w=window.open("","_blank");if(!w){toast("Please allow pop
   ft=m.foot?'<tfoot><tr>'+m.foot.map(function(x,i){return '<td'+(m.num[i]?' class="n"':'')+'>'+E(cell(x,m.num[i]))+'</td>'}).join("")+'</tr></tfoot>':"";
   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+E(m.title)+'</title><style>body{font:12px Arial,sans-serif;color:#111;margin:18px}h1{font-size:17px;margin:0}h2{font-size:14px;margin:8px 0 2px}p{margin:0 0 10px;color:#444}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#eee}.n{text-align:right}tfoot td{font-weight:bold}</style></head><body><h1>Kashaf Lasani Cargo Services (KLC)</h1><h2>'+E(m.title)+'</h2><p>'+E(m.sub)+'</p><table><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody>'+ft+'</table></body></html>');
   w.document.close();setTimeout(function(){try{w.focus();w.print()}catch(x){}},400)}
+function pdf(m){var W=842,H=595,M=28,U=W-2*M,fs=8,rh=14,
+  sw=function(s,f){var t=0;for(var i=0;i<s.length;i++){var c=s.charAt(i);t+=/[0-9]/.test(c)?.556:(/[ ,.\-:\/]/.test(c)?.278:(/[A-Z]/.test(c)?.68:.5))}return t*f},
+  L=function(x){return String(x==null?"":x).replace(/→/g,"-").replace(/[^\x20-\x7E\xA0-\xFF]/g,"-")},
+  esc=function(s){return s.replace(/([\\()])/g,"\\$1")},
+  n=m.head.length,w=[],tot=0,i,j;
+  for(i=0;i<n;i++){var mx=sw(L(m.head[i]),fs+.6);m.rows.forEach(function(r){var v=sw(L(cell(r[i],m.num[i])),fs);if(v>mx)mx=v});w[i]=Math.min(mx+12,300);tot+=w[i]}
+  var k=Math.min(U/tot,1.3);for(i=0;i<n;i++)w[i]*=k;
+  var fit=function(s,wd,f){if(sw(s,f)<=wd-8)return s;while(s.length>1&&sw(s+"..",f)>wd-8)s=s.slice(0,-1);return s+".."},
+  pages=[],cur="",y=0,first=true,
+  txt=function(font,x,yy,s,col){return col+" BT /"+font+" "+fs+" Tf "+x.toFixed(1)+" "+yy.toFixed(1)+" Td ("+esc(s)+") Tj ET\n"},
+  rowOut=function(cells,yTop,mode,idx){var x=M,o="";
+    if(mode==="h")o+="0.49 0.10 0.12 rg "+M+" "+(yTop-rh)+" "+(tot*k)+" "+rh+" re f\n";
+    else if(mode==="f")o+="0.45 0.45 0.45 RG 0.6 w "+M+" "+yTop+" m "+(M+tot*k)+" "+yTop+" l S\n";
+    else if(idx%2)o+="0.96 0.95 0.94 rg "+M+" "+(yTop-rh)+" "+(tot*k)+" "+rh+" re f\n";
+    for(var c=0;c<n;c++){var s=fit(L(c<cells.length?cells[c]:""),w[c],fs),col=mode==="h"?"1 1 1 rg":"0.1 0.1 0.1 rg",f=mode==="r"?"F1":"F2",tx=m.num[c]?x+w[c]-4-sw(s,fs):x+4;o+=txt(f,tx,yTop-rh+4.5,s,col);x+=w[c]}return o},
+  newPage=function(){if(cur)pages.push(cur);cur="";y=H-M;if(first){cur+="0.49 0.10 0.12 rg BT /F2 13 Tf "+M+" "+(y-12)+" Td ("+esc(L("Kashaf Lasani Cargo Services - "+m.title))+") Tj ET\n";cur+="0.3 0.3 0.3 rg BT /F1 8.5 Tf "+M+" "+(y-26)+" Td ("+esc(L(m.sub||""))+") Tj ET\n";y-=36;first=false}
+    cur+=rowOut(m.head,y,"h",0);y-=rh};
+  newPage();
+  m.rows.forEach(function(r,ri){if(y-rh<M+14)newPage();cur+=rowOut(r.map(function(v,c){return cell(v,m.num[c])}),y,"r",ri);y-=rh});
+  if(m.foot){if(y-rh<M+14)newPage();cur+=rowOut(m.foot.map(function(v,c){return cell(v,m.num[c])}),y,"f",0);y-=rh}
+  pages.push(cur);var N=pages.length,objs=[];
+  objs[1]="<</Type/Catalog/Pages 2 0 R>>";
+  var kids=[];for(i=0;i<N;i++)kids.push((5+2*i)+" 0 R");
+  objs[2]="<</Type/Pages/Kids ["+kids.join(" ")+"]/Count "+N+">>";
+  objs[3]="<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding>>";
+  objs[4]="<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold/Encoding/WinAnsiEncoding>>";
+  for(i=0;i<N;i++){var ct=pages[i]+"0.4 0.4 0.4 rg BT /F1 7.5 Tf "+(W-M-60)+" 14 Td (Page "+(i+1)+" of "+N+") Tj ET\n";
+    objs[5+2*i]="<</Type/Page/Parent 2 0 R/MediaBox [0 0 "+W+" "+H+"]/Resources<</Font<</F1 3 0 R/F2 4 0 R>>>>/Contents "+(6+2*i)+" 0 R>>";
+    objs[6+2*i]="<</Length "+ct.length+">>\nstream\n"+ct+"endstream"}
+  var out="%PDF-1.4\n",off=[];for(i=1;i<objs.length;i++){off[i]=out.length;out+=i+" 0 obj\n"+objs[i]+"\nendobj\n"}
+  var xr=out.length;out+="xref\n0 "+objs.length+"\n0000000000 65535 f \n";for(i=1;i<objs.length;i++)out+=("0000000000"+off[i]).slice(-10)+" 00000 n \n";
+  out+="trailer\n<</Size "+objs.length+"/Root 1 0 R>>\nstartxref\n"+xr+"\n%%EOF";
+  var u=new Uint8Array(out.length);for(i=0;i<out.length;i++)u[i]=out.charCodeAt(i)&255;
+  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([u],{type:"application/pdf"}));a.download=(m.file||"report")+".pdf";document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500)}
 function csv(m){var q=function(x){x=String(x==null?"":x);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
   var L=[m.head.map(q).join(",")].concat(m.rows.map(function(r){return r.map(q).join(",")}));if(m.foot)L.push(m.foot.map(q).join(","));
   var b=new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=m.file+".csv";document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500)}
@@ -7587,13 +7621,13 @@ function formHTML(){var cities=function(k){var s={};(db.bilties||[]).forEach(fun
   if(RP.tab==="bil")f=dt("From date","To date")+'<label>Booking city<select id="rpBc">'+opts(cities("from"),"All cities")+'</select></label><label>Delivery city<select id="rpDc">'+opts(cities("to"),"All cities")+'</select></label><label>Status<select id="rpSt"><option value="">All</option><option value="nochl">Pending for challan</option><option value="haschl">Challan created</option>'+STATUSES.map(function(s,i){return '<option value="s'+i+'">'+E(s)+'</option>'}).join("")+'</select></label>'+acct+'<label>View<select id="rpView"><option value="det">Detail</option><option value="day">Summary by date</option><option value="route">Summary by route</option></select></label>';
   else if(RP.tab==="out")f=dt("From date (optional)","Up to date (optional)")+acct+'<label>Show<select id="rpSt"><option value="out">Outstanding</option><option value="clr">Cleared</option><option value="all">All customers</option></select></label>';
   else f=dt("From date","To date")+acct+'<label>Method<select id="rpMeth">'+opts(methods(),"All methods")+'</select></label>';
-  return '<div class="filters" role="tablist" id="rpTabs">'+[["bil","Daily bilties"],["out","Customer outstanding"],["pay","Payments received"]].map(function(t){return '<button type="button" class="chipbtn" role="tab" data-rp="'+t[0]+'" aria-pressed="'+(RP.tab===t[0])+'">'+t[1]+'</button>'}).join("")+'</div><div id="rpForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">'+f+'</div><div class="inline-actions"><button class="btn ghost sm" type="button" data-rpa="print">Print</button><button class="btn ghost sm" type="button" data-rpa="csv">Download Excel</button></div><div id="rpOut"></div>'}
+  return '<div class="filters" role="tablist" id="rpTabs">'+[["bil","Daily bilties"],["out","Customer outstanding"],["pay","Payments received"]].map(function(t){return '<button type="button" class="chipbtn" role="tab" data-rp="'+t[0]+'" aria-pressed="'+(RP.tab===t[0])+'">'+t[1]+'</button>'}).join("")+'</div><div id="rpForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">'+f+'</div><div class="inline-actions"><button class="btn ghost sm" type="button" data-rpa="print">Print</button><button class="btn ghost sm" type="button" data-rpa="pdf">Download PDF</button></div><div id="rpOut"></div>'}
 function build(){var h=document.getElementById("p-reports");if(!h)return;h.innerHTML='<div class="panel" style="display:grid;gap:12px">'+formHTML()+'</div>';h.dataset.cl=String((db.clients||[]).length)}
 function run(){var o=document.getElementById("rpOut");if(!o)return;var m;try{m=RP.tab==="bil"?bilModel():RP.tab==="out"?outModel():payModel()}catch(e){console.error("reports",e);o.innerHTML='<p class="empty">This report could not be made. Please refresh and try again.</p>';return}RP.m=m;o.innerHTML=tableHTML(m)}
 window.pReports=function(){var h=document.getElementById("p-reports");if(!h)return;if(!h.querySelector("#rpOut")||h.dataset.cl!==String((db.clients||[]).length))build();run()};
 document.addEventListener("click",function(e){var t=e.target.closest&&e.target.closest("[data-rp],[data-rpa]");
   if(t&&t.closest("#p-reports")){if(t.dataset.rp){RP.tab=t.dataset.rp;build();run();return}
-    if(t.dataset.rpa){if(!RP.m)run();if(RP.m){if(t.dataset.rpa==="print")printM(RP.m);else csv(RP.m)}return}}
+    if(t.dataset.rpa){if(!RP.m)run();if(RP.m){if(t.dataset.rpa==="print")printM(RP.m);else pdf(RP.m)}return}}
   var s=e.target.closest&&e.target.closest('#subtabs [data-s="reports"]');if(s)setTimeout(function(){window.pReports()},350)});
 ["change","input"].forEach(function(n){document.addEventListener(n,function(e){if(e.target.closest&&e.target.closest("#p-reports #rpForm"))run()})});
 var st=document.createElement("style");st.textContent="#panelBody .kp-menu .chipbtn[data-s=\"reports\"] .ti{--ic:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E\")}";document.head.appendChild(st);
