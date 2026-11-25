@@ -7497,6 +7497,36 @@ document.addEventListener("change",function(e){
   renderPanel();tvTotals()});
 })();
 </script>
+<script id="klc-acct-search">
+/* 25 Nov: company-account pickers (bilty/RCP upload, cross-check): A-Z order + search box */
+(function(){
+var IDS=["bpAcct","impAcct","rcpAcct","xkParty"],tm=0;
+function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"")}
+function box(sel){var p=sel.parentNode,i=p.querySelector("input.acq");
+  if(!i){i=document.createElement("input");i.type="search";i.className="acq";i.placeholder="Search company name or code";i.setAttribute("aria-label","Search company account");i.autocomplete="off";i.style.cssText="width:100%;box-sizing:border-box;margin:4px 0 6px";p.insertBefore(i,sel)}
+  return i}
+function render(sel,inp,cur){var A=sel._all,q=norm(inp.value),h=[];
+  A.fixed.forEach(function(o){h.push(o)});
+  A.items.forEach(function(o){if(!q||o.v===cur||norm(o.t).indexOf(q)>-1)h.push(o)});
+  sel.innerHTML="";
+  h.forEach(function(o){var e=document.createElement("option");e.value=o.v;e.textContent=o.t;sel.appendChild(e)});
+  sel.value=cur;if(sel.value!==cur)sel.selectedIndex=0;
+  sel._mine=sel.innerHTML;sel._qv=inp.value}
+function pass(sel){var inp=box(sel),cur;
+  if(!sel._all||sel._mine!==sel.innerHTML){cur=sel.value;var f=[],it=[];
+    [].forEach.call(sel.options,function(o){(o.value===""?f:it).push({v:o.value,t:o.text})});
+    it.sort(function(a,b){return a.t.localeCompare(b.t,undefined,{sensitivity:"base",numeric:true})});
+    sel._all={fixed:f,items:it};render(sel,inp,cur);return}
+  if(sel._qv!==inp.value)render(sel,inp,sel.value)}
+function all(){IDS.forEach(function(i){var s=document.getElementById(i);if(s&&s.tagName==="SELECT")try{pass(s)}catch(e){}})}
+document.addEventListener("input",function(e){var t=e.target;if(t.classList&&t.classList.contains("acq")){var s=t.parentNode.querySelector("select");if(s)pass(s)}});
+document.addEventListener("keydown",function(e){var t=e.target;if(e.key!=="Enter"||!t.classList||!t.classList.contains("acq"))return;e.preventDefault();
+  var s=t.parentNode.querySelector("select");if(!s||!s._all)return;var q=norm(t.value),m=s._all.items.filter(function(o){return norm(o.t).indexOf(q)>-1})[0];if(!m)return;
+  t.value="";render(s,t,m.v);s.dispatchEvent(new Event("change",{bubbles:true}))});
+setInterval(all,600);
+new MutationObserver(function(){clearTimeout(tm);tm=setTimeout(all,30)}).observe(document.documentElement,{childList:true,subtree:true});
+all()})();
+</script>
 <script id="klc-fresh-section">
 /* 24 Nov: every time staff open a section of the KLC Panel / Fleet by hand, that section starts completely fresh:
    no old search text, no company/account picked earlier, no filter, no open profile, no half-done upload.
