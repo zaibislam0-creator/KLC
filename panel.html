@@ -5930,6 +5930,7 @@ function parseChallan(lines){
     remarks:grab(/Remarks\s+(.+)$/im),
     preparedBy:""
   };
+  if(head.vehicle&&!/\d/.test(head.vehicle))head.vehicle="";
   // column positions: header labels are centred, values are left-aligned,
   // so each column starts at the value position used by most rows left of the label's centre
   const hdr=lines.find(l=>/Sender/i.test(l.text)&&/Re[ce]i[ec]?ver/i.test(l.text));
