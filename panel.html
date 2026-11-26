@@ -7483,7 +7483,7 @@ window.tvPendAll=function(){
     var iso=m[3]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[1]).slice(-2);
     if(iso<"2026-11-24")return;var gk=v.id+"|"+iso;
     /* 26 Nov: challans of one vehicle on one day (e.g. 2 Karachi places) are ONE trip */
-    if(sk[String(c.no)]||used[String(c.no).trim()]||(byVD[gk]||[]).length)cov[gk]=1;
+    if(sk[String(c.no)])return;if(used[String(c.no).trim()]||(byVD[gk]||[]).length)cov[gk]=1;
     (grp[gk]=grp[gk]||[]).push({c:c,v:v,iso:iso})});
   Object.keys(grp).forEach(function(k){if(cov[k])return;var g=grp[k],f=g[0];f.more=g.slice(1).map(function(x){return x.c});out.push(f)});
   return out.sort(function(a,b){return a.iso<b.iso?-1:a.iso>b.iso?1:0})};
