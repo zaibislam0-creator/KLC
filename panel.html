@@ -7488,6 +7488,7 @@ html.fleet-app .fcs-x{text-align:right}
 .fcs-bx .btn:not(.ghost){background:var(--fl-maroon,#821B20)!important;color:#fff!important;border-color:var(--fl-maroon,#821B20)!important}
 .fcs-bx .btn.ghost{background:#fff!important;color:var(--fl-maroon,#821B20)!important;border:1px solid var(--fl-line,#E4DED6)!important}
 html.fleet-app .ph a[data-fcs]{color:var(--fl-maroon);font-weight:600}
+html.fleet-app .fcs-bar{display:flex;justify-content:flex-end;margin:10px 0}
 </style>
 <script id="klc-cash">
 /* 26 Nov: Cash and partners on the Fleet Dashboard (Super Admin only) */
@@ -7515,8 +7516,9 @@ function rows(s){var c=s.c,R=[{d:c.start+"-01",o:0,t:"Cash brought forward at th
 function sg(n){return(n<0?"− ":"+ ")+tvM(Math.abs(n))}
 window.fcsHTML=function(){
  if(typeof can!=="function"||!can("admin")||typeof FL!=="object"||!FL.loaded)return"";
+ if(!window.__fcsOpen)return'<div class="fcs-bar"><button type="button" class="btn ghost sm" data-fcs="toggle">Cash and partners</button></div>';
  var s=calc(),cl=s.c.closed,nx=s.ms.filter(function(k){return!cl[k]})[0];
- var h='<div class="fl-hero fcs-h"><div><div class="fl-hero-k">Cash and partners · '+E(mName(s.cm))+'</div><div class="fl-hero-n">'+tvM(s.cash)+'</div><div class="fl-hero-s">Cash in hand = brought forward + profit − paid out (bank, partners, charity)</div></div>'
+ var h='<div class="fcs-bar"><button type="button" class="btn ghost sm" data-fcs="toggle">Hide cash and partners</button></div><div class="fl-hero fcs-h"><div><div class="fl-hero-k">Cash and partners · '+E(mName(s.cm))+'</div><div class="fl-hero-n">'+tvM(s.cash)+'</div><div class="fl-hero-s">Cash in hand = brought forward + profit − paid out (bank, partners, charity)</div></div>'
  +'<div class="fl-hero-m"><div><small>Brought forward</small><b>'+tvM(s.bf)+'</b></div><div><small>This month</small><b>'+tvM(s.mp)+'</b></div><div><small>In bank</small><b>'+tvM(s.bank)+'</b></div><div><small>With partners</small><b>'+tvM(s.pt)+'</b></div></div>'
  +'<div class="fl-hero-b"><button type="button" class="btn ghost sm" data-fcs="bank">Deposit in bank</button><button type="button" class="btn ghost sm" data-fcs="partner">Send to partner</button><button type="button" class="btn ghost sm" data-fcs="charity">Charity</button>'
  +(nx?'<button type="button" class="btn sm" data-fcs="close" data-m="'+nx+'">Close '+E(mWord(nx))+'</button>':'<span class="hint" style="color:#fff">✓ '+E(mWord(s.cm))+' closed</span>')+'</div></div>';
@@ -7554,6 +7556,7 @@ function closeForm(m){var s=calc(),cash=s.cash;
 document.addEventListener("click",function(ev){var b=ev.target.closest&&ev.target.closest("[data-fcs]");if(!b)return;if(typeof can!=="function"||!can("admin"))return;ev.preventDefault();var a=b.dataset.fcs;
  if(a==="bank")entForm("bank","Deposit in bank");else if(a==="partner")entForm("partner","Send to partner");else if(a==="charity")entForm("charity","Charity");
  else if(a==="close")closeForm(b.dataset.m);
+ else if(a==="toggle"){window.__fcsOpen=!window.__fcsOpen;if(typeof renderPanel==="function")renderPanel()}
  else if(a==="more"){window.__fcsAll=!window.__fcsAll;if(typeof renderPanel==="function")renderPanel()}
  else if(a==="open")modal("Opening cash",'<p class="hint">Cash already in hand when the ledger starts ('+E(mName(C().start))+').</p>'+fld("fcO","Amount (Rs.)",String(C().open||0),'inputmode="decimal"'),"Save",function(o){C().open=num(o,"fcO");done("Saved")});
  else if(a==="del"){var id=b.dataset.id;modal("Delete this entry?",'<p>This takes the entry out of the cash ledger. It cannot be undone.</p>',"Delete",function(){var L=C();L.ent=L.ent.filter(function(e){return e.id!==id||e.lk});done("Deleted")})}});
