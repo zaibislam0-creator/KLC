@@ -4108,7 +4108,7 @@ function pFleetDash(){
   const vsec=`<section class="panel"><div class="fl-vh"><h3 style="margin:0">Vehicles ${dm===cm?"this month":"in "+dmL}</h3><div>${mp}</div></div><div class="fl-vl">${vcards}</div></section>`;
   const side=sec("Last 6 months","Green is money earned, red is money spent plus repairs.",chart)+sec("Diesel average","Kilometres per litre each month. Higher is better.",fchart);
   const det=`<details class="fl-det"><summary>All figures and status</summary>${tiles?tiles.outerHTML:""}${pMonth?pMonth.outerHTML:""}${pRep?pRep.outerHTML:""}</details>`;
-  el.innerHTML=(syncOK?"":'<p class="hint">Trip figures are still loading…</p>')+flHero(A,net(A),cnt("on_trip"),cnt("maintenance"),todoTotal,now)+(typeof tvPendHTML==="function"?tvPendHTML():"")+(typeof flTripPick==="function"?flTripPick():"")+strip+`<div class="fl-two2"><div class="fl-colL">${vsec}</div><div class="fl-colR">${side}</div></div>`+det;
+  el.innerHTML=(syncOK?"":'<p class="hint">Trip figures are still loading…</p>')+flHero(A,net(A),cnt("on_trip"),cnt("maintenance"),todoTotal,now)+(typeof fcsHTML==="function"?fcsHTML():"")+(typeof tvPendHTML==="function"?tvPendHTML():"")+(typeof flTripPick==="function"?flTripPick():"")+strip+`<div class="fl-two2"><div class="fl-colL">${vsec}</div><div class="fl-colR">${side}</div></div>`+det;
 
 }
 
@@ -7468,6 +7468,98 @@ html #panelBody .tvb-band .tvb-act .btn.tvb-s{background:#fff!important;color:va
 @media(max-width:900px){.tvb-main{grid-template-columns:1fr}.tvp-r{grid-template-columns:1fr auto}.tvp-r span:nth-of-type(n+2){grid-column:1}}
 @media(max-width:520px){#tvForm.tvb #tv_inc,#tvForm.tvb #tv_exp{grid-template-columns:1fr 1fr}.tvb-act .btn{flex:1 1 auto}}
 </style>
+<style id="klc-cash-css">
+html.fleet-app .fcs-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+html.fleet-app .fcs-rh,html.fleet-app .fcs-r{display:grid;grid-template-columns:96px minmax(0,1fr) 120px 120px 130px 44px;gap:8px;align-items:center;font-size:13.5px}
+html.fleet-app .fcs-rh{padding:8px 0;border-bottom:1px solid var(--fl-line);font-size:12px;color:var(--fl-mut)}
+html.fleet-app .fcs-r{padding:10px 0;border-bottom:1px solid var(--fl-line)}
+html.fleet-app .fcs-a,html.fleet-app .fcs-b,html.fleet-app .fcs-rh span:nth-child(4),html.fleet-app .fcs-rh span:nth-child(5){text-align:right}
+html.fleet-app .fcs-x{text-align:right}
+@media(max-width:760px){html.fleet-app .fcs-rh{display:none}html.fleet-app .fcs-r{grid-template-columns:1fr 1fr auto}html.fleet-app .fcs-d{grid-column:1/-1;font-size:12px;color:var(--fl-mut)}html.fleet-app .fcs-t{grid-column:1/-1}html.fleet-app .fcs-w{display:none}html.fleet-app .fcs-a{text-align:left}}
+.fcs-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999}
+.fcs-bx{background:#fff;color:var(--fl-ink,#26211E);border-radius:14px;padding:20px;width:min(460px,100%);max-height:90vh;overflow:auto;box-sizing:border-box}
+.fcs-bx h3{margin:0 0 8px}
+.fcs-l{display:grid;gap:4px;font-size:13px;color:var(--fl-mut,#6F665F);margin:10px 0}
+.fcs-l input,.fcs-l select{width:100%;min-height:44px;box-sizing:border-box}
+.fcs-er{color:var(--accent,#821B20);font-size:13px;min-height:18px;margin:6px 0}
+.fcs-bt{display:flex;justify-content:flex-end;gap:8px}
+.fcs-sh{border:1px solid var(--fl-line,#E4DED6);border-radius:10px;padding:8px 12px;margin:8px 0}
+.fcs-sr{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}
+.fcs-bx .btn:not(.ghost){background:var(--fl-maroon,#821B20)!important;color:#fff!important;border-color:var(--fl-maroon,#821B20)!important}
+.fcs-bx .btn.ghost{background:#fff!important;color:var(--fl-maroon,#821B20)!important;border:1px solid var(--fl-line,#E4DED6)!important}
+html.fleet-app .ph a[data-fcs]{color:var(--fl-maroon);font-weight:600}
+</style>
+<script id="klc-cash">
+/* 26 Nov: Cash and partners on the Fleet Dashboard (Super Admin only) */
+(function(){
+var PN=["Muhammad Islam","Muhammad Waqas","Muhammad Ramzan"],START="2026-11";
+var E=function(s){return typeof esc==="function"?esc(s):String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+function C(){var c=db.cash=db.cash||{};c.ent=c.ent||[];c.closed=c.closed||{};if(c.open==null)c.open=0;if(!c.start)c.start=START;return c}
+function mk(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)}
+function monthsFrom(a,b){var o=[],y=+a.slice(0,4),m=+a.slice(5,7),e=+b.slice(0,4)*12+ +b.slice(5,7)-1;while(y*12+m-1<=e){o.push(y+"-"+("0"+m).slice(-2));m++;if(m>12){m=1;y++}}return o}
+function mName(k){return new Date(k+"-01T12:00:00").toLocaleDateString("en-GB",{month:"long",year:"numeric"})}
+function mWord(k){return mName(k).split(" ")[0]}
+function prof(k){var v=new Set(FL.veh.map(function(x){return x.id}));return(db.tripv||[]).filter(function(t){return v.has(t.veh)&&String(t.date||"").slice(0,7)===k}).reduce(function(s,t){return s+tvSum(t.inc)-tvSum(t.exp)-tvMaint(t)},0)}
+function calc(){var c=C(),cm=mk(new Date(flToday()+"T12:00:00")),ms=monthsFrom(c.start,cm),P={},tp=0,pb=0;
+ ms.forEach(function(k){P[k]=prof(k);tp+=P[k];if(k<cm)pb+=P[k]});
+ var out=0,bank=0,pt=0,ch=0,per={},before=0;PN.forEach(function(n){per[n]=0});
+ c.ent.forEach(function(e){var a=+e.amt||0;out+=a;if(e.type==="bank")bank+=a;else if(e.type==="partner"){pt+=a;per[e.partner]=(per[e.partner]||0)+a}else ch+=a;if(String(e.date).slice(0,7)<cm)before+=a});
+ return{c:c,cm:cm,ms:ms,P:P,cash:c.open+tp-out,bf:c.open+pb-before,mp:P[cm]||0,paid:out-before,bank:bank,pt:pt,ch:ch,per:per}}
+function rows(s){var c=s.c,R=[{d:c.start+"-01",o:0,t:"Cash brought forward at the start",a:+c.open||0,w:"Office cash"}];
+ s.ms.forEach(function(k){R.push({d:k+"-01",o:1,t:mWord(k)+" profit"+(k===s.cm?" so far":""),a:s.P[k],w:"Office cash"})});
+ c.ent.forEach(function(e,i){R.push({d:e.date,o:2,i:i,e:e,a:-(+e.amt||0),
+  t:e.type==="bank"?"Deposited in bank":e.type==="partner"?"Sent to "+e.partner+(e.ms?" (month-end share)":""):"Charity"+(e.ms?" (month-end)":""),
+  w:e.type==="bank"?"In bank":e.type==="partner"?"With "+e.partner.split(" ")[1]:"Charity"})});
+ R.sort(function(x,y){return x.d<y.d?-1:x.d>y.d?1:(x.o-y.o)||((x.i||0)-(y.i||0))});
+ var run=0;R.forEach(function(r){run+=r.a;r.b=run});return R.reverse()}
+function sg(n){return(n<0?"− ":"+ ")+tvM(Math.abs(n))}
+window.fcsHTML=function(){
+ if(typeof can!=="function"||!can("admin")||typeof FL!=="object"||!FL.loaded)return"";
+ var s=calc(),cl=s.c.closed,nx=s.ms.filter(function(k){return!cl[k]})[0];
+ var h='<div class="fl-hero fcs-h"><div><div class="fl-hero-k">Cash and partners · '+E(mName(s.cm))+'</div><div class="fl-hero-n">'+tvM(s.cash)+'</div><div class="fl-hero-s">Cash in hand = brought forward + profit − paid out (bank, partners, charity)</div></div>'
+ +'<div class="fl-hero-m"><div><small>Brought forward</small><b>'+tvM(s.bf)+'</b></div><div><small>This month</small><b>'+tvM(s.mp)+'</b></div><div><small>In bank</small><b>'+tvM(s.bank)+'</b></div><div><small>With partners</small><b>'+tvM(s.pt)+'</b></div></div>'
+ +'<div class="fl-hero-b"><button type="button" class="btn ghost sm" data-fcs="bank">Deposit in bank</button><button type="button" class="btn ghost sm" data-fcs="partner">Send to partner</button><button type="button" class="btn ghost sm" data-fcs="charity">Charity</button>'
+ +(nx?'<button type="button" class="btn sm" data-fcs="close" data-m="'+nx+'">Close '+E(mWord(nx))+'</button>':'<span class="hint" style="color:#fff">✓ '+E(mWord(s.cm))+' closed</span>')+'</div></div>';
+ h+='<div class="fcs-cards">'+PN.map(function(n){return'<div class="fl-card"><b>'+tvM(s.per[n])+'</b><span>'+E(n)+'</span><small style="display:block;margin-top:2px">Received since '+E(mName(s.c.start))+'</small></div>'}).join("")+'<div class="fl-card"><b>'+tvM(s.ch)+'</b><span>Charity given</span><small style="display:block;margin-top:2px">Since '+E(mName(s.c.start))+'</small></div></div>';
+ var R=rows(s),all=!!window.__fcsAll,V=all?R:R.slice(0,10);
+ h+='<div class="panel"><div class="ph"><h3>Cash ledger</h3><span class="hint">All months, newest first · <a href="#" data-fcs="open">Set opening cash</a></span></div><div class="fcs-rh"><span>Date</span><span>Entry</span><span>Where</span><span>Amount</span><span>Cash in hand</span><span></span></div>'
+ +V.map(function(r){return'<div class="fcs-r"><span class="fcs-d">'+E(flFmtD(r.d))+'</span><span class="fcs-t">'+E(r.t)+(r.e&&r.e.note?' <small class="hint">· '+E(r.e.note)+'</small>':'')+'</span><span class="fcs-w">'+E(r.w)+'</span><span class="fcs-a">'+sg(r.a)+'</span><span class="fcs-b">'+tvM(r.b)+'</span><span class="fcs-x">'+(r.e&&!r.e.lk?'<button type="button" class="btn ghost sm" data-fcs="del" data-id="'+E(r.e.id)+'" aria-label="Delete this entry">✕</button>':r.e?'<small class="hint">Locked</small>':'')+'</span></div>'}).join("")
+ +(R.length>10?'<p style="margin:10px 0 0"><button type="button" class="btn ghost sm" data-fcs="more">'+(all?"Show less":"Show all ("+R.length+")")+'</button></p>':"")+'</div>';
+ return h};
+var OV;
+function shut(){if(OV){OV.remove();OV=null}}
+function modal(title,body,ok,fn){shut();OV=document.createElement("div");OV.className="fcs-ov";
+ OV.innerHTML='<div class="fcs-bx" role="dialog" aria-modal="true" aria-label="'+E(title)+'"><h3>'+E(title)+'</h3>'+body+'<p class="fcs-er" id="fcsEr"></p><div class="fcs-bt"><button type="button" class="btn ghost sm" data-fcso="x">Cancel</button><button type="button" class="btn sm" data-fcso="ok">'+E(ok)+'</button></div></div>';
+ document.body.appendChild(OV);var o=OV;
+ o.addEventListener("click",function(ev){var t=ev.target,k=t.dataset&&t.dataset.fcso;if(t===o||k==="x")shut();else if(k==="ok"){var r=fn(o);if(r){var er=o.querySelector("#fcsEr");if(er)er.textContent=r}}});
+ var f=o.querySelector("input,select");if(f)f.focus()}
+function done(msg){try{save()}catch(e){}shut();try{toast(msg)}catch(e){}if(typeof renderPanel==="function")renderPanel()}
+function num(o,id){var v=o.querySelector("#"+id);return Math.round((parseFloat(String(v&&v.value||"").replace(/[^0-9.]/g,""))||0)*100)/100}
+function val(o,id){var v=o.querySelector("#"+id);return v?String(v.value).trim():""}
+function today(){return flToday()}
+function fld(id,lab,val,extra){return'<label class="fcs-l" for="'+id+'">'+lab+'<input id="'+id+'" '+(extra||"")+' value="'+E(val||"")+'"></label>'}
+function newId(){return"CE"+Date.now().toString(36)+Math.floor(Math.random()*1e4)}
+function entForm(type,title){var s=calc();var pick=type==="partner"?'<label class="fcs-l" for="fcP">Partner<select id="fcP">'+PN.map(function(n){return"<option>"+E(n)+"</option>"}).join("")+'</select></label>':"";
+ modal(title,'<p class="hint">Cash in hand now: '+tvM(s.cash)+'</p>'+pick+fld("fcD","Date",today(),'type="date"')+fld("fcA","Amount (Rs.)","",'inputmode="decimal" placeholder="0"')+fld("fcN",type==="charity"?"Given to / note":"Note (optional)",""),"Save",function(o){
+  var a=num(o,"fcA"),d=val(o,"fcD")||today(),c=calc();if(!(a>0))return"Enter an amount.";if(a>c.cash)return"Not enough cash in hand ("+tvM(c.cash)+").";
+  var e={id:newId(),date:d,type:type,amt:a,note:val(o,"fcN")};if(type==="partner")e.partner=val(o,"fcP");C().ent.push(e);done("Saved")})}
+function closeForm(m){var s=calc(),cash=s.cash;
+ modal("Close "+mName(m),'<p style="margin:0 0 6px">Cash in hand: <b>'+tvM(cash)+'</b></p>'+fld("fcC","Charity from this cash (Rs.)","0",'inputmode="decimal"')+'<div id="fcSh" class="fcs-sh"></div><p class="hint">What is left is shared equally between the three partners and shown as sent to each. After closing, the entries of this month are locked.</p>',"Close "+mWord(m),function(o){
+  var ch=num(o,"fcC"),c=calc();if(ch>c.cash)return"Charity is more than the cash in hand.";var rem=c.cash-ch,b=Math.floor(rem/3),sh=[b,b,rem-2*b],d=today(),L=c.c;
+  if(ch>0)L.ent.push({id:newId(),date:d,type:"charity",amt:ch,note:"",ms:1});
+  PN.forEach(function(n,i){if(sh[i]>0)L.ent.push({id:newId(),date:d,type:"partner",partner:n,amt:sh[i],note:"",ms:1})});
+  L.ent.forEach(function(e){if(String(e.date).slice(0,7)<=m)e.lk=1});L.closed[m]={at:d,cash:c.cash,charity:ch,shares:sh};done(mWord(m)+" closed")});
+ var up=function(){var c=calc(),ch=num(OV,"fcC"),rem=Math.max(0,c.cash-ch),b=Math.floor(rem/3),sh=[b,b,rem-2*b];OV.querySelector("#fcSh").innerHTML='<div class="fcs-sr"><span>Left to share</span><b>'+tvM(rem)+'</b></div>'+PN.map(function(n,i){return'<div class="fcs-sr"><span>'+E(n)+'</span><b>'+tvM(sh[i])+'</b></div>'}).join("")};
+ OV.addEventListener("input",up);up()}
+document.addEventListener("click",function(ev){var b=ev.target.closest&&ev.target.closest("[data-fcs]");if(!b)return;if(typeof can!=="function"||!can("admin"))return;ev.preventDefault();var a=b.dataset.fcs;
+ if(a==="bank")entForm("bank","Deposit in bank");else if(a==="partner")entForm("partner","Send to partner");else if(a==="charity")entForm("charity","Charity");
+ else if(a==="close")closeForm(b.dataset.m);
+ else if(a==="more"){window.__fcsAll=!window.__fcsAll;if(typeof renderPanel==="function")renderPanel()}
+ else if(a==="open")modal("Opening cash",'<p class="hint">Cash already in hand when the ledger starts ('+E(mName(C().start))+').</p>'+fld("fcO","Amount (Rs.)",String(C().open||0),'inputmode="decimal"'),"Save",function(o){C().open=num(o,"fcO");done("Saved")});
+ else if(a==="del"){var id=b.dataset.id;modal("Delete this entry?",'<p>This takes the entry out of the cash ledger. It cannot be undone.</p>',"Delete",function(){var L=C();L.ent=L.ent.filter(function(e){return e.id!==id||e.lk});done("Deleted")})}});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&OV)shut()});
+})();
+</script>
 <script id="klc-tvb">
 /* 24 Nov: trip voucher in the Option B layout, "Save and add next trip", and challans that still have no trip */
 (function(){
