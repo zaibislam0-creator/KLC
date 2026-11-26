@@ -4269,7 +4269,7 @@ function flTripVoucherHTML(v){
     const t=e||{date:today(),from:"Sialkot",to:"Karachi",inc:tvHeads("inc").map(l=>({l})),exp:tvHeads("exp").map(l=>({l})),mnt:[],chl:[{}],blt:[{}]};
     const dr=FL.vd.filter(x=>x.vehicle_id===v.id).map(x=>flDrv(x.driver_id)).filter(Boolean);
     const vs=FL.veh.filter(x=>!x.archived||x.id===v.id),pd=e?[]:tvPendAll().filter(x=>x.v.id===v.id),pre=(!e&&FL.tvPre)||{};
-    if(!e&&pre.date){t.date=pre.date;t.from=pre.from||t.from;t.to=pre.to||t.to;if(pre.chl)t.chl=[{l:pre.chl}]}
+    if(!e&&pre.date){t.date=pre.date;t.from=pre.from||t.from;t.to=pre.to||t.to;if(pre.chl)t.chl=(pre.chls||[pre.chl]).map(l=>({l}))}
     const grp=k=>{const g=TV_GROUPS.find(x=>x[0]===k);return `<div class="tvb-g"><h3>${g[1]}</h3><div id="tv_${k}">${(t[k]||[]).map(r=>tvRowHTML(k,r)).join("")}</div><button type="button" class="btn ghost sm" data-tv="add" data-k="${k}">+ Add ${k==="inc"?"income":k==="exp"?"expense":k==="mnt"?"maintenance":k==="chl"?"challan":"bilty"} line</button>${k==="inc"||k==="exp"?tvHeadBox(k):""}</div>`};
     form=`<div class="stform tvb" id="tvForm" data-id="${e?esc(e.id):""}">
     <div class="tvb-band"><div><small>${e?"Edit":"New"} trip voucher</small>${e?`<b>${esc(v.reg_no)}</b>`:`<select id="tvVehSel" aria-label="Vehicle for this trip">${vs.map(x=>`<option value="${esc(x.id)}"${x.id===v.id?" selected":""}>${esc(x.reg_no)}</option>`).join("")}</select>`}</div><div class="tvb-act"><button type="button" class="btn ghost sm tvb-w" data-tv="cancel">Cancel</button>${e?"":`<button type="button" class="btn ghost sm tvb-w" data-tv="save" data-next="1">Save and add next trip</button>`}<button type="button" class="btn sm tvb-s" data-tv="save" id="tvSave">Save voucher</button></div></div>
@@ -7477,24 +7477,25 @@ window.tvPendAll=function(){
   var map={};FL.veh.filter(function(v){return !v.archived}).forEach(function(v){map[norm(v.reg_no)]=v});
   var used={},byVD={};
   (db.tripv||[]).forEach(function(t){if(t.svc)return;(t.chl||[]).forEach(function(r){if(r&&r.l)used[String(r.l).trim()]=1});if(t.challan)used[String(t.challan).trim()]=1;var k=t.veh+"|"+t.date;(byVD[k]=byVD[k]||[]).push(t)});
-  var out=[],sk=db.tvSkip||{};
+  var out=[],sk=db.tvSkip||{},cov={},grp={};
   (db.challans||[]).forEach(function(c){var v=map[norm(c.vehicle)];if(!v)return;
     var m=String(c.date||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m)return;
     var iso=m[3]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[1]).slice(-2);
-    if(iso<"2026-11-24"||sk[String(c.no)])return;
-    if(used[String(c.no).trim()])return;
-    if((byVD[v.id+"|"+iso]||[]).some(function(t){return !(t.chl||[]).some(function(r){return r&&r.l})&&!t.challan}))return;
-    out.push({c:c,v:v,iso:iso})});
+    if(iso<"2026-11-24")return;var gk=v.id+"|"+iso;
+    /* 26 Nov: challans of one vehicle on one day (e.g. 2 Karachi places) are ONE trip */
+    if(sk[String(c.no)]||used[String(c.no).trim()]||(byVD[gk]||[]).length)cov[gk]=1;
+    (grp[gk]=grp[gk]||[]).push({c:c,v:v,iso:iso})});
+  Object.keys(grp).forEach(function(k){if(cov[k])return;var g=grp[k],f=g[0];f.more=g.slice(1).map(function(x){return x.c});out.push(f)});
   return out.sort(function(a,b){return a.iso<b.iso?-1:a.iso>b.iso?1:0})};
 window.tvPendHTML=function(){var P=tvPendAll();if(!P.length)return"";
-  return '<div class="panel"><div class="ph"><h3>Trips still to add ('+P.length+')</h3><span class="hint">Challans from SmartCargo (from 24 Nov) with no trip voucher yet</span></div>'+P.slice(0,12).map(function(x){return '<div class="tvp-r"><b>Challan '+esc(x.c.no)+'</b><span>'+esc(flFmtD(x.iso))+'</span><span>'+esc(x.v.reg_no)+'</span><span>'+esc(x.c.from)+' → '+esc(x.c.to)+'</span><span style="display:flex;gap:6px"><button class="btn sm" type="button" data-tvpend="'+esc(x.c.no)+'|'+esc(x.v.id)+'">Add trip</button><button class="btn ghost sm" type="button" data-tvskip="'+esc(x.c.no)+'" title="No trip needed for this challan">Skip</button></span></div>'}).join("")+(P.length>12?'<p class="hint">and '+(P.length-12)+' more</p>':"")+'</div>'};
+  return '<div class="panel"><div class="ph"><h3>Trips still to add ('+P.length+')</h3><span class="hint">Challans from SmartCargo (from 24 Nov) with no trip voucher yet</span></div>'+P.slice(0,12).map(function(x){return '<div class="tvp-r"><b>Challan '+[x.c].concat(x.more||[]).map(function(c){return esc(c.no)}).join(" + ")+'</b><span>'+esc(flFmtD(x.iso))+'</span><span>'+esc(x.v.reg_no)+'</span><span>'+esc(x.c.from)+' → '+[x.c].concat(x.more||[]).map(function(c){return c.to}).filter(function(v,i,a){return a.indexOf(v)===i}).map(esc).join(" + ")+'</span><span style="display:flex;gap:6px"><button class="btn sm" type="button" data-tvpend="'+esc(x.c.no)+'|'+esc(x.v.id)+'">Add trip</button><button class="btn ghost sm" type="button" data-tvskip="'+esc(x.c.no)+'" title="No trip needed for this challan">Skip</button></span></div>'}).join("")+(P.length>12?'<p class="hint">and '+(P.length-12)+' more</p>':"")+'</div>'};
 document.addEventListener("click",function(e){
   var sx=e.target.closest&&e.target.closest("[data-tvskip]");
   if(sx){db.tvSkip=db.tvSkip||{};db.tvSkip[sx.dataset.tvskip]=1;save();renderPanel();return}
   var b=e.target.closest&&e.target.closest("[data-tvpend]");
   if(b){var a=b.dataset.tvpend.split("|"),p=tvPendAll().filter(function(x){return String(x.c.no)===a[0]&&x.v.id===a[1]})[0];if(!p)return;
     var m=document.querySelector('.kp-menu [data-s="fleetveh"]');if(m)m.click();
-    FL.tripPick=false;FL.vehScan=null;FL.drvScan=null;FL.edit=null;FL.ask="";FL.svcOpen="";FL.mc="";FL.tvAsk="";FL.tvView="";FL.folder=p.v.id;FL.mode.veh="folder";FL.fsec="vouch";FL.tvMode="new";FL.tvPre={date:p.iso,from:p.c.from,to:p.c.to,chl:String(p.c.no)};sub="fleetveh";
+    FL.tripPick=false;FL.vehScan=null;FL.drvScan=null;FL.edit=null;FL.ask="";FL.svcOpen="";FL.mc="";FL.tvAsk="";FL.tvView="";FL.folder=p.v.id;FL.mode.veh="folder";FL.fsec="vouch";FL.tvMode="new";FL.tvPre={date:p.iso,from:p.c.from,to:p.c.to,chl:String(p.c.no),chls:[p.c].concat(p.more||[]).map(function(c){return String(c.no)})};sub="fleetveh";
     renderPanel();tvTotals();window.scrollTo({top:0,behavior:"auto"});return}
   var k=e.target.closest&&e.target.closest("[data-tvpick]");
   if(k){var f=document.getElementById("tvForm");if(!f)return;
